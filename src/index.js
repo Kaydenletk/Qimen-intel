@@ -20,6 +20,7 @@ export * from './core/dungthan.js';
 export * from './core/insightEngine.js';
 export * from './core/palaceLayout.js';
 export * from './logic/dungThan/index.js';
+export { generateEnergyFlowSummary, generateDeterministicEnergyFlow } from './logic/dungThan/energyFlowLogic.js';
 export * from './state/analysisContext.js';
 
 // ── Named imports for composite functions ────────────────────────────────────

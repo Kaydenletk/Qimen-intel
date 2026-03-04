@@ -20,8 +20,8 @@ export const PALACE_TO_SLOT = Object.fromEntries(
 
 export function displayStarShort(pal) {
   if (!pal) return '';
-  // SelfPlus-compatible: only surface Thiên Cầm as primary when it sits on Trực Phù.
-  if (pal.hasCam && pal.trucPhu) return 'Cầm';
+  // SelfPlus-compatible: show Nhuế when Trực Phù lands on Cầm
+  if (pal.star?.short === 'Cầm' && pal.trucPhu) return 'Nhuế';
   return pal.star?.short || '';
 }
 

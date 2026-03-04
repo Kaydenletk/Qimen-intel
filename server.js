@@ -9,6 +9,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { analyze } from './src/index.js';
+import { generateDeterministicEnergyFlow } from './src/logic/dungThan/index.js';
+import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
 import {
   ORDER as SLOT_ORDER,
   SLOT_TO_PALACE,
@@ -72,7 +74,40 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   const { chart, evaluation, topicResults } = analyze(date, hour);
   const autoLocalNow = options.autoLocalNow === true;
 
+  // Generate Energy Flow Summary
+  const energyFlow = generateDeterministicEnergyFlow(chart);
+
   const palacesByNum = normalizePalaces(chart.palaces);
+
+  // Generate Quick Summaries for 9 Palaces (using 'tai-van' as test topic)
+  const PALACE_META_MAP = {
+    1: { name: 'Khảm', dir: 'Bắc' },
+    2: { name: 'Khôn', dir: 'Tây Nam' },
+    3: { name: 'Chấn', dir: 'Đông' },
+    4: { name: 'Tốn', dir: 'Đông Nam' },
+    5: { name: 'Trung', dir: 'Trung Tâm' },
+    6: { name: 'Càn', dir: 'Tây Bắc' },
+    7: { name: 'Đoài', dir: 'Tây' },
+    8: { name: 'Cấn', dir: 'Đông Bắc' },
+    9: { name: 'Ly', dir: 'Nam' },
+  };
+  const palaceSummaries = {};
+  for (let p = 1; p <= 9; p++) {
+    const pal = palacesByNum[p];
+    const meta = PALACE_META_MAP[p];
+    if (p === 5 || !pal) {
+      palaceSummaries[p] = { summary: 'Trung Cung', verdict: 'Bình', emoji: '⊕', color: 'gray' };
+      continue;
+    }
+    palaceSummaries[p] = generateQuickSummary({
+      mon: pal.mon?.name,
+      tinh: pal.star?.name,
+      than: pal.than?.name,
+      topic: 'tai-van',
+      direction: meta?.dir,
+      palaceName: meta?.name,
+    });
+  }
   const TOPIC_CHIP_LABELS = {
     'tai-van': 'Tiền bạc / Đầu tư',
     'su-nghiep': 'Công việc / Sự nghiệp',
@@ -301,7 +336,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       ? clamp(strategic.confidence, 0, 1)
       : typeof insight?.confidence === 'number'
         ? clamp(insight.confidence, 0, 1)
-      : clamp((t.score + 20) / 40, 0, 1);
+        : clamp((t.score + 20) / 40, 0, 1);
     const strategicEvidence = strategic?.evidence
       ? [
         ...(Array.isArray(strategic?.evidence?.usefulGods)
@@ -319,7 +354,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       ? strategicEvidence
       : Array.isArray(insight?.evidence) && insight.evidence.length
         ? insight.evidence
-      : (Array.isArray(t.reasons) ? t.reasons.slice(0, 6) : []);
+        : (Array.isArray(t.reasons) ? t.reasons.slice(0, 6) : []);
     const formationEvidence = buildFormationEvidence(t.usefulGodPalace);
     const insightEvidence = Array.from(new Set([...formationEvidence, ...baseInsightEvidence])).slice(0, 8);
     const usefulPalaceNum = Number(t.usefulGodPalace);
@@ -397,7 +432,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   }
   if (!hourPalaceNum) {
     for (let p = 1; p <= 9; p++) {
-      if (palacesByNum[p]?.can?.name === hourStem) {
+      if (palacesByNum[p]?.earthStem === hourStem) {
         hourPalaceNum = p;
         break;
       }
@@ -418,13 +453,20 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   const chiefDoorKey = normalizeDoorKey(chiefPalace?.mon?.short || chiefPalace?.mon?.name);
   const chiefDoorText = DOOR_DISPLAY[chiefDoorKey] || chiefPalace?.mon?.short || 'Môn chưa xác định';
   const chiefDirText = chiefPalaceNum ? palaceLabelFromNum(chiefPalaceNum) : 'vị trí chưa xác định';
+
+  // Trực Phù prefers Nhuế over Cầm
+  let trucPhuDisplay = chart.leadStar || 'Thiên chưa xác định';
+  if (trucPhuDisplay === 'Thiên Cầm' || trucPhuDisplay === 'Cầm') {
+    trucPhuDisplay = 'Thiên Nhuế';
+  }
+
   const briefingHeading = BRIEFING_TITLE_BY_DOOR[dayDoorKey] || strategicTitle;
   const internalLine = `${INTERNAL_STATE_BY_DOOR[dayDoorKey] || 'Năng lượng hiện tại của bạn đang khá nhiễu, cần chậm một nhịp để nhìn rõ ưu tiên chính.'} (Nhật Can ${dayStem || '—'} tại ${dayDoorText}, ${dayDirText}).`;
   const hourRealityTail = REALITY_CHECK_BY_DOOR[hourDoorKey] || 'hãy ưu tiên bước nhỏ có thể kiểm chứng, tránh quyết định vì cảm xúc nhất thời.';
   const chiefRealityTail = REALITY_CHECK_BY_DOOR[chiefDoorKey] || 'đi nhịp thận trọng, gom thêm dữ kiện trước khi tăng cam kết.';
   const realityLine = hourDoorKey
-    ? `Dòng chảy thực tế cho thấy Can giờ ${hourStem || '—'} đang ở ${hourDoorText}, ${hourDirText}; ${hourRealityTail}`
-    : `Dòng chảy thực tế cho thấy Trực Phù đang ở ${chiefDirText} cùng ${chiefDoorText}; ${chiefRealityTail}`;
+    ? `Dòng chảy thực tế cho thấy Can giờ ${chart.gioPillar?.displayStemName || hourStem} đang ở ${hourDoorText}, ${hourDirText}; ${hourRealityTail}`
+    : `Dòng chảy thực tế cho thấy Trực Phù (${trucPhuDisplay}) đang ở ${chiefDirText} cùng ${chiefDoorText}; ${chiefRealityTail}`;
   const directiveVerb = bestTopic?.actionLabel === 'Chủ động'
     ? 'chủ động chốt một bước nhỏ nhưng dứt khoát'
     : bestTopic?.actionLabel === 'Phòng thủ'
@@ -601,6 +643,81 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .briefing {
       padding: 22px;
+    }
+    .energy-flow-card {
+      padding: 22px;
+      background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+      border-color: #fcd34d;
+    }
+    .energy-flow-card h2 {
+      margin: 8px 0 16px;
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+      font-family: 'SF Pro Display', 'Avenir Next', sans-serif;
+      color: #92400e;
+    }
+    .energy-flow-content {
+      display: grid;
+      gap: 12px;
+    }
+    .energy-sentence {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+    .energy-sentence .energy-label {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #92400e;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .energy-sentence p {
+      margin: 0;
+      font-size: 0.95rem;
+      color: #451a03;
+      line-height: 1.5;
+    }
+    .energy-mental {
+      border-left: 3px solid #3b82f6;
+    }
+    .energy-conflict {
+      border-left: 3px solid #8b5cf6;
+    }
+    .energy-blindspot {
+      border-left: 3px solid #f59e0b;
+    }
+    .energy-advice {
+      border-left: 3px solid #10b981;
+    }
+    .energy-meta {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .energy-tag {
+      display: inline-flex;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.8);
+      color: #78350f;
+      border: 1px solid rgba(251, 191, 36, 0.4);
+    }
+    .energy-tag.energy-warning {
+      background: rgba(251, 146, 60, 0.2);
+      color: #c2410c;
+      border-color: rgba(251, 146, 60, 0.5);
+    }
+    .energy-tag.energy-info {
+      background: rgba(59, 130, 246, 0.15);
+      color: #1d4ed8;
+      border-color: rgba(59, 130, 246, 0.4);
     }
     .eyebrow {
       margin: 0;
@@ -951,6 +1068,89 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         transform: translateY(0);
       }
     }
+    /* 9-Palace Grid Styles */
+    .palace-grid-section {
+      padding: 16px;
+    }
+    .palace-grid-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .palace-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .palace-cell {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      transition: box-shadow 0.15s;
+    }
+    .palace-cell:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .palace-cell.verdict-good { border-left: 3px solid var(--cat); }
+    .palace-cell.verdict-warn { border-left: 3px solid #f59e0b; }
+    .palace-cell.verdict-bad { border-left: 3px solid var(--hung); }
+    .palace-cell.verdict-neutral { border-left: 3px solid #94a3b8; }
+    .palace-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .palace-dir {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #334155;
+    }
+    .palace-num {
+      font-size: 0.65rem;
+      color: var(--muted);
+      background: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .palace-elements {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .palace-summary {
+      font-size: 0.75rem;
+      color: #475569;
+      line-height: 1.4;
+      flex-grow: 1;
+    }
+    .palace-verdict {
+      font-size: 0.7rem;
+      margin-top: 4px;
+    }
+    .palace-cell-center {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 1px solid #fbbf24;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .palace-cell-center .palace-dir {
+      font-size: 0.9rem;
+      color: #92400e;
+    }
+    @media (max-width: 600px) {
+      .palace-grid { gap: 6px; }
+      .palace-cell { padding: 8px; min-height: 80px; }
+      .palace-summary { font-size: 0.7rem; }
+    }
   </style>
 </head>
 <body>
@@ -985,6 +1185,72 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           <div class="signal-row">${signalBadges}</div>
         </section>
 
+        <section class="card energy-flow-card" id="energyFlowCard">
+          <p class="eyebrow">Tóm Tắt Dòng Năng Lượng Bên Trong</p>
+          <h2 id="energyFlowTitle">Đọc Vị Tâm Lý</h2>
+          <div class="energy-flow-content">
+            <div class="energy-sentence energy-mental">
+              <span class="energy-label">Trạng thái tinh thần:</span>
+              <p>${escapeHTML(energyFlow.mentalState || '')}</p>
+            </div>
+            <div class="energy-sentence energy-conflict">
+              <span class="energy-label">Dòng chảy năng lượng:</span>
+              <p>${escapeHTML(energyFlow.conflict || '')}</p>
+            </div>
+            <div class="energy-sentence energy-blindspot">
+              <span class="energy-label">Điểm mù năng lượng:</span>
+              <p>${escapeHTML(energyFlow.blindSpot || '')}</p>
+            </div>
+            <div class="energy-sentence energy-advice">
+              <span class="energy-label">Lời khuyên cân bằng:</span>
+              <p>${escapeHTML(energyFlow.advice || '')}</p>
+            </div>
+          </div>
+          <div class="energy-meta">
+            <span class="energy-tag">Nhật Can: ${escapeHTML(energyFlow.metadata?.dayStem || '—')}</span>
+            <span class="energy-tag">Cung: ${energyFlow.metadata?.dayPalace || '—'}</span>
+            <span class="energy-tag">Môn: ${escapeHTML(energyFlow.metadata?.door || '—')}</span>
+            <span class="energy-tag">Thần: ${escapeHTML(energyFlow.metadata?.deity || '—')}</span>
+            ${energyFlow.metadata?.hasFanYin ? '<span class="energy-tag energy-warning">Phản Ngâm</span>' : ''}
+            ${energyFlow.metadata?.hasFuYin ? '<span class="energy-tag energy-warning">Phục Ngâm</span>' : ''}
+            ${energyFlow.metadata?.hasVoid ? '<span class="energy-tag energy-warning">Không Vong</span>' : ''}
+            ${energyFlow.metadata?.hasDichMa ? '<span class="energy-tag energy-info">Dịch Mã</span>' : ''}
+          </div>
+        </section>
+
+        <section class="card palace-grid-section">
+          <p class="palace-grid-title">Cửu Cung · Tài Lộc</p>
+          <div class="palace-grid">
+            ${(() => {
+              const grid = [[4, 9, 2], [3, 5, 7], [8, 1, 6]];
+              return grid.flat().map(p => {
+                const pal = palacesByNum[p];
+                const sum = palaceSummaries[p];
+                const meta = PALACE_META_MAP[p];
+                if (p === 5) {
+                  return '<div class="palace-cell palace-cell-center"><div class="palace-dir">⊕ Trung Cung</div></div>';
+                }
+                const verdictClass = sum.color === 'green' ? 'verdict-good'
+                  : (sum.color === 'orange' || sum.color === 'red') ? 'verdict-warn'
+                  : 'verdict-neutral';
+                const elements = [
+                  pal?.mon?.short || '—',
+                  displayStarShort(pal) || '—',
+                  displayDeity(pal) || '—',
+                ].join(' · ');
+                return '<div class="palace-cell ' + verdictClass + '">' +
+                  '<div class="palace-header">' +
+                    '<span class="palace-dir">' + meta.dir + '</span>' +
+                    '<span class="palace-num">Cung ' + p + '</span>' +
+                  '</div>' +
+                  '<div class="palace-elements">' + elements + '</div>' +
+                  '<div class="palace-summary">' + sum.emoji + ' ' + escapeHTML(sum.shortSummary || sum.verdict) + '</div>' +
+                '</div>';
+              }).join('');
+            })()}
+          </div>
+        </section>
+
         <section class="card insight-shell">
           <div class="chip-row">
             ${topicChips}
@@ -994,22 +1260,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
               <div>
                 <p class="eyebrow" style="margin:0;color:#64748B;">Thẻ Cố Vấn</p>
                 <h3 class="insight-topic" id="insightTopic">${defaultTopic.headline || defaultTopic.topic}</h3>
-                <p class="insight-meta" id="insightMeta">Hướng ${defaultTopic.usefulGodDir} · Cung ${defaultTopic.usefulGodPalace} (${defaultTopic.usefulGodPalaceName})</p>
-                <p class="insight-meta" id="insightActionMeta">Chiến thuật: ${defaultTopic.actionLabel} · Độ chắc ${defaultTopic.confidencePct}%</p>
+                <p class="insight-meta" id="insightMeta">Hướng ${defaultTopic.usefulGodDir} · Cung ${defaultTopic.usefulGodPalaceName}</p>
               </div>
               <span class="verdict-pill ${defaultTopic.tone}" id="insightVerdict">${defaultTopic.verdict}</span>
             </div>
-            <div class="score-wrap">
-              <div class="score-head">
-                <span>Mức ưu tiên hành động</span>
-                <strong id="insightScore">${defaultTopic.scoreText}</strong>
-              </div>
-              <div class="score-track">
-                <div class="score-fill ${defaultTopic.tone}" id="insightScoreFill" style="width:${defaultTopic.scorePct}%;"></div>
-              </div>
-            </div>
-            <p class="advice" id="insightAdvice">${defaultTopic.oneLiner || defaultTopic.actionAdvice}</p>
-            <p class="advice" id="insightNarrative">${defaultTopic.narrative || ''}</p>
+            <p class="advice" id="insightAdvice" style="margin:12px 0;font-size:0.95rem;line-height:1.6;">${defaultTopic.oneLiner || defaultTopic.actionAdvice}</p>
             <div class="tactics-grid">
               <div class="tactics-box do">
                 <h4>Nên làm</h4>
@@ -1024,9 +1279,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
                 </ul>
               </div>
             </div>
-            <p class="topic-disclaimer" id="insightDisclaimer">${defaultTopic.disclaimer || ''}</p>
-            <p class="evidence-title">Logic / Evidence</p>
-            <pre class="evidence" id="insightEvidence">${defaultTopic.insightEvidenceText}</pre>
+            <p class="topic-disclaimer" id="insightDisclaimer" style="font-size:0.75rem;color:#94a3b8;margin-top:12px;">${defaultTopic.disclaimer || ''}</p>
+            <details style="margin-top:12px;">
+              <summary style="font-size:0.75rem;color:#64748B;cursor:pointer;">Chi tiết kỹ thuật</summary>
+              <pre class="evidence" id="insightEvidence" style="margin-top:8px;font-size:0.7rem;">${defaultTopic.insightEvidenceText}</pre>
+            </details>
           </article>
         </section>
 
@@ -1079,7 +1336,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             <div class="snapshot-item" data-field="total-score"><dt class="snapshot-key">Total Score</dt><dd class="snapshot-value">${formatScore(evaluation.overallScore)}</dd></div>
             <div class="snapshot-item" data-field="phuc-phan"><dt class="snapshot-key">Phục/Phản</dt><dd class="snapshot-value">${chart.isPhucAm ? 'Phục Âm' : chart.isPhanNgam ? 'Phản Ngâm' : 'Bình thường'}</dd></div>
             <div class="snapshot-item" data-field="ngay"><dt class="snapshot-key">Ngày</dt><dd class="snapshot-value">${chart.dayPillar.stemName} ${chart.dayPillar.branchName}</dd></div>
-            <div class="snapshot-item" data-field="gio"><dt class="snapshot-key">Giờ</dt><dd class="snapshot-value">${chart.gioPillar.stemName} ${chart.gioPillar.branchName}</dd></div>
+            <div class="snapshot-item" data-field="gio"><dt class="snapshot-key">Giờ</dt><dd class="snapshot-value">${chart.gioPillar.displayStemName || chart.gioPillar.stemName} ${chart.gioPillar.branchName}</dd></div>
             <div class="snapshot-item" data-field="timezone"><dt class="snapshot-key">Cơ sở giờ</dt><dd class="snapshot-value">${timeBasis}</dd></div>
             <div class="snapshot-item" data-field="khong-vong"><dt class="snapshot-key">Không Vong</dt><dd class="snapshot-value">${chart.khongVong.void1.name}, ${chart.khongVong.void2.name}</dd></div>
             <div class="snapshot-item" data-field="dich-ma"><dt class="snapshot-key">Dịch Mã</dt><dd class="snapshot-value">${chart.dichMa ? `${chart.dichMa.horseBranch} · Cung ${chart.dichMa.palace}` : '—'}</dd></div>
@@ -1161,19 +1418,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       if (!topic) return;
       chips.forEach(btn => btn.classList.toggle('is-active', btn.dataset.topic === topic.key));
       topicEl.textContent = topic.headline || topic.topic;
-      metaEl.textContent = 'Hướng ' + topic.usefulGodDir + ' · Cung ' + topic.usefulGodPalace + ' (' + topic.usefulGodPalaceName + ')';
-      if (actionMetaEl) {
-        actionMetaEl.textContent = 'Chiến thuật: ' + (topic.actionLabel || 'Quan sát') + ' · Độ chắc ' + (topic.confidencePct ?? 72) + '%';
-      }
+      metaEl.textContent = 'Hướng ' + topic.usefulGodDir + ' · Cung ' + topic.usefulGodPalaceName;
       verdictEl.textContent = topic.verdict;
       verdictEl.className = 'verdict-pill ' + toneClass(topic.score);
-      scoreEl.textContent = topic.scoreText;
-      scoreFillEl.style.width = topic.scorePct + '%';
-      scoreFillEl.className = 'score-fill ' + toneClass(topic.score);
       adviceEl.textContent = topic.oneLiner || topic.actionAdvice || 'Không có khuyến nghị cụ thể.';
-      if (narrativeEl) {
-        narrativeEl.textContent = topic.narrative || '';
-      }
       if (doListEl) {
         const doItems = Array.isArray(topic.tactics?.do) && topic.tactics.do.length
           ? topic.tactics.do.slice(0, 3)
@@ -1189,7 +1437,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       if (disclaimerEl) {
         disclaimerEl.textContent = topic.disclaimer || '';
       }
-      evidenceEl.textContent = evidenceLines(topic);
+      if (evidenceEl) {
+        evidenceEl.textContent = evidenceLines(topic);
+      }
     }
 
     function pad2(value) {

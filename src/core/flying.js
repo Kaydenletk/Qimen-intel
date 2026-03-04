@@ -147,15 +147,34 @@ function moveOnPerimeter(startPalace, steps, isDuong) {
 }
 
 function calculateTrucSuPalace(tuanThuPalace, canTuanIndex, canGioIndex, isDuongDon) {
+  // Bước 1: Tính số bước dịch chuyển từ Tuần Thủ đến Giờ hiện tại
   const steps = Math.abs(canGioIndex - canTuanIndex);
 
   let finalPalace = tuanThuPalace;
+
+  // Bước 2: Dịch chuyển trên trục 9 số Lạc Thư
   if (isDuongDon) {
-    finalPalace = ((finalPalace - 1 + steps) % 9) + 1;
+    finalPalace += steps;
+    // Quấn vòng nếu vượt quá 9
+    while (finalPalace > 9) {
+      finalPalace -= 9;
+    }
   } else {
-    finalPalace = ((finalPalace - 1 - steps + 90) % 9) + 1;
+    // Âm Độn đi lùi
+    finalPalace -= steps;
+    // Quấn vòng nếu rớt xuống dưới 1
+    while (finalPalace < 1) {
+      finalPalace += 9;
+    }
   }
-  return finalPalace === 5 ? 2 : finalPalace;
+
+  // Bước 3: Xử lý điểm mù Trung Cung
+  // Nếu điểm rơi cuối cùng là 5, Trực Sử tự động gửi ra Khôn (2)
+  if (finalPalace === 5) {
+    finalPalace = 2;
+  }
+
+  return finalPalace;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -506,49 +525,50 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
   // Build the Heaven Plate stem distribution
   const heavenPlateCan = {}; // palace -> stem data
 
-  // RULE 3: Place the Hour Stem at Trực Phù palace
-  // The current hour stem (after Giáp → Tuần Thủ conversion) goes to Trực Phù palace
-  const hourStemData = CAN_SEQUENCE_9.find(c => c.name === hourStemName);
-  heavenPlateCan[trucPhuDestPalace] = hourStemData;
+  // KIỂM TRA PHẢN NGÂM (Fan Yin) cho Thiên Can
+  // Phản ngâm khi Trực Phù di chuyển sang cung đối diện
+  const oppositeMap = { 1: 9, 9: 1, 2: 8, 8: 2, 3: 7, 7: 3, 4: 6, 6: 4, 5: 2 };
 
-  // Now distribute remaining 8 stems following Earth Plate sequence
-  // Starting from the palace AFTER trucPhuDestPalace on the perimeter,
-  // place the remaining stems in Earth Plate order (skipping the hour stem)
+  // Xác định xem Trực Phù có bay tới cung đối diện hay không
+  const effLeadStemPalace = leadStemPalace === 5 ? 2 : leadStemPalace;
+  const isFanYin = (trucPhuDestPalace === oppositeMap[effLeadStemPalace]);
 
-  // Build the sequence of remaining palaces to fill on the perimeter
-  // We need to place 7 stems on perimeter positions (excluding trucPhuDestPalace)
-  // Plus 1 stem for palace 5 (center)
-  const startPerimIdx = PERIM_INDEX[trucPhuDestPalace];
-  const direction = isDuong ? 1 : -1;
+  if (isFanYin) {
+    // [EDGE CASE FIX] Nếu là Phản Ngâm, bỏ qua vòng lặp. Swap trực tiếp các cung đối xứng.
+    for (let p = 1; p <= 9; p++) {
+      if (p === 5) continue; // Xử lý riêng trung cung hoặc ký gửi
 
-  // Get the Earth Plate index of the hour stem to start the sequence
-  const hourStemEarthIdx = earthPlate[hourStemPalace]?.can9Idx ?? 0;
-
-  // Place remaining 8 stems following Earth Plate sequence
-  // 7 go to perimeter positions, 1 goes to palace 5
-  let perimOffset = 1; // Start from position after trucPhuDestPalace
-  for (let i = 1; i <= 8; i++) {
-    const earthIdx = (hourStemEarthIdx + i) % 9;
-    const stemData = CAN_SEQUENCE_9[earthIdx];
-
-    // Find which original Earth Plate palace had this stem
-    let origPalace = null;
-    for (const [palace, data] of Object.entries(earthPlate)) {
-      if (data.can9Idx === earthIdx) {
-        origPalace = parseInt(palace);
-        break;
+      const oppPalace = oppositeMap[p];
+      const oppEarthStem = earthPlate[oppPalace]?.stem;
+      if (oppEarthStem) {
+        heavenPlateCan[p] = CAN_SEQUENCE_9.find(c => c.name === oppEarthStem);
       }
     }
+  } else {
+    // [NORMAL CASE] Yếu quyết: Can chạy theo Tinh.
+    // Mỗi Thiên Tinh (Cửu Tinh) về cơ bản mang theo Địa Can từ cung gốc (Home Palace) của nó tiến chập vào cung mới.
 
-    // If this stem was originally at palace 5, assign to palace 5
-    if (origPalace === 5) {
-      heavenPlateCan[5] = stemData;
-    } else {
-      // Place on perimeter, skipping trucPhuDestPalace
-      const newPerimIdx = ((startPerimIdx + perimOffset * direction) % 8 + 8) % 8;
-      const targetPalace = PERIMETER[newPerimIdx];
-      heavenPlateCan[targetPalace] = stemData;
-      perimOffset++;
+    // Gán Thiên Can cho từng cung (1-9) dựa trên Tinh đang cư trú
+    for (let p = 1; p <= 9; p++) {
+      if (p === 5) continue; // Trung cung xử lý riêng
+
+      const currentStar = palaces[p].star;
+      if (currentStar) {
+        let homePalace = currentStar.palace;
+
+        // Ngoại lệ: Nếu Tinh gốc là Thiên Cầm (Home = 5), nó ký gửi theo Thiên Nhuế (Home = 2)
+        // Trong La Bàn QMDJ, Thiên Nhuế mang Địa Can cung 2, Thiên Cầm mang Địa Can cung 5.
+        // Ở đây đang xét Thiên Can chính của cung p (do Thiên Nhuế mang tới)
+        if (homePalace === 5) {
+          homePalace = 2; // Thiên Nhuế luôn dẫn đầu
+        }
+
+        // Lấy Địa Can tại cung gốc của Tinh này
+        const sourceEarthStem = earthPlate[homePalace]?.stem;
+        if (sourceEarthStem) {
+          heavenPlateCan[p] = CAN_SEQUENCE_9.find(c => c.name === sourceEarthStem);
+        }
+      }
     }
   }
 
@@ -568,7 +588,7 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
     if (heavenPlateCan[p]) {
       palaces[p].can = heavenPlateCan[p];
     } else if (p === 5) {
-      // Center palace keeps its Earth Plate stem conceptually
+      // Center palace giữ nguyên Địa Can gốc như Thiên Can
       const earthStem5 = earthPlate[5]?.stem || earthPlate[2]?.stem;
       palaces[p].can = CAN_SEQUENCE_9.find(c => c.name === earthStem5) || null;
     }
@@ -767,6 +787,7 @@ export function buildFullChart(date, hourStr) {
     stemIdx: gioCanIdx,
     branchIdx: gioChiIdx,
     stemName: STEMS[gioCanIdx].name,
+    displayStemName: hour === 23 ? STEMS[getGioCan(0, (dayPillar.stemIdx + 1) % 10)].name : STEMS[gioCanIdx].name,
     branchName: BRANCHES[gioChiIdx]?.name || 'Unknown'
   };
 

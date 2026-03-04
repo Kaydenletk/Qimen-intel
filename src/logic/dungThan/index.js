@@ -4,6 +4,7 @@ import { buildGeneralInsight } from './generalLogic.js';
 import { buildHealthInsight } from './healthLogic.js';
 import { buildLoveInsight } from './loveLogic.js';
 import { buildWealthInsight } from './wealthLogic.js';
+export { generateEnergyFlowSummary, generateDeterministicEnergyFlow } from './energyFlowLogic.js';
 
 const HEALTH_TOPICS = new Set(['suc-khoe']);
 const LOVE_TOPICS = new Set(['tinh-duyen']);

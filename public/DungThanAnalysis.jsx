@@ -241,6 +241,193 @@ function EnergyOverviewCard({ overallScore, weather, solarTerm, nguyen, cucSo, i
   );
 }
 
+function EnergyFlowCard({ chart }) {
+  const [energyFlow, setEnergyFlow] = useState(null);
+
+  useEffect(() => {
+    if (!chart || !chart.palaces) return;
+
+    // Generate energy flow summary client-side
+    const flow = generateEnergyFlowClient(chart);
+    setEnergyFlow(flow);
+  }, [chart]);
+
+  if (!energyFlow) return null;
+
+  return (
+    <div className="rounded-2xl p-5 mb-6 card-shadow bg-gradient-to-br from-amber-50 to-yellow-100 border border-amber-200">
+      <p className="text-xs font-bold uppercase tracking-wider text-amber-700 mb-1">
+        Tóm Tắt Dòng Năng Lượng Bên Trong
+      </p>
+      <h2 className="font-heading font-bold text-xl text-amber-900 mb-4">
+        Đọc Vị Tâm Lý
+      </h2>
+
+      <div className="space-y-3">
+        <div className="bg-white/70 rounded-xl p-3 border-l-4 border-blue-500">
+          <span className="text-xs font-bold uppercase tracking-wide text-amber-700 mb-1 block">
+            Trạng thái tinh thần
+          </span>
+          <p className="text-sm text-amber-950 leading-relaxed">{energyFlow.mentalState}</p>
+        </div>
+
+        <div className="bg-white/70 rounded-xl p-3 border-l-4 border-purple-500">
+          <span className="text-xs font-bold uppercase tracking-wide text-amber-700 mb-1 block">
+            Dòng chảy năng lượng
+          </span>
+          <p className="text-sm text-amber-950 leading-relaxed">{energyFlow.conflict}</p>
+        </div>
+
+        <div className="bg-white/70 rounded-xl p-3 border-l-4 border-orange-500">
+          <span className="text-xs font-bold uppercase tracking-wide text-amber-700 mb-1 block">
+            Điểm mù năng lượng
+          </span>
+          <p className="text-sm text-amber-950 leading-relaxed">{energyFlow.blindSpot}</p>
+        </div>
+
+        <div className="bg-white/70 rounded-xl p-3 border-l-4 border-emerald-500">
+          <span className="text-xs font-bold uppercase tracking-wide text-amber-700 mb-1 block">
+            Lời khuyên cân bằng
+          </span>
+          <p className="text-sm text-amber-950 leading-relaxed">{energyFlow.advice}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mt-4">
+        <span className="px-2 py-1 bg-white/80 rounded-full text-xs font-medium text-amber-800 border border-amber-200">
+          Nhật Can: {energyFlow.metadata?.dayStem || '—'}
+        </span>
+        <span className="px-2 py-1 bg-white/80 rounded-full text-xs font-medium text-amber-800 border border-amber-200">
+          Cung: {energyFlow.metadata?.dayPalace || '—'}
+        </span>
+        <span className="px-2 py-1 bg-white/80 rounded-full text-xs font-medium text-amber-800 border border-amber-200">
+          Môn: {energyFlow.metadata?.door || '—'}
+        </span>
+        <span className="px-2 py-1 bg-white/80 rounded-full text-xs font-medium text-amber-800 border border-amber-200">
+          Thần: {energyFlow.metadata?.deity || '—'}
+        </span>
+        {energyFlow.metadata?.hasFanYin && (
+          <span className="px-2 py-1 bg-orange-100 rounded-full text-xs font-medium text-orange-700 border border-orange-300">
+            Phản Ngâm
+          </span>
+        )}
+        {energyFlow.metadata?.hasFuYin && (
+          <span className="px-2 py-1 bg-orange-100 rounded-full text-xs font-medium text-orange-700 border border-orange-300">
+            Phục Ngâm
+          </span>
+        )}
+        {energyFlow.metadata?.hasVoid && (
+          <span className="px-2 py-1 bg-orange-100 rounded-full text-xs font-medium text-orange-700 border border-orange-300">
+            Không Vong
+          </span>
+        )}
+        {energyFlow.metadata?.hasDichMa && (
+          <span className="px-2 py-1 bg-blue-100 rounded-full text-xs font-medium text-blue-700 border border-blue-300">
+            Dịch Mã
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Energy Flow Logic (client-side implementation)
+function generateEnergyFlowClient(chart) {
+  const DOOR_MENTAL_STATE = {
+    'Khai': { neutral: 'Tâm trí bạn đang thông suốt, có thể nhìn vấn đề khá rõ ràng.' },
+    'Sinh': { neutral: 'Bạn có cảm giác hy vọng và muốn xây dựng điều gì đó mới.' },
+    'Hưu': { neutral: 'Bạn cần nhịp thở, không nên ép bản thân phải hoạt động liên tục.' },
+    'Đỗ': { neutral: 'Có vẻ bạn đang cảm thấy bế tắc hoặc muốn che giấu những dự định bên trong.' },
+    'Thương': { neutral: 'Có chút bực dọc hoặc tổn thương ngầm, dễ phản ứng mạnh hơn mức cần thiết.' },
+    'Cảnh': { neutral: 'Tâm trí sáng nhưng dễ ảo tưởng, cần kiểm chứng thực tế.' },
+    'Kinh': { neutral: 'Có sự bất an mơ hồ, đầu óc hay chạy đến kịch bản xấu nhất.' },
+    'Tử': { neutral: 'Có cảm giác muốn buông bỏ hoặc cắt đứt điều gì đó không còn phù hợp.' },
+  };
+
+  const DEITY_INFLUENCE = {
+    'Trực Phù': 'có sự hỗ trợ từ "người dẫn đường" năng lượng cao',
+    'Đằng Xà': 'dễ bị cuốn vào suy nghĩ rối rắm và lo âu',
+    'Thái Âm': 'trực giác đang khá mạnh, nên lắng nghe tiếng nói bên trong',
+    'Lục Hợp': 'năng lượng kết nối và hợp tác đang thuận',
+    'Câu Trận': 'dễ gặp cản trở và tranh chấp',
+    'Bạch Hổ': 'có áp lực mạnh hoặc xung đột tiềm ẩn',
+    'Chu Tước': 'dễ gặp thị phi hoặc hiểu lầm trong giao tiếp',
+    'Huyền Vũ': 'cần cẩn thận với thông tin không rõ ràng hoặc lừa dối',
+    'Cửu Địa': 'năng lượng ổn định và bền vững',
+    'Cửu Thiên': 'có năng lượng vươn lên và mở rộng',
+  };
+
+  // Find Day Stem palace
+  let dayPalaceNum = null;
+  for (let p = 1; p <= 9; p++) {
+    const pal = chart.palaces[p];
+    if (pal?.isNgayCan || pal?.can?.name === chart.dayPillar?.stemName) {
+      dayPalaceNum = p;
+      break;
+    }
+  }
+
+  if (!dayPalaceNum) {
+    return {
+      mentalState: 'Không tìm thấy vị trí Nhật Can trong trận đồ.',
+      conflict: '',
+      blindSpot: '',
+      advice: '',
+      metadata: {},
+    };
+  }
+
+  const dayPalace = chart.palaces[dayPalaceNum];
+  const doorKey = dayPalace?.mon?.short || dayPalace?.mon?.name;
+  const deityName = dayPalace?.than?.name;
+  const starName = dayPalace?.star?.name || dayPalace?.star?.short;
+
+  // Sentence 1: Mental state
+  let mentalState = DOOR_MENTAL_STATE[doorKey]?.neutral || 'Trạng thái tinh thần hiện tại đang ở mức trung tính.';
+  if (DEITY_INFLUENCE[deityName]) {
+    mentalState += ` Đồng thời, ${DEITY_INFLUENCE[deityName]}.`;
+  }
+
+  // Sentence 2: Element relationship
+  const DAY_STEM_EL = { 'Giáp': 'Mộc', 'Ất': 'Mộc', 'Bính': 'Hỏa', 'Đinh': 'Hỏa', 'Mậu': 'Thổ', 'Kỷ': 'Thổ', 'Canh': 'Kim', 'Tân': 'Kim', 'Nhâm': 'Thủy', 'Quý': 'Thủy' };
+  const PALACE_EL = { 1: 'Thủy', 2: 'Thổ', 3: 'Mộc', 4: 'Mộc', 5: 'Thổ', 6: 'Kim', 7: 'Kim', 8: 'Thổ', 9: 'Hỏa' };
+
+  const stemEl = DAY_STEM_EL[chart.dayPillar?.stemName];
+  const palaceEl = PALACE_EL[dayPalaceNum];
+
+  let conflict = `Năng lượng bên trong (${stemEl}) đang tương tác với môi trường (${palaceEl}).`;
+
+  // Sentence 3: Blind spots
+  const blindSpots = [];
+  if (chart.isPhanNgam) blindSpots.push('Năng lượng đang dao động mạnh (Phản Ngâm) - mọi nỗ lực nhanh chóng dễ bị dội ngược.');
+  if (chart.isPhucAm) blindSpots.push('Năng lượng đang trì trệ (Phục Ngâm), cần kiên nhẫn.');
+  if (dayPalace?.khongVong) blindSpots.push('Cẩn thận với kỳ vọng quá lớn - có điểm mù thông tin (Không Vong).');
+  if (dayPalace?.dichMa) blindSpots.push('Có năng lượng Dịch Mã - thời điểm tốt cho thay đổi.');
+
+  const blindSpot = blindSpots.length > 0 ? blindSpots.join(' ') : 'Không phát hiện điểm mù năng lượng đặc biệt.';
+
+  // Sentence 4: Advice
+  const advice = 'Giữ nhịp ổn định, quan sát thêm trước khi tăng cam kết vào bất kỳ hướng nào.';
+
+  return {
+    mentalState,
+    conflict,
+    blindSpot,
+    advice,
+    metadata: {
+      dayStem: chart.dayPillar?.stemName,
+      dayPalace: dayPalaceNum,
+      door: doorKey,
+      star: starName,
+      deity: deityName,
+      hasFanYin: chart.isPhanNgam,
+      hasFuYin: chart.isPhucAm,
+      hasVoid: dayPalace?.khongVong,
+      hasDichMa: dayPalace?.dichMa,
+    },
+  };
+}
+
 function AnimatedProgressBar({ percent, colorClass }) {
   const [width, setWidth] = useState(0);
 
@@ -277,7 +464,7 @@ function ExpandableDetail({ topic, palace }) {
         </div>
         <div className="bg-gray-50 rounded-lg p-3">
           <p className="text-gray-500 text-xs mb-1">Chi Tiết Cung</p>
-          <p className="text-gray-700 text-xs">Sao: {palace?.star?.short || '—'}</p>
+          <p className="text-gray-700 text-xs">Sao: {(palace?.star?.short === 'Cầm' && palace?.trucPhu) ? 'Nhuế' : (palace?.star?.short || '—')}</p>
           <p className="text-gray-700 text-xs">Môn: {palace?.mon?.short || '—'}</p>
           <p className="text-gray-700 text-xs">Thần: {palace?.than?.name || '—'}</p>
         </div>
@@ -545,7 +732,7 @@ function DungThanAnalysis() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100">
       <HeaderBar
         dayPillar={`${chart.dayPillar.stemName} ${chart.dayPillar.branchName}`}
-        gioPillar={`${chart.gioPillar.stemName} ${chart.gioPillar.branchName}`}
+        gioPillar={`${chart.gioPillar.displayStemName || chart.gioPillar.stemName} ${chart.gioPillar.branchName}`}
         solarTerm={chart.solarTerm.name}
         nguyen={chart.solarTerm.nguyenName}
       />
@@ -559,6 +746,8 @@ function DungThanAnalysis() {
           cucSo={chart.cucSo}
           isDuong={chart.isDuong}
         />
+
+        <EnergyFlowCard chart={chart} />
 
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-heading font-semibold text-gray-800">
