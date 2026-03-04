@@ -1,0 +1,190 @@
+{
+  "version": "0.1.0",
+  "meta": {
+    "language": "vi",
+    "compassStyle": "EN",
+    "defaultConfidence": 0.72
+  },
+  "flags": {
+    "VOID": { "label": "Không Vong", "severity": 0.25, "confidenceMultiplier": 0.75 },
+    "GRAVE": { "label": "Nhập Mộ", "severity": 0.28, "confidenceMultiplier": 0.72 },
+    "FU_YIN": { "label": "Phục (Fu Yin)", "severity": 0.35, "confidenceMultiplier": 0.6 },
+    "FAN_YIN": { "label": "Phản (Fan Yin)", "severity": 0.35, "confidenceMultiplier": 0.6 },
+    "DOOR_COMPELLING": { "label": "Bách Môn", "severity": 0.2, "confidenceMultiplier": 0.75 },
+    "PALACE_COMPELLING": { "label": "Bách Cung", "severity": 0.2, "confidenceMultiplier": 0.75 }
+  },
+  "doorProfiles": {
+    "Khai": {
+      "tone": "mở",
+      "actionMode": "GO",
+      "keywords": ["mở cửa", "khởi động", "đưa ra quyết định", "đặt lịch", "chốt deal"],
+      "do": ["đi thẳng vào mục tiêu", "chốt điều khoản rõ ràng", "mở lời trước"],
+      "avoid": ["vòng vo", "để quá nhiều lựa chọn"]
+    },
+    "Sinh": {
+      "tone": "tăng trưởng",
+      "actionMode": "GO_LIGHT",
+      "keywords": ["tăng trưởng", "dòng tiền", "mở rộng", "sinh lợi"],
+      "do": ["đi từng nhịp", "tăng quy mô nhỏ", "đo lường rồi tăng"],
+      "avoid": ["all-in", "đẩy quá nhanh khi chưa kiểm soát rủi ro"]
+    },
+    "Huu": {
+      "tone": "giữ",
+      "actionMode": "HOLD",
+      "keywords": ["giữ lực", "tích lũy", "củng cố", "ôn bài", "chuẩn bị"],
+      "do": ["củng cố nền", "dọn backlog", "tối ưu quy trình"],
+      "avoid": ["đốt lực", "mở quá nhiều mặt trận"]
+    },
+    "Do": {
+      "tone": "ẩn",
+      "actionMode": "WAIT",
+      "keywords": ["ẩn mình", "đóng cửa", "bí mật", "đừng lộ bài"],
+      "do": ["chuẩn bị trong im lặng", "thu thập thông tin", "giữ bài"],
+      "avoid": ["công khai kế hoạch", "đụng trực diện khi chưa sẵn sàng"]
+    },
+    "Thuong": {
+      "tone": "thu hoạch",
+      "actionMode": "GO_FAST",
+      "keywords": ["chốt", "bắt", "thu hồi", "kết liễu"],
+      "do": ["chốt nhanh", "cắt lỗ đúng kỷ luật", "đòi nợ/thu hồi"],
+      "avoid": ["do dự", "kéo dài đàm phán"]
+    },
+    "Canh": {
+      "tone": "hình ảnh",
+      "actionMode": "GO",
+      "keywords": ["PR", "trình bày", "thương hiệu", "sáng đèn"],
+      "do": ["trình bày có cấu trúc", "đẩy portfolio", "giao tiếp rõ"],
+      "avoid": ["nói lan man", "over-promise"]
+    },
+    "Kinh": {
+      "tone": "đấu lý",
+      "actionMode": "GO_WITH_GUARD",
+      "keywords": ["tranh chấp", "hồ sơ", "đấu lý", "pháp lý"],
+      "do": ["giữ bằng chứng", "viết rõ ràng", "đi từng bước"],
+      "avoid": ["ký vội", "nóng giận"]
+    },
+    "Tu": {
+      "tone": "kết thúc",
+      "actionMode": "CUT",
+      "keywords": ["đóng lại", "cắt", "dừng", "giải phẫu vấn đề"],
+      "do": ["dừng cái đang rò rỉ", "cắt bỏ thứ không hiệu quả", "kết thúc gọn"],
+      "avoid": ["níu kéo", "bơm thêm nguồn lực vào thứ sai"]
+    }
+  },
+  "topicMappings": {
+    "MONEY_INVEST": {
+      "title": "Tài vận / Đầu tư",
+      "primaryUseful": [
+        { "type": "Door", "name": "Sinh", "weight": 0.55 },
+        { "type": "Door", "name": "Khai", "weight": 0.25 },
+        { "type": "Door", "name": "Huu", "weight": 0.2 }
+      ],
+      "secondaryUseful": [
+        { "type": "Flag", "name": "VOID", "weight": 0.35 },
+        { "type": "Flag", "name": "DOOR_COMPELLING", "weight": 0.25 }
+      ],
+      "oneLiners": {
+        "GO_LIGHT": "Dòng tiền mở được — làm nhỏ mà chuẩn, thắng bằng kỷ luật.",
+        "HOLD": "Giữ lực để tránh rò rỉ — ưu tiên tích lũy và kiểm soát.",
+        "WAIT": "Khí đang khóa — tốt nhất chờ giờ khác rồi mới xuống tiền.",
+        "CUT": "Cắt thứ đang làm bạn mất tiền trước, rồi hãy tính chuyện mở rộng."
+      },
+      "tactics": {
+        "do": ["chia nhỏ lệnh", "chốt từng phần", "đặt mức dừng rõ ràng"],
+        "avoid": ["all-in", "đuổi theo cảm xúc", "đổi plan giữa chừng"]
+      }
+    },
+
+    "CAREER_INTERVIEW": {
+      "title": "Sự nghiệp / Phỏng vấn",
+      "primaryUseful": [
+        { "type": "Door", "name": "Canh", "weight": 0.45 },
+        { "type": "Door", "name": "Khai", "weight": 0.35 },
+        { "type": "Door", "name": "Huu", "weight": 0.2 }
+      ],
+      "secondaryUseful": [
+        { "type": "Flag", "name": "FU_YIN", "weight": 0.35 },
+        { "type": "Flag", "name": "PALACE_COMPELLING", "weight": 0.25 }
+      ],
+      "oneLiners": {
+        "GO": "Cửa đang mở — nói ngắn, đúng trọng tâm, để người ta nhớ bạn.",
+        "HOLD": "Hợp chuẩn bị — luyện câu trả lời theo khung, đừng ôm quá nhiều.",
+        "WAIT": "Khí bế — đừng cố gồng thể hiện; hãy đổi giờ hoặc đổi cách tiếp cận."
+      },
+      "tactics": {
+        "do": ["trả lời theo khung STAR", "đưa 1–2 điểm mạnh then chốt", "hỏi 1 câu sắc để chốt"],
+        "avoid": ["nói lan man", "over-promise", "tranh luận cảm tính"]
+      }
+    },
+
+    "EXAM_STUDY": {
+      "title": "Thi cử / Học tập",
+      "primaryUseful": [
+        { "type": "Star", "name": "ThienPhu", "weight": 0.55 },
+        { "type": "Door", "name": "Khai", "weight": 0.25 },
+        { "type": "Door", "name": "Huu", "weight": 0.2 }
+      ],
+      "secondaryUseful": [
+        { "type": "Flag", "name": "VOID", "weight": 0.35 },
+        { "type": "Flag", "name": "FU_YIN", "weight": 0.25 }
+      ],
+      "oneLiners": {
+        "GO_LIGHT": "Nên làm đề + rà lỗi — thắng bằng độ chắc, không phải tốc độ.",
+        "HOLD": "Hợp ôn nền — vá lỗ hổng trước, rồi hãy tăng độ khó.",
+        "WAIT": "Đầu óc dễ nhiễu — đổi giờ học, học theo checklist thay vì cảm hứng."
+      },
+      "tactics": {
+        "do": ["làm đề theo timer", "ghi 5 lỗi hay sai", "chốt 1 tờ công thức/khung"],
+        "avoid": ["ôn lan man", "nhảy topic liên tục", "học khi quá mệt"]
+      }
+    },
+
+    "HEALTH_CHECK": {
+      "title": "Sức khỏe / Khám bệnh",
+      "primaryUseful": [
+        { "type": "Star", "name": "ThienNhue", "weight": 0.5 },
+        { "type": "Star", "name": "ThienTam", "weight": 0.3 },
+        { "type": "Door", "name": "Huu", "weight": 0.2 }
+      ],
+      "secondaryUseful": [
+        { "type": "Flag", "name": "VOID", "weight": 0.35 },
+        { "type": "Flag", "name": "FAN_YIN", "weight": 0.25 }
+      ],
+      "oneLiners": {
+        "HOLD": "Hợp kiểm tra và củng cố — đi khám để yên tâm, đừng tự đoán.",
+        "WAIT": "Khí đảo/nhiễu — nếu không cấp bách, đổi giờ khác để kết quả rõ hơn."
+      },
+      "tactics": {
+        "do": ["đặt lịch khám/đo chỉ số cơ bản", "ghi triệu chứng & thời điểm", "ưu tiên kiểm tra theo checklist"],
+        "avoid": ["tự chẩn đoán", "tự đổi thuốc", "trì hoãn nếu có dấu hiệu nặng"]
+      },
+      "disclaimer": "Thông tin chỉ mang tính tham khảo; nếu có triệu chứng hoặc lo lắng, hãy gặp bác sĩ."
+    }
+  },
+  "starProfiles": {
+    "ThienPhu": {
+      "label": "Thiên Phụ",
+      "keywords": ["học vấn", "kiến thức", "thầy/cố vấn", "nền tảng"],
+      "signals": {
+        "VOID": "Kiến thức dễ hổng / ôn lệch.",
+        "GRAVE": "Sa lầy — học nhiều nhưng không vào."
+      }
+    },
+    "ThienNhue": {
+      "label": "Thiên Nhuế",
+      "keywords": ["bệnh", "mệt", "điều bất ổn", "điểm yếu"],
+      "signals": {
+        "VOID": "Triệu chứng mơ hồ, dễ lo âu quá mức.",
+        "GRAVE": "Nên kiểm tra kỹ, đừng chủ quan."
+      }
+    },
+    "ThienTam": {
+      "label": "Thiên Tâm",
+      "keywords": ["bác sĩ", "giải pháp", "đúng thuốc", "đúng người"],
+      "signals": {
+        "VOID": "Khó tìm đúng người/đúng cách ngay lập tức.",
+        "GRAVE": "Cần kiên nhẫn theo phác đồ."
+      }
+    }
+  }
+}
