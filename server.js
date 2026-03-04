@@ -1218,39 +1218,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           </div>
         </section>
 
-        <section class="card palace-grid-section">
-          <p class="palace-grid-title">Cửu Cung · Tài Lộc</p>
-          <div class="palace-grid">
-            ${(() => {
-              const grid = [[4, 9, 2], [3, 5, 7], [8, 1, 6]];
-              return grid.flat().map(p => {
-                const pal = palacesByNum[p];
-                const sum = palaceSummaries[p];
-                const meta = PALACE_META_MAP[p];
-                if (p === 5) {
-                  return '<div class="palace-cell palace-cell-center"><div class="palace-dir">⊕ Trung Cung</div></div>';
-                }
-                const verdictClass = sum.color === 'green' ? 'verdict-good'
-                  : (sum.color === 'orange' || sum.color === 'red') ? 'verdict-warn'
-                  : 'verdict-neutral';
-                const elements = [
-                  pal?.mon?.short || '—',
-                  displayStarShort(pal) || '—',
-                  displayDeity(pal) || '—',
-                ].join(' · ');
-                return '<div class="palace-cell ' + verdictClass + '">' +
-                  '<div class="palace-header">' +
-                    '<span class="palace-dir">' + meta.dir + '</span>' +
-                    '<span class="palace-num">Cung ' + p + '</span>' +
-                  '</div>' +
-                  '<div class="palace-elements">' + elements + '</div>' +
-                  '<div class="palace-summary">' + sum.emoji + ' ' + escapeHTML(sum.shortSummary || sum.verdict) + '</div>' +
-                '</div>';
-              }).join('');
-            })()}
-          </div>
-        </section>
-
         <section class="card insight-shell">
           <div class="chip-row">
             ${topicChips}
@@ -1290,6 +1257,38 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         <details class="card expert">
           <summary>Developer / Expert Mode (Raw Tables)</summary>
           <div class="expert-content">
+            <section class="palace-grid-section" style="padding: 0; padding-bottom: 16px; border-bottom: 1px dashed var(--border);">
+              <p class="palace-grid-title" style="margin-top: 8px;">Bàn Cửu Cung (Trực Quan)</p>
+              <div class="palace-grid">
+                ${(() => {
+      const grid = [[4, 9, 2], [3, 5, 7], [8, 1, 6]];
+      return grid.flat().map(p => {
+        const pal = palacesByNum[p];
+        const sum = palaceSummaries[p];
+        const meta = PALACE_META_MAP[p];
+        if (p === 5) {
+          return '<div class="palace-cell palace-cell-center"><div class="palace-dir">⊕ Trung Cung</div></div>';
+        }
+        const verdictClass = sum.color === 'green' ? 'verdict-good'
+          : (sum.color === 'orange' || sum.color === 'red') ? 'verdict-warn'
+            : 'verdict-neutral';
+        const elements = [
+          pal?.mon?.short || '—',
+          displayStarShort(pal) || '—',
+          displayDeity(pal) || '—',
+        ].join(' · ');
+        return '<div class="palace-cell ' + verdictClass + '">' +
+          '<div class="palace-header">' +
+          '<span class="palace-dir">' + meta.dir + '</span>' +
+          '<span class="palace-num">Cung ' + p + '</span>' +
+          '</div>' +
+          '<div class="palace-elements">' + elements + '</div>' +
+          '<div class="palace-summary">' + sum.emoji + ' ' + escapeHTML(sum.shortSummary || sum.verdict) + '</div>' +
+          '</div>';
+      }).join('');
+    })()}
+              </div>
+            </section>
             <table id="topicAnalysisTable">
               <thead>
                 <tr>
@@ -1501,7 +1500,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 </html>`;
 }
 
-const server = http.createServer((req, res) => {
+export default function handler(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
   if (url.pathname === '/' || url.pathname === '') {
@@ -1588,13 +1587,17 @@ const server = http.createServer((req, res) => {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
   }
-});
+}
 
-server.listen(PORT, () => {
-  console.log(`\n🔮 QMDJ Engine Server running at http://localhost:${PORT}\n`);
-  console.log('Endpoints:');
-  console.log(`  - GET /                  → Strategic Advisor UI`);
-  console.log(`  - GET /dung-than         → Dụng Thần Analysis (React)`);
-  console.log(`  - GET /api/analyze       → JSON API`);
-  console.log(`\nQuery params: ?date=YYYY-MM-DD&hour=0-23&minute=0-59\n`);
-});
+// Ensure local development server still works when not on Vercel
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  const server = http.createServer(handler);
+  server.listen(PORT, () => {
+    console.log(`\n🔮 QMDJ Engine Server running at http://localhost:${PORT}\n`);
+    console.log('Endpoints:');
+    console.log(`  - GET /                  → Strategic Advisor UI`);
+    console.log(`  - GET /dung-than         → Dụng Thần Analysis (React)`);
+    console.log(`  - GET /api/analyze       → JSON API`);
+    console.log(`\nQuery params: ?date=YYYY-MM-DD&hour=0-23&minute=0-59\n`);
+  });
+}
