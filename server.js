@@ -570,6 +570,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kymon · QMDJ Engine</title>
   <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #F8FAFC;
@@ -651,14 +654,14 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       50% { transform: translateY(-10px); }
     }
     #initialLoader h1 {
-      font-size: 1.6rem;
-      font-weight: 700;
+      font-size: 1.75rem;
+      font-weight: 600;
       color: #0F172A;
       margin: 0 0 8px 0;
       letter-spacing: -0.02em;
     }
     #initialLoader p {
-      font-size: 0.95rem;
+      font-size: 1rem;
       color: #64748B;
       margin: 0;
     }
@@ -668,8 +671,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       margin: 0;
       background: var(--bg);
       color: var(--text);
-      font-family: 'SF Pro Text', 'Avenir Next', 'Helvetica Neue', sans-serif;
-      line-height: 1.5;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
     .shell {
       max-width: 1180px;
@@ -693,14 +699,14 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .app-title {
       margin: 0;
-      font-size: 1.45rem;
+      font-size: 1.5rem;
+      font-weight: 600;
       letter-spacing: -0.02em;
-      font-family: 'SF Pro Display', 'Avenir Next', sans-serif;
     }
     .app-subtitle {
       margin: 4px 0 0;
       color: var(--muted);
-      font-size: 0.95rem;
+      font-size: 1rem;
     }
     .controls {
       display: flex;
@@ -709,7 +715,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       flex-wrap: wrap;
     }
     .controls label {
-      font-size: 0.82rem;
+      font-size: 0.875rem;
       color: var(--muted);
       display: flex;
       flex-direction: column;
@@ -718,13 +724,14 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .controls input,
     .controls button,
     .controls .link-btn {
-      height: 38px;
+      height: 40px;
       border-radius: 10px;
       border: 1px solid var(--border);
       background: #fff;
       color: var(--text);
-      padding: 0 12px;
-      font-size: 0.92rem;
+      padding: 0 14px;
+      font-size: 0.9375rem;
+      font-family: inherit;
       text-decoration: none;
     }
     .controls button {
@@ -733,6 +740,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       color: #fff;
       cursor: pointer;
       font-weight: 600;
+      font-family: inherit;
+      font-size: 0.9375rem;
     }
     .controls .link-btn {
       display: inline-flex;
@@ -766,7 +775,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       margin: 8px 0 16px;
       font-size: 1.35rem;
       letter-spacing: -0.02em;
-      font-family: 'SF Pro Display', 'Avenir Next', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       color: #92400e;
     }
     .energy-flow-content {
@@ -790,9 +799,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .energy-sentence p {
       margin: 0;
-      font-size: 0.95rem;
+      font-size: 1rem;
       color: #451a03;
-      line-height: 1.5;
+      line-height: 1.6;
     }
     .energy-mental {
       border-left: 3px solid #3b82f6;
@@ -842,14 +851,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .briefing h2 {
       margin: 8px 0 6px;
-      font-size: 1.55rem;
+      font-size: 1.625rem;
+      font-weight: 600;
       letter-spacing: -0.02em;
-      font-family: 'SF Pro Display', 'Avenir Next', sans-serif;
     }
     .briefing p {
       margin: 0;
       color: #334155;
-      font-size: 1rem;
+      font-size: 1.0625rem;
+      line-height: 1.7;
       max-width: 70ch;
     }
     .briefing-narrative {
@@ -958,7 +968,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .insight-topic {
       margin: 2px 0 0;
       font-size: 1.15rem;
-      font-family: 'SF Pro Display', 'Avenir Next', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     .insight-meta {
       margin: 2px 0 0;
@@ -991,7 +1001,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .score-head strong {
       font-size: 1.2rem;
       color: var(--text);
-      font-family: 'SF Pro Display', 'Avenir Next', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     .score-track {
       height: 12px;
@@ -1009,7 +1019,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .score-fill.info { background: var(--info); }
     .advice {
       margin-top: 14px;
-      font-size: 0.95rem;
+      font-size: 1rem;
+      line-height: 1.65;
       color: #334155;
     }
     .tactics-grid {
@@ -1068,7 +1079,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-size: 0.82rem;
       line-height: 1.45;
       color: #0f172a;
-      font-family: 'SF Mono', Menlo, Consolas, monospace;
+      font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
       white-space: pre-wrap;
     }
     .side-column {
@@ -1290,14 +1301,14 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       display: flex; align-items: center; justify-content: center;
       font-size: 1.1rem; flex-shrink: 0;
     }
-    .kimon-name { font-weight: 700; font-size: 1rem; color: #a5b4fc; }
-    .kimon-tagline { font-size: 0.78rem; color: #64748b; }
+    .kimon-name { font-weight: 600; font-size: 1.0625rem; color: #a5b4fc; }
+    .kimon-tagline { font-size: 0.875rem; color: #64748b; }
     .kimon-messages {
       min-height: 80px; max-height: 340px; overflow-y: auto;
       display: flex; flex-direction: column; gap: 12px;
       margin-bottom: 12px;
     }
-    .kimon-message { padding: 12px 14px; border-radius: 12px; font-size: 0.9rem; line-height: 1.55; }
+    .kimon-message { padding: 12px 14px; border-radius: 12px; font-size: 0.9375rem; line-height: 1.65; }
     .kimon-message-ai {
       background: transparent; border: none; color: #1e293b;
     }
@@ -1319,7 +1330,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     /* Response container */
     .kimon-response {
-      font-size: 0.95rem;
+      font-size: 1rem;
       line-height: 1.8;
       color: #334155;
     }
@@ -1373,15 +1384,17 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .kimon-input-row input {
       flex: 1; background: #0f172a; border: 1px solid #334155;
-      color: #e2e8f0; border-radius: 10px; padding: 9px 13px;
-      font-size: 0.88rem;
+      color: #e2e8f0; border-radius: 10px; padding: 10px 14px;
+      font-size: 0.9375rem;
+      font-family: inherit;
     }
     .kimon-input-row input::placeholder { color: #475569; }
     .kimon-input-row input:focus { outline: none; border-color: #6366f1; }
     .kimon-btn {
       background: #6366f1; border: none; color: #fff;
-      padding: 9px 16px; border-radius: 10px; cursor: pointer;
-      font-size: 0.88rem; font-weight: 600; transition: background 0.2s;
+      padding: 10px 18px; border-radius: 10px; cursor: pointer;
+      font-size: 0.9375rem; font-weight: 600; transition: background 0.2s;
+      font-family: inherit;
     }
     .kimon-btn:hover { background: #4f46e5; }
     .kimon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -1409,7 +1422,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       color: #1E293B;
       box-shadow: none;
       overflow: visible;
-      font-family: 'SF Pro Text', 'Avenir Next', 'Helvetica Neue', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
     .kimon-terminal-header {
       display: flex;
@@ -1433,7 +1446,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .kimon-terminal-title {
       margin: 0;
-      font-size: 1rem;
+      font-size: 1.0625rem;
       font-weight: 600;
       letter-spacing: -0.01em;
       color: #1E293B;
@@ -1543,7 +1556,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       color: #475569; margin-bottom: 6px;
     }
     .kimon-message-text {
-      font-size: 0.9rem; line-height: 1.7; color: #334155; margin: 0;
+      font-size: 0.9375rem; line-height: 1.75; color: #334155; margin: 0;
     }
     .kimon-message-text.typing-cursor::after {
       content: '|'; animation: kimon-blink 0.6s infinite; color: #818CF8; font-weight: 300;
@@ -1590,7 +1603,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       color: #1E293B;
       border-radius: 24px;
       padding: 12px 20px;
-      font-size: 0.9rem;
+      font-size: 0.9375rem;
       font-family: inherit;
       box-sizing: border-box;
       transition: all 0.2s ease;
@@ -1851,7 +1864,27 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       });
     }
 
-    // Server always uses current time on load - no client-side auto-submit needed
+    // On initial load (no query params), sync form to client's local time and auto-submit
+    // This ensures users see their local time, not server time (which may be UTC)
+    (function syncLocalTimeOnLoad() {
+      // Only auto-sync on clean URL (no params = first visit or refresh)
+      if (window.location.search === '' && dateInputEl && hourInputEl && minuteInputEl) {
+        const now = new Date();
+        const serverHour = parseInt(hourInputEl.value, 10);
+        const serverMinute = parseInt(minuteInputEl.value, 10);
+        const clientHour = now.getHours();
+        const clientMinute = now.getMinutes();
+
+        // Check if server time differs from client time (timezone mismatch)
+        if (serverHour !== clientHour || Math.abs(serverMinute - clientMinute) > 1) {
+          applyClientNowToForm();
+          // Auto-submit to reload chart with correct local time
+          if (timeFormEl) {
+            timeFormEl.requestSubmit();
+          }
+        }
+      }
+    })();
 
     // ── Kimon AI ─────────────────────────────────────────────────────────────
     const kimonBtn = document.getElementById('kimonBtn');
