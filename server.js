@@ -670,18 +670,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       flex-direction: column;
       gap: 16px;
     }
-    .main-column::before {
-      content: '';
-      position: absolute;
-      inset: 8px;
-      border-radius: 16px;
-      background-image:
-        linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
-      background-size: calc(100% / 3) calc(100% / 3);
-      pointer-events: none;
-      z-index: 0;
-    }
     .main-column > * {
       position: relative;
       z-index: 1;
@@ -1288,191 +1276,273 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       background: rgba(239,68,68,0.1); margin-bottom: 8px;
     }
     .kimon-error-inline { color: #f87171; margin: 0; font-size: 0.88rem; }
-    /* === KIMON AI TERMINAL (white theme) === */
+    /* === KYMON CHAT (Gemini-like minimal) === */
     .kimon-terminal {
-      background: #FFFFFF;
-      border: 1px solid var(--border);
-      border-radius: 16px;
+      background: transparent;
+      border: none;
+      border-radius: 0;
       padding: 0;
       color: #1E293B;
-      box-shadow: var(--shadow);
-      overflow: hidden;
+      box-shadow: none;
+      overflow: visible;
       font-family: 'SF Pro Text', 'Avenir Next', 'Helvetica Neue', sans-serif;
     }
     .kimon-terminal-header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 14px 20px;
-      border-bottom: 1px solid #E2E8F0;
-      background: #F8FAFC;
+      gap: 10px;
+      padding: 8px 4px 16px;
+    }
+    .kimon-terminal-header img {
+      border-radius: 50% !important;
     }
     .kimon-status-dot {
-      width: 9px;
-      height: 9px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: #10b981;
-      box-shadow: 0 0 8px rgba(16,185,129,0.6);
       animation: kimon-pulse 2s infinite;
     }
     @keyframes kimon-pulse {
-      0%,100% { opacity:1; box-shadow:0 0 8px rgba(16,185,129,0.6); }
-      50% { opacity:0.7; box-shadow:0 0 14px rgba(16,185,129,0.8); }
+      0%,100% { opacity:1; }
+      50% { opacity:0.5; }
     }
     .kimon-terminal-title {
       margin: 0;
-      font-size: 0.82rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
       color: #1E293B;
     }
     .kimon-meta-tags {
       margin-left: auto;
-      font-size: 0.74rem;
-      color: #64748B;
-      font-weight: 500;
+      font-size: 0.72rem;
+      color: #94A3B8;
+      font-weight: 400;
     }
     .kimon-messages {
-      padding: 20px;
-      min-height: 260px;
-      max-height: 60vh;
+      padding: 8px 0;
+      min-height: 200px;
+      max-height: 65vh;
       overflow-y: auto;
-      background: #FFFFFF;
+      background: transparent;
     }
+    /* Scrollbar */
+    .kimon-messages::-webkit-scrollbar { width: 4px; }
+    .kimon-messages::-webkit-scrollbar-track { background: transparent; }
+    .kimon-messages::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+    .kimon-messages::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
     .kimon-loading {
-      display: flex;
+      display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 14px;
-      padding: 40px;
-      color: #64748B;
+      padding: 24px 0;
+      color: #94A3B8;
     }
-    .kimon-loading p { font-size:0.9rem; margin:0; }
-    .kimon-typing-indicator { display:flex; gap:5px; }
+    .kimon-loading p { font-size: 0.85rem; margin: 0; }
+
+    /* ── Thinking Animation ── */
+    .kimon-thinking {
+      display: none;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #F8FAFC, #EEF2FF);
+      margin-bottom: 12px;
+      animation: kimon-fadein 0.35s ease-out;
+      max-width: 85%;
+      margin-right: auto;
+    }
+    .kimon-thinking.is-visible { display: block; }
+    .kimon-thinking-header {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 8px;
+    }
+    .kimon-thinking-icon {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #818CF8, #6366F1);
+      display: flex; align-items: center; justify-content: center;
+      animation: kimon-think-pulse 2s ease-in-out infinite;
+    }
+    .kimon-thinking-icon svg {
+      width: 11px; height: 11px; fill: #fff;
+    }
+    @keyframes kimon-think-pulse {
+      0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99,102,241,0.3); }
+      50% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(99,102,241,0); }
+    }
+    .kimon-thinking-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #818CF8;
+    }
+    .kimon-thinking-text {
+      font-size: 0.85rem;
+      color: #64748B;
+      margin: 0;
+      line-height: 1.5;
+      min-height: 1.3em;
+      transition: opacity 0.3s ease;
+    }
+    .kimon-thinking-text.fade-out { opacity: 0; }
+    .kimon-thinking-text.fade-in { opacity: 1; }
+    .kimon-thinking-shimmer {
+      margin-top: 10px;
+      height: 2px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, transparent 0%, #818CF8 50%, transparent 100%);
+      background-size: 200% 100%;
+      animation: kimon-shimmer 1.8s ease-in-out infinite;
+    }
+    @keyframes kimon-shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .kimon-typing-indicator { display: flex; gap: 4px; }
     .kimon-typing-indicator span {
-      width: 8px; height: 8px;
-      background: #3B82F6;
+      width: 6px; height: 6px;
+      background: #94A3B8;
       border-radius: 50%;
       animation: kimon-bounce 1.4s infinite ease-in-out both;
     }
-    .kimon-typing-indicator span:nth-child(1) { animation-delay:-0.32s; }
-    .kimon-typing-indicator span:nth-child(2) { animation-delay:-0.16s; }
+    .kimon-typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+    .kimon-typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
     @keyframes kimon-bounce {
-      0%,80%,100% { transform:scale(0.6); opacity:0.4; }
-      40% { transform:scale(1); opacity:1; }
+      0%,80%,100% { transform: scale(0.6); opacity: 0.3; }
+      40% { transform: scale(1); opacity: 1; }
     }
     @keyframes kimon-fadein {
-      from { opacity:0; transform:translateY(8px); }
-      to { opacity:1; transform:translateY(0); }
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
     }
+
+    /* Messages */
     .kimon-message {
-      margin-bottom: 14px;
-      padding: 14px 18px;
-      border-radius: 12px;
-      animation: kimon-fadein 0.35s ease-out;
-      max-width: 88%;
+      margin-bottom: 10px;
+      padding: 12px 16px;
+      border-radius: 18px;
+      animation: kimon-fadein 0.3s ease-out;
+      max-width: 85%;
     }
     .kimon-message-ai {
       background: #F1F5F9;
-      border-left: 3px solid #3B82F6;
       margin-right: auto;
+      border-bottom-left-radius: 6px;
     }
     .kimon-message-user {
-      background: #2563EB;
-      border-radius: 12px;
+      background: #1E293B;
       margin-left: auto;
       margin-right: 0;
+      border-bottom-right-radius: 6px;
     }
-    .kimon-message-user .kimon-message-text { color:#FFFFFF; }
-    .kimon-section { margin-bottom:12px; }
-    .kimon-section:last-child { margin-bottom:0; }
+    .kimon-message-user .kimon-message-text { color: #FFFFFF; }
+    .kimon-section { margin-bottom: 10px; }
+    .kimon-section:last-child { margin-bottom: 0; }
     .kimon-section-label {
-      display:block; font-size:0.68rem; font-weight:700;
-      color:#3B82F6; margin-bottom:5px; letter-spacing:0.04em; text-transform:uppercase;
+      display: block; font-size: 0.65rem; font-weight: 600;
+      color: #818CF8; margin-bottom: 4px; letter-spacing: 0.04em; text-transform: uppercase;
     }
     .kimon-message-text {
-      font-size:0.93rem; line-height:1.7; color:#1E293B; margin:0;
+      font-size: 0.9rem; line-height: 1.7; color: #334155; margin: 0;
     }
     .kimon-message-text.typing-cursor::after {
-      content:'|'; animation:kimon-blink 0.6s infinite; color:#3B82F6; font-weight:300;
+      content: '|'; animation: kimon-blink 0.6s infinite; color: #818CF8; font-weight: 300;
     }
-    @keyframes kimon-blink { 0%,50% { opacity:1; } 51%,100% { opacity:0; } }
+    @keyframes kimon-blink { 0%,50% { opacity: 1; } 51%,100% { opacity: 0; } }
+
+    /* Suggestions */
     .kimon-suggestions-dynamic {
-      padding: 10px 20px;
-      display: flex; flex-wrap:wrap; gap:8px;
-      background: #FAFBFC;
-      border-top: 1px solid #E2E8F0;
+      padding: 6px 0;
+      display: flex; flex-wrap: wrap; gap: 6px;
+      background: transparent;
+      border: none;
     }
     .kimon-suggestion-chip {
-      background:#fff; border:1px solid #3B82F6; color:#3B82F6;
-      padding:7px 14px; border-radius:20px; font-size:0.78rem; font-weight:500;
-      cursor:pointer; transition:all 0.2s ease;
-    }
-    .kimon-suggestion-chip:hover {
-      background:#EFF6FF; border-color:#2563EB; color:#2563EB;
-      transform:translateY(-1px);
-    }
-    .kimon-input-area {
-      display:flex; gap:10px;
-      padding: 14px 20px 18px;
-      border-top: 1px solid #E2E8F0;
-      background:#FFFFFF;
-    }
-    .kimon-input {
-      flex:1; background:#FFFFFF; border:1px solid #E2E8F0;
-      color:#1E293B; border-radius:10px; padding:12px 16px;
-      font-size:0.92rem; font-family:inherit; box-sizing:border-box;
-      transition:all 0.2s ease;
-    }
-    .kimon-input:focus { outline:none; border-color:#3B82F6; box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
-    .kimon-input::placeholder { color:#94A3B8; }
-    .kimon-send-btn {
-      background:#3B82F6; border:none; color:#FFFFFF;
-      width:46px; height:46px; border-radius:10px;
-      cursor:pointer; display:flex; align-items:center; justify-content:center;
-      transition:all 0.2s ease; flex-shrink:0;
-    }
-    .kimon-send-btn:hover:not(:disabled) { background:#2563EB; transform:translateY(-1px); box-shadow:0 4px 12px rgba(59,130,246,0.3); }
-    .kimon-send-btn:disabled { opacity:0.5; cursor:not-allowed; }
-    .kimon-error {
-      display:none; margin:10px 20px;
-      padding:9px 14px; background:#FEF2F2; border:1px solid #FECACA;
-      border-radius:8px; color:#DC2626; font-size:0.83rem;
-    }
-    .kimon-error-inline {
-      color:#DC2626; font-size:0.83rem; margin:0;
-      background:#FEF2F2; padding:10px 14px;
-      border-radius:8px; border:1px solid #FECACA;
-    }
-    .kimon-topic-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding: 10px 20px 6px;
-      border-top: 1px solid #E2E8F0;
-    }
-    .kimon-topic-chips .topic-chip {
-      font-size: 0.78rem;
+      background: #f1f5f9; /* Muted light gray/blue background */
+      border: 1px solid #e2e8f0;
+      color: #0f172a; /* Dark text for contrast */
       padding: 6px 14px;
-      border-radius: 20px;
-      border: 1px solid #E2E8F0;
-      background: #F8FAFC;
-      color: #475569;
+      border-radius: 20px; /* Fully rounded */
+      font-size: 0.8rem;
+      font-weight: 500;
       cursor: pointer;
       transition: all 0.2s ease;
+    }
+    .kimon-suggestion-chip:hover {
+      background: #e2e8f0;
+      border-color: #cbd5e1;
+      color: #000000;
+      transform: translateY(-1px);
+    }
+
+    /* Input */
+    .kimon-input-area {
+      display: flex;
+      gap: 8px;
+      padding: 12px 0 0;
+      border: none;
+      background: transparent;
+    }
+    .kimon-input {
+      flex: 1;
+      background: #F1F5F9;
+      border: 1px solid transparent;
+      color: #1E293B;
+      border-radius: 24px;
+      padding: 12px 20px;
+      font-size: 0.9rem;
       font-family: inherit;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
     }
-    .kimon-topic-chips .topic-chip:hover {
-      background: #EEF2FF;
-      border-color: #818CF8;
-      color: #4338CA;
+    .kimon-input:focus {
+      outline: none;
+      background: #FFFFFF;
+      border-color: #CBD5E1;
+      box-shadow: 0 0 0 3px rgba(148,163,184,0.1);
     }
-    .kimon-topic-chips .topic-chip.is-active {
-      background: #3B82F6;
-      border-color: #3B82F6;
+    .kimon-input::placeholder { color: #94A3B8; }
+    .kimon-send-btn {
+      background: #1E293B;
+      border: none;
       color: #FFFFFF;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
     }
+    .kimon-send-btn:hover:not(:disabled) {
+      background: #0F172A;
+      transform: scale(1.05);
+    }
+    .kimon-send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Error */
+    .kimon-error {
+      display: none; margin: 8px 0;
+      padding: 8px 14px;
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      border-radius: 12px;
+      color: #DC2626;
+      font-size: 0.82rem;
+    }
+    .kimon-error-inline {
+      color: #DC2626; font-size: 0.82rem; margin: 0;
+      background: #FEF2F2; padding: 10px 14px;
+      border-radius: 12px; border: 1px solid #FECACA;
+    }
+
+    /* Old unused styles kept for compatibility */
+    .kimon-topic-chips { display: none; }
   </style>
 </head>
 <body>
@@ -1515,6 +1585,16 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             <div class="kimon-loading" id="kimonLoading">
               <div class="kimon-typing-indicator"><span></span><span></span><span></span></div>
               <p>Đang đọc trận bàn...</p>
+            </div>
+            <div class="kimon-thinking" id="kimonThinking">
+              <div class="kimon-thinking-header">
+                <div class="kimon-thinking-icon">
+                  <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                </div>
+                <span class="kimon-thinking-label">KYMON ĐANG SUY NGHĨ</span>
+              </div>
+              <p class="kimon-thinking-text" id="kimonThinkingText">Đang phân tích trận bàn...</p>
+              <div class="kimon-thinking-shimmer"></div>
             </div>
           </div>
           <div class="kimon-suggestions-dynamic" id="kimonSuggestions" style="display:none;"></div>
@@ -1709,7 +1789,53 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const kimonSuggestions = document.getElementById('kimonSuggestions');
     const kimonError = document.getElementById('kimonError');
     const kimonAutoData = document.getElementById('kimonAutoData');
+    const kimonThinking = document.getElementById('kimonThinking');
+    const kimonThinkingText = document.getElementById('kimonThinkingText');
     let currentTopic = null; // set by renderTopic
+    let thinkingInterval = null;
+
+    // ── Thinking Animation ───────────────────────────────────────────────
+    const THINKING_MESSAGES = [
+      'Hmm, để Kymon nghĩ chút...',
+      'Đang đọc dòng năng lượng...',
+      'Đang phân tích Cửu Cung...',
+      'Bạn đợi tí nhé, đang tính toán...',
+      'Đang suy nghĩ chiến lược cho bạn...',
+      'Đang xem Môn - Tinh - Thần...',
+      'Chờ chút, Kymon đang xử lý...',
+      'Đang tính toán năng lượng...',
+      'Để Kymon đọc bàn cho kỹ nhé...',
+      'Đang tổng hợp góc nhìn...',
+    ];
+
+    function showThinking() {
+      if (!kimonThinking) return;
+      kimonThinking.classList.add('is-visible');
+      let msgIdx = 0;
+      if (kimonThinkingText) {
+        kimonThinkingText.textContent = THINKING_MESSAGES[0];
+        kimonThinkingText.classList.remove('fade-out');
+        kimonThinkingText.classList.add('fade-in');
+      }
+      if (thinkingInterval) clearInterval(thinkingInterval);
+      thinkingInterval = setInterval(() => {
+        if (!kimonThinkingText) return;
+        kimonThinkingText.classList.remove('fade-in');
+        kimonThinkingText.classList.add('fade-out');
+        setTimeout(() => {
+          msgIdx = (msgIdx + 1) % THINKING_MESSAGES.length;
+          kimonThinkingText.textContent = THINKING_MESSAGES[msgIdx];
+          kimonThinkingText.classList.remove('fade-out');
+          kimonThinkingText.classList.add('fade-in');
+        }, 300);
+      }, 2500);
+      if (kimonMessages) kimonMessages.scrollTop = kimonMessages.scrollHeight;
+    }
+
+    function hideThinking() {
+      if (thinkingInterval) { clearInterval(thinkingInterval); thinkingInterval = null; }
+      if (kimonThinking) kimonThinking.classList.remove('is-visible');
+    }
 
     function getBaseQmdjData() {
       if (!kimonAutoData) return {};
@@ -1797,7 +1923,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         const { done, value } = await reader.read();
         if (done) break;
         buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
+        const lines = buf.split('\\n');
         buf = lines.pop();
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
@@ -1918,6 +2044,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             { key: 'kyThuat', label: '🔍 Phân Tích' },
             { key: 'nangLuong', label: '' },
             { key: 'loiKhuyen', label: '📋 Hành Động' },
+            { key: 'gocNhinKymon', label: '🎯 Góc Nhìn Kymon' },
           ]);
           if (cached.suggestedQuestions?.length) renderSuggestions(cached.suggestedQuestions);
           else if (cached.suggestions?.length) renderSuggestions(cached.suggestions);
@@ -1930,6 +2057,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
       isKimonFetching = true;
       if (kimonLoading) kimonLoading.style.display = 'flex';
+      showThinking();
 
       const bubble = createMessageBubble(true);
       const liveEl = document.createElement('p');
@@ -1954,6 +2082,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
               { key: 'kyThuat', label: '🔍 Phân Tích' },
               { key: 'nangLuong', label: '' },
               { key: 'loiKhuyen', label: '📋 Hành Động' },
+              { key: 'gocNhinKymon', label: '🎯 Góc Nhìn Kymon' },
             ]);
             if (data.suggestedQuestions?.length) renderSuggestions(data.suggestedQuestions);
             else if (data.suggestions?.length) renderSuggestions(data.suggestions);
@@ -1970,6 +2099,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       } finally {
         isKimonFetching = false;
         if (kimonLoading) kimonLoading.style.display = 'none';
+        hideThinking();
         kimonMessages.scrollTop = kimonMessages.scrollHeight;
       }
     }
@@ -1994,6 +2124,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       kimonBtn.disabled = true;
       kimonContext.value = '';
       if (kimonLoading) kimonLoading.style.display = 'flex';
+      showThinking();
 
       // Use hiddenPrompt (rich context) if provided, otherwise displayText
       const promptToSend = hiddenPrompt || question;
@@ -2024,6 +2155,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
               { key: 'kyThuat', label: '🔍 Phân Tích' },
               { key: 'nangLuong', label: '' },
               { key: 'loiKhuyen', label: '📋 Hành Động' },
+              { key: 'gocNhinKymon', label: '🎯 Góc Nhìn Kymon' },
             ]);
             kimonMessages.scrollTop = kimonMessages.scrollHeight;
           }
@@ -2037,6 +2169,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       } finally {
         isKimonFetching = false;
         if (kimonLoading) kimonLoading.style.display = 'none';
+        hideThinking();
         kimonBtn.disabled = false;
         kimonMessages.scrollTop = kimonMessages.scrollHeight;
       }
@@ -2072,14 +2205,37 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       kimonMessages.appendChild(bubble);
       if (kimonLoading) kimonLoading.style.display = 'none';
 
-      // Static suggestions based on common QMDJ questions
-      const defaultSuggestions = [
-        'Năng lượng hôm nay thế nào?',
-        'Tài vận hôm nay ra sao?',
-        'Hướng xuất hành tốt nhất?',
-        'Giờ tốt để hành động?'
-      ];
-      renderSuggestions(defaultSuggestions);
+      // Dynamic suggestions based on current time
+      const currentHour = new Date().getHours();
+      let timeBasedSuggestions = [];
+      
+      if (currentHour >= 5 && currentHour < 12) {
+        // Sáng
+        timeBasedSuggestions = [
+          'Phương nào gặp Quý nhân?',
+          'Thợ săn hay Con mồi?'
+        ];
+      } else if (currentHour >= 12 && currentHour < 18) {
+        // Chiều
+        timeBasedSuggestions = [
+          'Chốt ngay hay đợi Dịch Mã?',
+          'Ai đang cản trở tôi?'
+        ];
+      } else if (currentHour >= 18 && currentHour < 22) {
+        // Tối
+        timeBasedSuggestions = [
+          'Cuộc hẹn tối nay ổn không?',
+          'Nên Tĩnh hay nên Động?'
+        ];
+      } else {
+        // Đêm (22:00 - 04:59)
+        timeBasedSuggestions = [
+          'Quà tặng ngày mai là gì?',
+          'Lời khuyên "Vô vi" đêm nay?'
+        ];
+      }
+      
+      renderSuggestions(timeBasedSuggestions);
     }
 
     if (kimonMessages) showWelcomeMessage();
@@ -2120,6 +2276,20 @@ export default function handler(req, res) {
     } catch (err) {
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       res.end('Error loading page: ' + err.message);
+    }
+  } else if (url.pathname === '/favicon.png') {
+    // Serve favicon from public directory
+    try {
+      const faviconPath = path.join(__dirname, 'public', 'favicon.png');
+      const content = fs.readFileSync(faviconPath);
+      res.writeHead(200, {
+        'Content-Type': 'image/png',
+        'Cache-Control': 'public, max-age=86400'
+      });
+      res.end(content);
+    } catch (err) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Favicon not found');
     }
   } else if (url.pathname.startsWith('/public/')) {
     // Serve static files from public directory
@@ -2207,54 +2377,130 @@ export default function handler(req, res) {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const isAutoLoad = userContext === '__AUTO_LOAD__';
 
-        const systemInstruction = isAutoLoad
-          ? `ROLE: Bạn là Kimon - Chuyên gia cấp cao về Kỳ Môn Độn Giáp (QMDJ Strategist).
-MISSION: Luận giải dữ liệu từ bảng Cửu Cung để đưa ra chiến lược hành động sắc bén.
+        // ── KYMON AI SYSTEM PROMPT (from KYMON_AI_SYSTEM_PROMPT.md) ──────────────
+        const systemInstruction = `Bạn là **Kymon** — một cố vấn Kỳ Môn Độn Giáp (KMDG) giàu kinh nghiệm, am hiểu cả lý thuyết lẫn ứng dụng thực tiễn. Bạn có thể phân tích trận bàn KMDG để đưa ra nhận định về:
+- Sự nghiệp / hành động / thời điểm ra quyết định
+- Tài chính / đầu tư / thương mại
+- Sức khỏe / tình cảm / gia đạo
+- Phương hướng hành động tối ưu trong khung giờ/ngày
 
-QUY TẮC LUẬN GIẢI (BẮT BUỘC):
-1. KIỂM TRA FLAGS KỸ THUẬT:
-   - "Không Vong" (KV): Năng lượng rỗng → khuyên "Chờ đợi" hoặc "Cẩn trọng"
-   - "Dịch Mã" (DM): Ưu tiên di chuyển, thay đổi nhanh
-   - "Trực Phù" (TF): Hướng có quý nhân, năng lượng dẫn dắt tốt nhất
-   - "Phục Âm": Mọi thứ trì trệ → giữ nguyên hiện trạng
-   - "Phản Ngâm": Đảo lộn → cần linh hoạt thay đổi kế hoạch
+Giọng điệu: ấm, bình tĩnh, hơi khô hài. Nói thẳng, không sáo rỗng, không lặp câu. Thừa nhận khi chưa chắc.
 
-2. PHÂN TÍCH SINH/KHẮC:
-   - Nhật Can (Bạn) vs Thời Can (Sự việc): Ai đang chiếm thế chủ động?
-   - Môn + Tinh + Thần: Bộ ba này nói gì về chất lượng năng lượng?
+## QUY TẮC ĐỌC BÀN
 
-3. PHONG CÁCH: Gãy gọn, logic, tiếng Việt hiện đại. Dùng ẨN DỤ thực tế (kinh doanh, thể thao, đời thường).
+### Bước 1 — Xác nhận dữ liệu
+Khi nhận raw table, đọc và xác nhận đầy đủ 9 cung trước khi phân tích.
+Nếu dữ liệu thiếu/mâu thuẫn → nói rõ phần nào bị lỗi, hỏi lại.
 
-CHỈ TRẢ VỀ JSON (KHÔNG CHÀO HỎI, KHÔNG GIẢI THÍCH NGOÀI JSON):
+### Bước 2 — Xác định bản mệnh người hỏi
+Nếu user cung cấp năm sinh → xác định Thiên Can năm sinh (bản mệnh can) để tìm cung đại diện trong bàn.
+Ví dụ: Sinh năm 1996 (Bính Tý) → Thiên Can = Bính → tìm cung có Thiên Can Bính.
+
+## KHUNG PHÂN TÍCH
+
+### Theo chủ đề câu hỏi
+
+**Sự nghiệp / hành động:**
+- Xem Khai môn, Sinh môn → cơ hội
+- Xem Tử môn, Kinh môn → rủi ro / trở ngại
+- Xem vị trí Trực Phù → thế lực hỗ trợ
+- Xem Lục Hợp → đối tác / hợp tác
+
+**Tài chính / đầu tư:**
+- Sinh môn + Cửu Thiên → xu hướng tăng
+- Tử môn + Cửu Địa → xu hướng giảm / tắc
+- Khai môn → thời điểm mở, cơ hội vào
+- Thương môn + Canh → xung đột, biến động mạnh
+
+**Sức khỏe:**
+- Hưu môn + Thiên Nhậm → phục hồi tốt
+- Tử môn → cần chú ý sức khỏe nghiêm trọng
+- Cửu Địa → ẩn bệnh, khó phát hiện
+
+**Tình cảm / quan hệ:**
+- Lục Hợp → hòa hợp
+- Đằng Xà → rắc rối, nghi ngờ
+- Thái Âm → bí ẩn, tình cảm ẩn
+
+### Cát Hung cơ bản
+
+**Cát (Tốt):** Sinh, Khai, Hưu môn | Thiên Bồng, Thiên Tâm, Thiên Trụ (trong bối cảnh phù hợp) | Trực Phù, Lục Hợp, Cửu Thiên
+**Hung (Xấu):** Tử, Kinh, Thương môn | Canh + bất kỳ → xung | Đằng Xà, Câu Trận | Phục Ngâm / Phản Ngâm
+
+### Các cách cục đặc biệt cần check
+- **Phục Ngâm:** Can địa bàn = Can thiên bàn → trì trệ, không tiến được
+- **Phản Ngâm:** Can thiên bàn xung với Can địa bàn → biến động đột ngột
+- **Thiên Môn Độn Giáp:** Ất/Bính/Đinh vào cung Càn → cát đặc biệt
+- **Tam Kỳ Đắc Sử:** Ất Bính Đinh gặp Sinh/Khai/Hưu môn → đại cát
+
+## NGUYÊN TẮC BẮT BUỘC
+
+1. KHÔNG bịa số liệu. Nếu raw table không cung cấp đủ → nói rõ thiếu gì.
+2. KHÔNG phán tuyệt đối kiểu "chắc chắn thắng / chắc chắn thua". Dùng "xu hướng", "khả năng cao", "cần thêm ngữ cảnh".
+3. LUÔN liệt kê cung khi đưa ra nhận xét — tránh nói chung chung.
+4. Tiếng Việt là mặc định. Thuật ngữ KMDG giữ nguyên tiếng Hán-Việt.
+5. Nếu user sửa → cập nhật ngay, không cự cãi, không xin lỗi quá mức.
+6. Thừa nhận giới hạn — bàn giờ chỉ phản ánh năng lượng khung giờ đó, không phải định mệnh cố định.
+
+## ERROR HANDLING
+
+- Raw table trống / null → "Mình chưa nhận được dữ liệu trận bàn. Bạn thử lập bàn lại nhé."
+- Thiếu một số cung → Phân tích những cung có data, ghi chú cung nào thiếu.
+- User hỏi không liên quan KMDG → Trả lời ngắn, gợi ý quay lại câu hỏi phù hợp.
+- Dữ liệu mâu thuẫn → "Mình thấy [X] và [Y] có vẻ mâu thuẫn nhau — bạn kiểm tra lại raw table giúp mình không?"
+
+## TƯ DUY PHÂN TÍCH NÂNG CAO (Advanced Reasoning)
+
+### Quy tắc "Cản trở & Biến số"
+Trước khi kết luận một cung là Cát (Tốt), PHẢI kiểm tra 3 yếu tố:
+
+1. **Không Vong (Void):** Nếu cung rơi vào Không Vong, mọi sự tốt lành giảm 80%, sự việc dễ rơi vào ảo ảnh, hứa hão. Phải cảnh báo: "Coi chừng 'giỏ nhà ai quai nhà nấy', nhìn vậy mà không phải vậy".
+2. **Dịch Mã (Horse):** Nếu có Dịch Mã, sự việc sẽ diễn ra rất nhanh hoặc có sự thay đổi địa điểm/kế hoạch bất ngờ.
+3. **Mộ (Grave):** Nếu Dụng thần nhập Mộ, năng lượng đang bị khóa, cần thời gian chờ đợi thay vì thúc ép.
+
+### Liên kết Ngũ Hành (Sheng-Ke Logic)
+Không chỉ đọc đơn cung, phải so sánh tương quan giữa Cung của Người (Nhật Can) và Cung của Việc (Dụng Thần):
+- **Sinh/Tương Hòa:** Thuận lợi, ít tốn sức.
+- **Khắc (Ta khắc Việc):** Thành công nhưng vất vả, tốn tài lực.
+- **Bị Khắc (Việc khắc Ta):** Áp lực lớn, rủi ro cao, nên rút lui hoặc tìm đường vòng.
+
+### Trích dẫn Tinh hoa
+Ưu tiên sử dụng các cách cục đặc biệt (như Ất Kỳ đắc sử, Long hồi đầu, Điểu điệp huyệt...) từ tài liệu của Đàm Liên và Trương Hải Ban để làm luận điểm sắc sảo hơn.
+
+## CẤU TRÚC PHẢN HỒI CHIẾN LƯỢC (4-Layer Output)
+
+- **Lớp 1 "Toàn cảnh trận đồ":** Tóm tắt nhanh trạng thái năng lượng tổng thể (Căng thẳng, Bình hòa, hay Cơ hội rực rỡ).
+- **Lớp 2 "Điểm rơi năng lượng":** Chỉ ra chính xác cung nào đang "vượng" nhất và cung nào là "tử huyệt" cần tránh.
+- **Lớp 3 "Lời khuyên thực thi":** Không nói lý thuyết suông. Ít nhất 3 hành động cụ thể (VD: "Nộp hồ sơ hướng Tây", "Im lặng trong cuộc họp chiều nay", "Chốt lời ngay khi giá chạm vùng X").
+- **Lớp 4 "Góc nhìn Kymon":** Một câu chốt hạ mang tính trực giác, có chút khô hài để người dùng cảm thấy sự tin cậy và gần gũi.
+
+## ĐỊNH DẠNG TRẢ LỜI (BẮT BUỘC — JSON)
+
+Bạn PHẢI luôn trả về JSON hợp lệ, KHÔNG chào hỏi, KHÔNG giải thích ngoài JSON.
+
+Khi auto-load (tổng quan bàn):
 {
-  "chienLuoc": "1-2 câu khẳng định thế trận (Chủ động/Bị động, Thuận/Nghịch). Ví dụ: 'GO - Thế trận thuận, bạn (Mộc) đang được môi trường (Thủy) tiếp sức.'",
-  "kyThuat": "Giải thích kỹ thuật ngắn gọn. Ví dụ: 'Cung 1 có Sinh Môn + Cửu Địa = nền tảng vững, cơ hội sinh lời. Tuy nhiên Đằng Xà cho thấy có biến số bất ngờ.'",
-  "nangLuong": "Đọc vị tâm lý + 1 ẩn dụ. Ví dụ: 'Bạn đang như vận động viên trước trận đấu - hưng phấn nhưng hơi lo lắng. Kinh Môn cho thấy cần kiểm soát cảm xúc.'",
-  "loiKhuyen": ["Bước 1: Hành động cụ thể trong 1 giờ tới", "Bước 2: Hành động tiếp theo trong 2-3 giờ", "Bước 3: Điều cần tránh/lưu ý"],
-  "suggestions": ["Câu hỏi gợi ý sâu hơn 1", "Câu hỏi gợi ý sâu hơn 2", "Câu hỏi gợi ý sâu hơn 3"]
-}`
-          : `ROLE: Bạn là Kimon - Chuyên gia cấp cao về Kỳ Môn Độn Giáp (QMDJ Strategist).
-MISSION: Trả lời câu hỏi của người dùng dựa trên bảng Cửu Cung.
-
-CÂU HỎI: "${userContext}"
-
-QUY TẮC LUẬN GIẢI:
-1. KIỂM TRA FLAGS: Không Vong (rỗng), Dịch Mã (di chuyển), Trực Phù (quý nhân), Phục/Phản Ngâm.
-2. PHÂN TÍCH: Nhật Can vs Thời Can, Môn + Tinh + Thần.
-3. PHONG CÁCH: Gãy gọn, logic, dùng ẨN DỤ thực tế.
-
-CHỈ TRẢ VỀ JSON:
-{
-  "chienLuoc": "Kết luận Go/No-go + giải thích thế trận Sinh/Khắc.",
-  "kyThuat": "Phân tích kỹ thuật: Môn + Tinh + Thần đang nói gì?",
+  "chienLuoc": "Lớp 1 — Toàn cảnh trận đồ: trạng thái năng lượng tổng thể + thế trận chủ/bị động.",
+  "kyThuat": "Lớp 2 — Điểm rơi năng lượng: cung vượng nhất, cung tử huyệt, kiểm tra Không Vong/Dịch Mã/Mộ, liên kết Ngũ Hành giữa Nhật Can và Dụng Thần.",
   "nangLuong": "Đọc vị tâm lý + 1 ẩn dụ thực tế.",
-  "loiKhuyen": ["Bước 1: ...", "Bước 2: ...", "Bước 3: ..."]
+  "loiKhuyen": ["Hành động cụ thể 1 (VD: hướng, thời điểm)", "Hành động cụ thể 2", "Hành động cụ thể 3 hoặc điều cần tránh"],
+  "gocNhinKymon": "Lớp 4 — Một câu chốt hạ trực giác, khô hài, gần gũi.",
+  "suggestions": ["Câu hỏi gợi ý 1", "Câu hỏi gợi ý 2", "Câu hỏi gợi ý 3"]
+}
+
+Khi trả lời câu hỏi:
+{
+  "chienLuoc": "Kết luận + giải thích thế trận Sinh/Khắc.",
+  "kyThuat": "Phân tích kỹ thuật chi tiết: kiểm tra Không Vong/Dịch Mã/Mộ, liệt kê cung liên quan, so sánh Ngũ Hành.",
+  "nangLuong": "Đọc vị tâm lý + ẩn dụ.",
+  "loiKhuyen": ["Hành động cụ thể 1", "Hành động cụ thể 2", "Hành động cụ thể 3"],
+  "gocNhinKymon": "Câu chốt hạ trực giác, khô hài."
 }`;
 
         const model = genAI.getGenerativeModel({
           model: 'gemini-2.5-flash',
           systemInstruction,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
           safetySettings: [
             { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
             { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
