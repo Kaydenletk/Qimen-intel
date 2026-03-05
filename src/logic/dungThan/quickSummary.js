@@ -9,6 +9,7 @@
  */
 
 import { PALACE_META } from '../../core/tables.js';
+import { findComboAnalogy, findBestComboAnalogy } from './comboAnalogies.js';
 
 // Helper: Viết hoa chữ cái đầu câu
 function capitalize(str) {
@@ -388,6 +389,9 @@ export function generateQuickSummary({ mon, tinh, than, topic, direction, palace
   // Đánh giá tổng thể
   const evaluation = evaluateCombination(monShort, tinh, than);
 
+  // Tìm combo analogy (Môn + Thần, fallback to Môn + Tinh)
+  const combo = findBestComboAnalogy(mon, than, tinh);
+
   // Tạo câu tóm tắt
   const template = topicDict?.template || ((m, t, th) => `${m}. ${t}${th ? `. ${th}` : ''}.`);
   const summary = template(monText, tinhText, thanText);
@@ -414,6 +418,20 @@ export function generateQuickSummary({ mon, tinh, than, topic, direction, palace
 
     // Thông tin vị trí
     location: locationText,
+
+    // COMBO ANALOGY (Môn + Thần)
+    combo: combo ? {
+      emoji: combo.emoji,
+      analogy: combo.analogy,
+      meaning: combo.meaning,
+    } : null,
+
+    // THREE LAYERS FORMAT (Verdict → Analogy → Logic)
+    threeLayers: {
+      verdict: evaluation.verdict,
+      analogy: combo?.analogy || ELEMENT_MEANINGS.mon[monShort]?.analogy || '—',
+      logic: `${mon || '—'} + ${than || '—'} tại ${direction || '—'}`,
+    },
 
     // Chi tiết từng yếu tố (để hiển thị tooltip)
     breakdown: {

@@ -1,0 +1,13 @@
+.vercel
+
+node_modules/
+.env*
+.DS_Store
+*.pdf
+*.MP4
+*.mp4
+server_output.log
+test_kimon.js
+test_models.js
+list_models.js
+

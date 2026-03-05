@@ -583,6 +583,86 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       --code-bg: #F1F5F9;
       --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
     }
+    /* === INITIAL LOADER === */
+    #initialLoader {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #F8FAFC;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+    }
+    #initialLoader.fade-out {
+      opacity: 0;
+      visibility: hidden;
+    }
+    .kymon-loader-logo-wrapper {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin-bottom: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Energy Aura */
+    .kymon-loader-logo-wrapper::before {
+      content: '';
+      position: absolute;
+      top: -20%; left: -20%; right: -20%; bottom: -20%;
+      background: radial-gradient(circle, rgba(251,191,36,0.35) 0%, rgba(245,158,11,0) 70%);
+      border-radius: 50%;
+      animation: kymon-aura 2s ease-in-out infinite alternate;
+      z-index: 1;
+    }
+    /* Shockwave/Sparks */
+    .kymon-loader-logo-wrapper::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+      animation: kymon-pulse 1.8s cubic-bezier(0.165, 0.840, 0.440, 1.000) infinite;
+      z-index: 2;
+    }
+    #initialLoader img {
+      position: relative;
+      width: 110px;
+      height: 110px;
+      object-fit: contain;
+      z-index: 3;
+      animation: kymon-float 3s ease-in-out infinite;
+      filter: drop-shadow(0 4px 15px rgba(251, 191, 36, 0.4));
+    }
+    @keyframes kymon-aura {
+      0% { transform: scale(0.8); opacity: 0.4; }
+      100% { transform: scale(1.3); opacity: 0.8; }
+    }
+    @keyframes kymon-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+      70% { box-shadow: 0 0 0 50px rgba(245, 158, 11, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    }
+    @keyframes kymon-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    #initialLoader h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #0F172A;
+      margin: 0 0 8px 0;
+      letter-spacing: -0.02em;
+    }
+    #initialLoader p {
+      font-size: 0.95rem;
+      color: #64748B;
+      margin: 0;
+    }
+
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -1185,6 +1265,14 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       .palace-summary { font-size: 0.7rem; }
     }
     /* ── Kimon Chat ────────────────────────────────────────── */
+    .kimon-terminal-container {
+      background: #ffffff;
+      border: 1px solid #E2E8F0;
+      border-radius: 24px;
+      padding: 20px 24px;
+      box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+    }
     .kimon-card {
       padding: 20px;
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -1347,61 +1435,26 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     /* ── Thinking Animation ── */
     .kimon-thinking {
       display: none;
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: linear-gradient(135deg, #F8FAFC, #EEF2FF);
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
       margin-bottom: 12px;
-      animation: kimon-fadein 0.35s ease-out;
-      max-width: 85%;
-      margin-right: auto;
+      color: #6366f1;
+      font-size: 0.85rem;
+      font-weight: 500;
+      animation: kimon-fadein 0.3s ease-out;
     }
-    .kimon-thinking.is-visible { display: block; }
-    .kimon-thinking-header {
-      display: flex; align-items: center; gap: 8px;
-      margin-bottom: 8px;
-    }
-    .kimon-thinking-icon {
-      width: 22px; height: 22px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #818CF8, #6366F1);
-      display: flex; align-items: center; justify-content: center;
-      animation: kimon-think-pulse 2s ease-in-out infinite;
-    }
-    .kimon-thinking-icon svg {
-      width: 11px; height: 11px; fill: #fff;
-    }
-    @keyframes kimon-think-pulse {
-      0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99,102,241,0.3); }
-      50% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(99,102,241,0); }
-    }
-    .kimon-thinking-label {
-      font-size: 0.68rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #818CF8;
+    .kimon-thinking.is-visible { display: flex; }
+    .kimon-thinking-spinner {
+      display: inline-block;
+      width: 14px;
+      text-align: center;
+      font-family: monospace;
+      font-size: 1rem;
     }
     .kimon-thinking-text {
-      font-size: 0.85rem;
-      color: #64748B;
+      color: #64748b;
       margin: 0;
-      line-height: 1.5;
-      min-height: 1.3em;
-      transition: opacity 0.3s ease;
-    }
-    .kimon-thinking-text.fade-out { opacity: 0; }
-    .kimon-thinking-text.fade-in { opacity: 1; }
-    .kimon-thinking-shimmer {
-      margin-top: 10px;
-      height: 2px;
-      border-radius: 2px;
-      background: linear-gradient(90deg, transparent 0%, #818CF8 50%, transparent 100%);
-      background-size: 200% 100%;
-      animation: kimon-shimmer 1.8s ease-in-out infinite;
-    }
-    @keyframes kimon-shimmer {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
     }
 
     .kimon-typing-indicator { display: flex; gap: 4px; }
@@ -1570,9 +1623,19 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     <div class="workspace">
       <main class="main-column">
+        <!-- INITIAL LOADER -->
+        <div id="initialLoader">
+          <div class="kymon-loader-logo-wrapper">
+            <img src="/favicon.png" alt="Loading Kymon">
+          </div>
+          <h1>Kỳ Môn Độn Giáp</h1>
+          <p>Kết nối trường năng lượng ... Sẵn sàng luận giải!</p>
+        </div>
+
         <!-- KIMON AI TERMINAL -->
-        <section class="kimon-terminal" id="kimonTerminal">
-          <div class="kimon-terminal-header">
+        <div class="kimon-terminal-container">
+          <section class="kimon-terminal" id="kimonTerminal">
+            <div class="kimon-terminal-header">
             <img src="/favicon.png" alt="Kimon" style="width:24px;height:24px;border-radius:4px;object-fit:contain;">
             <div class="kimon-status-dot"></div>
             <h2 class="kimon-terminal-title">Kymon nè</h2>
@@ -1587,14 +1650,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
               <p>Đang đọc trận bàn...</p>
             </div>
             <div class="kimon-thinking" id="kimonThinking">
-              <div class="kimon-thinking-header">
-                <div class="kimon-thinking-icon">
-                  <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-                </div>
-                <span class="kimon-thinking-label">KYMON ĐANG SUY NGHĨ</span>
-              </div>
-              <p class="kimon-thinking-text" id="kimonThinkingText">Đang phân tích trận bàn...</p>
-              <div class="kimon-thinking-shimmer"></div>
+              <span class="kimon-thinking-spinner" id="kimonThinkingSpinner">⠋</span>
+              <span class="kimon-thinking-text" id="kimonThinkingText">Kymon đang suy nghĩ...</span>
             </div>
           </div>
           <div class="kimon-suggestions-dynamic" id="kimonSuggestions" style="display:none;"></div>
@@ -1605,7 +1662,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
           </div>
+          <div style="font-size: 0.75rem; color: #94A3B8; text-align: center; margin-top: 12px; line-height: 1.5;">
+            💡 <strong>Mẹo:</strong> Kymon sẽ chính xác nhất khi bạn hỏi về một việc cụ thể. Thay vì "Hôm nay thế nào?", hãy thử: <em>"Tôi có nên ký hợp đồng này ngay bây giờ không?"</em>
+          </div>
         </section>
+        </div>
 
         <section class="card briefing" id="briefingCard" hidden>
           <p class="eyebrow">Tóm Tắt Chiến Lược</p>
@@ -1719,6 +1780,26 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const timeFormEl = document.getElementById('timeForm');
     const dateInputEl = document.getElementById('dateInput');
     const hourInputEl = document.getElementById('hourInput');
+    
+    // Handle initial loader fade out (only on first visit per session)
+    window.addEventListener('load', () => {
+      const loader = document.getElementById('initialLoader');
+      if (!loader) return;
+
+      if (sessionStorage.getItem('kymon_has_loaded')) {
+        // Skip animation on subsequent page loads/clicks
+        loader.style.display = 'none';
+      } else {
+        // First time visit, play the full animation
+        setTimeout(() => {
+          loader.classList.add('fade-out');
+          setTimeout(() => {
+            loader.style.display = 'none';
+            sessionStorage.setItem('kymon_has_loaded', 'true');
+          }, 400); // Wait for CSS transition to finish 
+        }, 1900); // 1.9s delay for a beautiful animation reveal
+      }
+    });
     const minuteInputEl = document.getElementById('minuteInput');
     const useNowLinkEl = document.getElementById('useNowLink');
     const signalButtons = Array.from(document.querySelectorAll('.signal-with-tooltip'));
@@ -2205,35 +2286,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       kimonMessages.appendChild(bubble);
       if (kimonLoading) kimonLoading.style.display = 'none';
 
-      // Dynamic suggestions based on current time
-      const currentHour = new Date().getHours();
-      let timeBasedSuggestions = [];
-      
-      if (currentHour >= 5 && currentHour < 12) {
-        // Sáng
-        timeBasedSuggestions = [
-          'Phương nào gặp Quý nhân?',
-          'Thợ săn hay Con mồi?'
-        ];
-      } else if (currentHour >= 12 && currentHour < 18) {
-        // Chiều
-        timeBasedSuggestions = [
-          'Chốt ngay hay đợi Dịch Mã?',
-          'Ai đang cản trở tôi?'
-        ];
-      } else if (currentHour >= 18 && currentHour < 22) {
-        // Tối
-        timeBasedSuggestions = [
-          'Cuộc hẹn tối nay ổn không?',
-          'Nên Tĩnh hay nên Động?'
-        ];
-      } else {
-        // Đêm (22:00 - 04:59)
-        timeBasedSuggestions = [
-          'Quà tặng ngày mai là gì?',
-          'Lời khuyên "Vô vi" đêm nay?'
-        ];
-      }
+      // Dynamic suggestions based on proactive strategic questions
+      const timeBasedSuggestions = [
+        'Sắp tới, tôi có nên đầu tư vào việc này không?',
+        'Làm việc này có thành?',
+        'Nên xuất hành khi nào?',
+        'Năng lượng hiện tại của tôi như thế nào?'
+      ];
       
       renderSuggestions(timeBasedSuggestions);
     }
@@ -2277,19 +2336,21 @@ export default function handler(req, res) {
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       res.end('Error loading page: ' + err.message);
     }
-  } else if (url.pathname === '/favicon.png') {
-    // Serve favicon from public directory
+  } else if (url.pathname === '/favicon.png' || url.pathname === '/loading.gif') {
+    // Serve static files like favicon and loading gif from public directory
     try {
-      const faviconPath = path.join(__dirname, 'public', 'favicon.png');
-      const content = fs.readFileSync(faviconPath);
+      const fileName = path.basename(url.pathname);
+      const filePath = path.join(__dirname, 'public', fileName);
+      const content = fs.readFileSync(filePath);
+      const contentType = fileName.endsWith('.gif') ? 'image/gif' : 'image/png';
       res.writeHead(200, {
-        'Content-Type': 'image/png',
+        'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400'
       });
       res.end(content);
     } catch (err) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Favicon not found');
+      res.end('File not found');
     }
   } else if (url.pathname.startsWith('/public/')) {
     // Serve static files from public directory

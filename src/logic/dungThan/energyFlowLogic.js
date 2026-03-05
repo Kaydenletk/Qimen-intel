@@ -11,7 +11,10 @@
  * - Câu 2: Hidden conflict or advantage in thinking (Cung + Tinh)
  * - Câu 3: Energy blind spot (Void/Phản Ngâm)
  * - Câu 4: Advice to rebalance energy
+ * - (NEW) Câu 5: Combo insight (Môn + Thần analogy)
  */
+
+import { findComboAnalogy, getComboInsight } from './comboAnalogies.js';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // DOOR-BASED MENTAL STATE MAPPINGS (Môn + Thần → Trạng thái tinh thần)
@@ -368,6 +371,13 @@ export function generateEnergyFlowSummary(chart) {
   // ════════════════════════════════════════════════════════════════════════════
   const summary = sentences.join(' ');
 
+  // Get combo insight (Môn + Thần analogy)
+  // Note: doorKey and metadata.deity already declared above
+  const combo = findComboAnalogy(doorKey, metadata.deity);
+  const comboInsight = combo
+    ? `${combo.emoji} **${combo.analogy}**: ${combo.meaning}`
+    : null;
+
   return {
     sentences,
     summary,
@@ -375,6 +385,13 @@ export function generateEnergyFlowSummary(chart) {
     conflict: metadata.conflict,
     blindSpot: metadata.blindSpot,
     advice: metadata.advice,
+    // NEW: Combo energy insight
+    comboEnergy: comboInsight,
+    combo: combo ? {
+      emoji: combo.emoji,
+      analogy: combo.analogy,
+      meaning: combo.meaning,
+    } : null,
     metadata: {
       dayStem: metadata.dayStem,
       dayPalace: metadata.dayPalace,
@@ -484,6 +501,12 @@ export function generateDeterministicEnergyFlow(chart) {
   }
   sentences.push(s4);
 
+  // Get combo insight (Môn + Thần analogy)
+  const combo = findComboAnalogy(doorKey, deityName);
+  const comboInsight = combo
+    ? `${combo.emoji} **${combo.analogy}**: ${combo.meaning}`
+    : null;
+
   return {
     sentences,
     summary: sentences.join(' '),
@@ -491,6 +514,13 @@ export function generateDeterministicEnergyFlow(chart) {
     conflict: sentences[1],
     blindSpot: sentences[2],
     advice: sentences[3],
+    // NEW: Combo energy insight
+    comboEnergy: comboInsight,
+    combo: combo ? {
+      emoji: combo.emoji,
+      analogy: combo.analogy,
+      meaning: combo.meaning,
+    } : null,
     metadata: {
       dayStem: chart.dayPillar?.stemName,
       dayPalace: dayPalaceNum,

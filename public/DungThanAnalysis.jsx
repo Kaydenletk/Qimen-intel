@@ -638,6 +638,149 @@ function ErrorState({ message }) {
 }
 
 // ============================================================================
+// AI ADVISOR COMPONENT
+// ============================================================================
+
+function KimonChat({ qmdjData }) {
+  const [response, setResponse] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [context, setContext] = useState('');
+
+  const askKimon = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    setResponse(null);
+
+    try {
+      const res = await fetch('/api/kimon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qmdjData: qmdjData || { mon: 'Hưu', than: 'Cửu Thiên', cung: 'Khảm', score: 8 },
+          userContext: context.trim() || 'hành động chung trong ngày hôm nay'
+        }),
+      });
+
+      const resData = await res.json();
+
+      if (res.ok && resData) {
+        // Try parsing assuming the API returns a stringified JSON in `resData` or directly the JSON object.
+        // We updated the backend to return the raw Gemini JSON directly.
+        try {
+          const parsed = typeof resData === 'string' ? JSON.parse(resData) : resData;
+          // In case the backend wrapped it in { text: '{"chienLuoc": ...}' }
+          if (parsed.text) {
+            setResponse(JSON.parse(parsed.text));
+          } else {
+            setResponse(parsed);
+          }
+        } catch (e) {
+          console.error("Lỗi parse JSON từ Kimon:", e);
+          setResponse({ error: 'Kimon đưa ra chiến lược quá phức tạp không thể phân tích lúc này.' });
+        }
+      } else {
+        setResponse({ error: 'Kimon đang bận tĩnh tâm hoặc có nhiễu loạn từ trường. Vui lòng thử lại sau!' });
+      }
+    } catch (error) {
+      console.error("Lỗi Frontend gọi Kimon:", error);
+      setResponse('Mất kết nối với Kimon. Vui lòng kiểm tra lại mạng.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-[#1a1a24] border border-[#2a2a35] rounded-2xl p-6 shadow-2xl w-full text-gray-100 mb-6">
+      <div className="flex items-center space-x-4 mb-5">
+        <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-purple-500 to-blue-600 flex items-center justify-center font-bold text-2xl shadow-[0_0_15px_rgba(168,85,247,0.4)]">
+          K
+        </div>
+        <div>
+          <h3 className="font-bold text-xl tracking-wide">Kimon AI</h3>
+          <p className="text-sm text-purple-400 font-medium tracking-wider uppercase">Strategic Advisor</p>
+        </div>
+      </div>
+
+      <div className="mb-5">
+        <label className="block text-sm text-gray-400 mb-2 font-medium">
+          Ngữ cảnh sự việc (VD: Ký hợp đồng, đi phỏng vấn...):
+        </label>
+        <input
+          type="text"
+          value={context}
+          onChange={(e) => setContext(e.target.value)}
+          placeholder="Nhập vấn đề bạn đang băn khoăn..."
+          className="w-full bg-[#111118] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all placeholder-gray-600"
+          onKeyDown={(e) => e.key === 'Enter' && askKimon()}
+        />
+      </div>
+
+      <button
+        onClick={askKimon}
+        disabled={isLoading}
+        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_4px_14px_0_rgba(168,85,247,0.39)] hover:shadow-[0_6px_20px_rgba(168,85,247,0.23)]"
+      >
+        {isLoading ? (
+          <div className="flex items-center justify-center">
+            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Kimon đang luận giải...</span>
+          </div>
+        ) : (
+          <span>Tham Vấn Kimon Ngay</span>
+        )}
+      </button>
+
+      {response && !response.error && (
+        <div className="mt-6 space-y-4 animate-fade-in-up">
+          {response.chienLuoc && (
+            <div className="p-5 bg-gradient-to-br from-[#1c1c28] to-[#111118] rounded-xl border border-purple-500/50 shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xl">⚔️</span>
+                <h4 className="text-purple-400 font-bold uppercase tracking-wider text-sm">Hiến Kế: {response.chienLuoc.tieuDe}</h4>
+              </div>
+              <p className="text-[15px] leading-relaxed text-gray-200 relative z-10">{response.chienLuoc.noiDung}</p>
+            </div>
+          )}
+
+          {response.tamLy && (
+            <div className="p-5 bg-[#111118] rounded-xl border border-blue-500/30 shadow-inner">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xl">👁️</span>
+                <h4 className="text-blue-400 font-bold uppercase tracking-wider text-sm">Đọc Vị Nội Tâm</h4>
+              </div>
+              <div className="space-y-3">
+                <div className="flex gap-3 items-start">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 shrink-0"></div>
+                  <p className="text-sm text-gray-300"><strong className="text-gray-200">Trạng thái:</strong> {response.tamLy.trangThai}</p>
+                </div>
+                <div className="flex gap-3 items-start">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 shrink-0"></div>
+                  <p className="text-sm text-gray-300"><strong className="text-gray-200">Dòng chảy:</strong> {response.tamLy.dongChay}</p>
+                </div>
+                <div className="flex gap-3 items-start">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></div>
+                  <p className="text-sm text-gray-300"><strong className="text-gray-200">Lời khuyên:</strong> {response.tamLy.loiKhuyen}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {response && response.error && (
+        <div className="mt-6 p-4 bg-red-900/20 border border-red-500/30 rounded-xl animate-fade-in-up">
+          <p className="text-red-400 text-sm">{response.error}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
@@ -727,6 +870,7 @@ function DungThanAnalysis() {
 
   const { chart, evaluation } = data;
   const weather = getWeatherMetaphor(evaluation.overallScore);
+  const currentEnergyFlow = generateEnergyFlowClient(chart);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100">
@@ -745,6 +889,15 @@ function DungThanAnalysis() {
           nguyen={`${chart.solarTerm.nguyenName} Nguyên`}
           cucSo={chart.cucSo}
           isDuong={chart.isDuong}
+        />
+
+        <KimonChat
+          qmdjData={{
+            score: evaluation.overallScore,
+            mon: currentEnergyFlow?.metadata?.door,
+            than: currentEnergyFlow?.metadata?.deity,
+            cung: currentEnergyFlow?.metadata?.dayPalace
+          }}
         />
 
         <EnergyFlowCard chart={chart} />
