@@ -1299,8 +1299,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .kimon-message { padding: 12px 14px; border-radius: 12px; font-size: 0.9rem; line-height: 1.55; }
     .kimon-message-ai {
-      background: #1e293b; border: 1px solid #334155; color: #e2e8f0;
-      border-bottom-left-radius: 4px;
+      background: transparent; border: none; color: #1e293b;
     }
     .kimon-message-user {
       background: #312e81; border: 1px solid #4338ca; color: #e0e7ff;
@@ -1309,10 +1308,59 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .kimon-section { margin-top: 8px; }
     .kimon-section:first-child { margin-top: 0; }
     .kimon-section-label {
-      display: block; font-size: 0.68rem; text-transform: uppercase;
-      letter-spacing: 0.09em; color: #6366f1; font-weight: 700; margin-bottom: 3px;
+      display: block; font-size: 0.8rem; font-weight: 600;
+      color: #475569; margin-bottom: 6px;
     }
-    .kimon-message-text { margin: 0; }
+    .kimon-message-text { margin: 0; white-space: pre-wrap; transition: opacity 0.3s ease; }
+    
+    /* ══════════════════════════════════════════════════════════════════
+       KYMON CLEAN UI — Flowing Story Style, No Bullets
+       ══════════════════════════════════════════════════════════════════ */
+
+    /* Response container */
+    .kimon-response {
+      font-size: 0.95rem;
+      line-height: 1.8;
+      color: #334155;
+    }
+
+    /* Paragraphs - clean spacing for story flow */
+    .kimon-paragraph {
+      margin: 0 0 24px 0;
+      padding: 0;
+    }
+    .kimon-paragraph:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Closing quote — italic, centered */
+    .kimon-quote {
+      text-align: center;
+      padding: 28px 0 8px 0;
+      margin-top: 20px;
+      font-style: italic;
+      color: #64748b;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Fade-in animation */
+    @keyframes kimon-fade-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .kimon-response {
+      animation: kimon-fade-in 0.4s ease-out forwards;
+    }
+
+    /* Greeting message */
+    .kimon-greeting {
+      animation: kimon-fade-in 0.3s ease-out forwards;
+    }
+    .kimon-greeting p {
+      margin: 0;
+    }
+    
     /* Real-time streaming cursor */
     .kimon-stream-live::after {
       content: '▋';
@@ -1320,18 +1368,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       color: #6366f1;
     }
     @keyframes kimon-blink { 0%,100%{opacity:1} 50%{opacity:0} }
-    .kimon-loading {
-      display: flex; align-items: center; gap: 8px;
-      color: #64748b; font-size: 0.85rem; padding: 6px 0;
-    }
-    .kimon-typing-indicator { display: flex; gap: 4px; align-items: center; }
-    .kimon-typing-indicator span {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: #6366f1; animation: kimon-dot 1.2s infinite;
-    }
-    .kimon-typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-    .kimon-typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes kimon-dot { 0%,80%,100%{opacity:0.3;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
     .kimon-input-row {
       display: flex; gap: 8px;
     }
@@ -1413,7 +1449,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       min-height: 200px;
       max-height: 65vh;
       overflow-y: auto;
+      overflow-x: hidden;
       background: transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
     }
     /* Scrollbar */
     .kimon-messages::-webkit-scrollbar { width: 4px; }
@@ -1421,51 +1463,50 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .kimon-messages::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
     .kimon-messages::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
-    .kimon-loading {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      padding: 24px 0;
-      color: #94A3B8;
-    }
-    .kimon-loading p { font-size: 0.85rem; margin: 0; }
-
     /* ── Thinking Animation ── */
     .kimon-thinking {
       display: none;
       align-items: center;
-      gap: 8px;
-      padding: 4px 8px;
-      margin-bottom: 12px;
-      color: #6366f1;
+      gap: 10px;
+      padding: 12px 0;
+      color: #64748b;
       font-size: 0.85rem;
-      font-weight: 500;
       animation: kimon-fadein 0.3s ease-out;
+      order: 9999; /* Always at the bottom */
     }
     .kimon-thinking.is-visible { display: flex; }
-    .kimon-thinking-spinner {
-      display: inline-block;
-      width: 14px;
+
+    /* Tip text */
+    .kimon-tip {
+      font-size: 0.8rem;
+      color: #94a3b8;
       text-align: center;
-      font-family: monospace;
-      font-size: 1rem;
+      padding: 16px 12px;
+      line-height: 1.5;
+      border-top: 1px solid #e2e8f0;
+      margin-top: 8px;
     }
+    .kimon-tip strong { color: #64748b; }
+    .kimon-thinking-dots {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .kimon-thinking-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #94A3B8;
+      animation: kimon-bounce 1.4s infinite ease-in-out both;
+    }
+    .kimon-thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .kimon-thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
     .kimon-thinking-text {
       color: #64748b;
       margin: 0;
+      font-size: 0.85rem;
     }
 
-    .kimon-typing-indicator { display: flex; gap: 4px; }
-    .kimon-typing-indicator span {
-      width: 6px; height: 6px;
-      background: #94A3B8;
-      border-radius: 50%;
-      animation: kimon-bounce 1.4s infinite ease-in-out both;
-    }
-    .kimon-typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-    .kimon-typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
     @keyframes kimon-bounce {
       0%,80%,100% { transform: scale(0.6); opacity: 0.3; }
       40% { transform: scale(1); opacity: 1; }
@@ -1484,9 +1525,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       max-width: 85%;
     }
     .kimon-message-ai {
-      background: #F1F5F9;
+      background: transparent;
       margin-right: auto;
-      border-bottom-left-radius: 6px;
+      border: none;
     }
     .kimon-message-user {
       background: #1E293B;
@@ -1498,8 +1539,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .kimon-section { margin-bottom: 10px; }
     .kimon-section:last-child { margin-bottom: 0; }
     .kimon-section-label {
-      display: block; font-size: 0.65rem; font-weight: 600;
-      color: #818CF8; margin-bottom: 4px; letter-spacing: 0.04em; text-transform: uppercase;
+      display: block; font-size: 0.8rem; font-weight: 600;
+      color: #475569; margin-bottom: 6px;
     }
     .kimon-message-text {
       font-size: 0.9rem; line-height: 1.7; color: #334155; margin: 0;
@@ -1617,7 +1658,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         </label>
         <button type="submit">Lập Bàn</button>
         <a href="/" class="link-btn" id="useNowLink">Hiện Tại</a>
-        <a href="/dung-than" class="link-btn" style="background:#10B981; border-color:#10B981; color:#fff;">Xem báo cáo chi tiết</a>
       </form>
     </header>
 
@@ -1645,25 +1685,17 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           </div>
           <div id="kimonError" class="kimon-error"></div>
           <div class="kimon-messages" id="kimonMessages">
-            <div class="kimon-loading" id="kimonLoading">
-              <div class="kimon-typing-indicator"><span></span><span></span><span></span></div>
-              <p>Đang đọc trận bàn...</p>
-            </div>
             <div class="kimon-thinking" id="kimonThinking">
-              <span class="kimon-thinking-spinner" id="kimonThinkingSpinner">⠋</span>
-              <span class="kimon-thinking-text" id="kimonThinkingText">Kymon đang suy nghĩ...</span>
+              <div class="kimon-thinking-dots"><span></span><span></span><span></span></div>
+              <span class="kimon-thinking-text" id="kimonThinkingText">Đang suy nghĩ...</span>
             </div>
           </div>
-          <div class="kimon-suggestions-dynamic" id="kimonSuggestions" style="display:none;"></div>
-          <!-- Removing topic chips here -->
+          <!-- Claude-like: no suggestions, just clean chat -->
           <div class="kimon-input-area">
-            <input type="text" id="kimonContext" class="kimon-input" placeholder="Hỏi Kymon chi tiết hơn...">
+            <input type="text" id="kimonContext" class="kimon-input" placeholder="Hỏi Kymon bất cứ điều gì...">
             <button id="kimonBtn" class="kimon-send-btn" title="Gửi">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
-          </div>
-          <div style="font-size: 0.75rem; color: #94A3B8; text-align: center; margin-top: 12px; line-height: 1.5;">
-            💡 <strong>Mẹo:</strong> Kymon sẽ chính xác nhất khi bạn hỏi về một việc cụ thể. Thay vì "Hôm nay thế nào?", hãy thử: <em>"Tôi có nên ký hợp đồng này ngay bây giờ không?"</em>
           </div>
         </section>
         </div>
@@ -1704,38 +1736,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         <details class="card expert">
           <summary>Developer / Expert Mode (Raw Tables)</summary>
           <div class="expert-content">
-            <section class="palace-grid-section" style="padding: 0; padding-bottom: 16px; border-bottom: 1px dashed var(--border);">
-              <p class="palace-grid-title" style="margin-top: 8px;">Bàn Cửu Cung (Trực Quan)</p>
-              <div class="palace-grid">
-                ${(() => {
-      const grid = [[4, 9, 2], [3, 5, 7], [8, 1, 6]];
-      return grid.flat().map(p => {
-        const pal = palacesByNum[p];
-        const sum = palaceSummaries[p];
-        const meta = PALACE_META_MAP[p];
-        if (p === 5) {
-          return '<div class="palace-cell palace-cell-center"><div class="palace-dir">⊕ Trung Cung</div></div>';
-        }
-        const verdictClass = sum.color === 'green' ? 'verdict-good'
-          : (sum.color === 'orange' || sum.color === 'red') ? 'verdict-warn'
-            : 'verdict-neutral';
-        const elements = [
-          pal?.mon?.short || '—',
-          displayStarShort(pal) || '—',
-          displayDeity(pal) || '—',
-        ].join(' · ');
-        return '<div class="palace-cell ' + verdictClass + '">' +
-          '<div class="palace-header">' +
-          '<span class="palace-dir">' + meta.dir + '</span>' +
-          '<span class="palace-num">Cung ' + p + '</span>' +
-          '</div>' +
-          '<div class="palace-elements">' + elements + '</div>' +
-          '<div class="palace-summary">' + sum.emoji + ' ' + escapeHTML(sum.shortSummary || sum.verdict) + '</div>' +
-          '</div>';
-      }).join('');
-    })()}
-              </div>
-            </section>
+            <!-- Visual grid removed per user request for a cleaner, AI-focused UI -->
             <table id="topicAnalysisTable">
               <thead>
                 <tr>
@@ -1781,25 +1782,17 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const dateInputEl = document.getElementById('dateInput');
     const hourInputEl = document.getElementById('hourInput');
     
-    // Handle initial loader fade out (only on first visit per session)
-    window.addEventListener('load', () => {
+    // Handle initial loader fade out
+    (function hideLoader() {
       const loader = document.getElementById('initialLoader');
       if (!loader) return;
 
-      if (sessionStorage.getItem('kymon_has_loaded')) {
-        // Skip animation on subsequent page loads/clicks
-        loader.style.display = 'none';
-      } else {
-        // First time visit, play the full animation
-        setTimeout(() => {
-          loader.classList.add('fade-out');
-          setTimeout(() => {
-            loader.style.display = 'none';
-            sessionStorage.setItem('kymon_has_loaded', 'true');
-          }, 400); // Wait for CSS transition to finish 
-        }, 1900); // 1.9s delay for a beautiful animation reveal
-      }
-    });
+      // Fade out after short delay (don't wait for all resources)
+      setTimeout(() => {
+        loader.classList.add('fade-out');
+        setTimeout(() => loader.style.display = 'none', 400);
+      }, 1200);
+    })();
     const minuteInputEl = document.getElementById('minuteInput');
     const useNowLinkEl = document.getElementById('useNowLink');
     const signalButtons = Array.from(document.querySelectorAll('.signal-with-tooltip'));
@@ -1858,16 +1851,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       });
     }
 
-    if (AUTO_LOCAL_NOW) {
-      submitWithClientNow();
-    }
+    // Server always uses current time on load - no client-side auto-submit needed
 
     // ── Kimon AI ─────────────────────────────────────────────────────────────
     const kimonBtn = document.getElementById('kimonBtn');
     const kimonContext = document.getElementById('kimonContext');
     const kimonMessages = document.getElementById('kimonMessages');
-    const kimonLoading = document.getElementById('kimonLoading');
-    const kimonSuggestions = document.getElementById('kimonSuggestions');
+    const kimonSuggestions = null; // Removed: Claude-like clean UI
     const kimonError = document.getElementById('kimonError');
     const kimonAutoData = document.getElementById('kimonAutoData');
     const kimonThinking = document.getElementById('kimonThinking');
@@ -1890,7 +1880,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     ];
 
     function showThinking() {
-      if (!kimonThinking) return;
+      if (!kimonThinking || !kimonMessages) return;
+      // Move thinking to end of messages (after all content)
+      kimonMessages.appendChild(kimonThinking);
       kimonThinking.classList.add('is-visible');
       let msgIdx = 0;
       if (kimonThinkingText) {
@@ -1910,12 +1902,38 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           kimonThinkingText.classList.add('fade-in');
         }, 300);
       }, 2500);
-      if (kimonMessages) kimonMessages.scrollTop = kimonMessages.scrollHeight;
+      kimonMessages.scrollTop = kimonMessages.scrollHeight;
     }
 
     function hideThinking() {
       if (thinkingInterval) { clearInterval(thinkingInterval); thinkingInterval = null; }
       if (kimonThinking) kimonThinking.classList.remove('is-visible');
+    }
+
+    // Smart scroll: only auto-scroll if user is near bottom (allows reading while streaming)
+    let userScrolledUp = false;
+
+    function smartScroll() {
+      if (!kimonMessages || userScrolledUp) return;
+      const threshold = 150; // pixels from bottom
+      const isNearBottom = kimonMessages.scrollHeight - kimonMessages.scrollTop - kimonMessages.clientHeight < threshold;
+      if (isNearBottom) {
+        kimonMessages.scrollTop = kimonMessages.scrollHeight;
+      }
+    }
+
+    // Track if user manually scrolled up
+    if (kimonMessages) {
+      kimonMessages.addEventListener('scroll', () => {
+        const threshold = 150;
+        const isNearBottom = kimonMessages.scrollHeight - kimonMessages.scrollTop - kimonMessages.clientHeight < threshold;
+        userScrolledUp = !isNearBottom;
+      });
+    }
+
+    // Reset scroll tracking when new message starts
+    function resetScrollTracking() {
+      userScrolledUp = false;
     }
 
     function getBaseQmdjData() {
@@ -1951,15 +1969,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       return bubble;
     }
 
+    // Suggestions disabled for Claude-like minimal UI
     function renderSuggestions(suggestions) {
-      if (!kimonSuggestions || !Array.isArray(suggestions) || !suggestions.length) return;
-      kimonSuggestions.innerHTML = suggestions.map(s =>
-        '<button class="kimon-suggestion-chip">' + escapeHTML(s) + '</button>'
-      ).join('');
-      kimonSuggestions.style.display = 'flex';
-      kimonSuggestions.querySelectorAll('.kimon-suggestion-chip').forEach(chip => {
-        chip.addEventListener('click', () => askKimon(chip.textContent));
-      });
+      // No-op: removed suggestion chips for cleaner UI
     }
 
     function showKimonError(msg) {
@@ -2022,7 +2034,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             }
             if (msg.chunk && liveEl) {
               liveEl.textContent += msg.chunk;
-              if (kimonMessages) kimonMessages.scrollTop = kimonMessages.scrollHeight;
+              smartScroll(); // Allow user to scroll up while reading
             }
           } catch(e) { if (e.message && !e.message.startsWith('Unexpected')) throw e; }
         }
@@ -2033,55 +2045,110 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     function renderParsedSections(container, data, keys) {
       container.innerHTML = '';
       const typables = [];
-      keys.forEach(({ key, label }) => {
-        const val = data[key];
-        if (!val) return;
-        const sec = document.createElement('div');
-        sec.className = 'kimon-section';
-        if (label) {
-          const lbl = document.createElement('strong');
-          lbl.className = 'kimon-section-label';
-          lbl.textContent = label;
-          sec.appendChild(lbl);
+      
+      // Kymon Clean UI — Flowing story style, no bullets
+      if (data.tongQuan || data.chienLuoc || data.tamLy || data.hanhDong || data.kimonQuote) {
+        container.className = 'kimon-response';
+
+        // 1. Opening paragraph (tongQuan)
+        if (data.tongQuan) {
+          const p = document.createElement('p');
+          p.className = 'kimon-paragraph';
+          container.appendChild(p);
+          typables.push({ el: p, text: data.tongQuan });
         }
 
-        // Handle array values (e.g., loiKhuyen as steps)
-        if (Array.isArray(val)) {
-          const ol = document.createElement('ol');
-          ol.style.cssText = 'margin:0; padding-left:1.2em; list-style-type:decimal;';
-          val.forEach(step => {
-            const li = document.createElement('li');
-            li.className = 'kimon-message-text';
-            li.style.marginBottom = '4px';
-            ol.appendChild(li);
-            typables.push({ el: li, text: step });
-          });
-          sec.appendChild(ol);
-        } else {
+        // 2. Strategy content as paragraph
+        if (data.chienLuoc?.noiDung) {
           const p = document.createElement('p');
-          p.className = 'kimon-message-text';
-          sec.appendChild(p);
-          typables.push({ el: p, text: val });
+          p.className = 'kimon-paragraph';
+          container.appendChild(p);
+          typables.push({ el: p, text: data.chienLuoc.noiDung });
         }
-        container.appendChild(sec);
-      });
+
+        // 3. TamLy as flowing paragraph (combine all items)
+        if (data.tamLy && (data.tamLy.trangThai || data.tamLy.dongChay || data.tamLy.loiKhuyen)) {
+          const items = [data.tamLy.trangThai, data.tamLy.dongChay, data.tamLy.loiKhuyen].filter(Boolean);
+          if (items.length > 0) {
+            const p = document.createElement('p');
+            p.className = 'kimon-paragraph';
+            container.appendChild(p);
+            typables.push({ el: p, text: items.join(' ') });
+          }
+        }
+
+        // 4. Actions as separate paragraphs (no bullets)
+        if (data.hanhDong && Array.isArray(data.hanhDong) && data.hanhDong.length > 0) {
+          data.hanhDong.forEach(action => {
+            const p = document.createElement('p');
+            p.className = 'kimon-paragraph';
+            container.appendChild(p);
+            typables.push({ el: p, text: action });
+          });
+        }
+
+        // 5. Closing quote
+        if (data.kimonQuote) {
+          const quote = document.createElement('div');
+          quote.className = 'kimon-quote';
+          container.appendChild(quote);
+          typables.push({ el: quote, text: data.kimonQuote });
+        }
+      } else {
+        // Fallback for old/simple JSON schema
+        keys.forEach(({ key, label }) => {
+          const val = data[key];
+          if (!val) return;
+          const sec = document.createElement('div');
+          sec.className = 'kimon-section';
+          if (label) {
+            const lbl = document.createElement('strong');
+            lbl.className = 'kimon-section-label';
+            lbl.textContent = label;
+            sec.appendChild(lbl);
+          }
+          if (Array.isArray(val)) {
+            const ol = document.createElement('ol');
+            ol.style.cssText = 'margin:0; padding-left:1.2em; list-style-type:decimal;';
+            val.forEach(step => {
+              const li = document.createElement('li');
+              li.className = 'kimon-message-text';
+              ol.appendChild(li);
+              typables.push({ el: li, text: step });
+            });
+            sec.appendChild(ol);
+          } else if (typeof val === 'object' && val !== null) {
+            const p = document.createElement('p');
+            p.className = 'kimon-message-text';
+            sec.appendChild(p);
+            const combinedText = Object.values(val).filter(Boolean).join('\\n\\n');
+            typables.push({ el: p, text: combinedText });
+          } else {
+            const p = document.createElement('p');
+            p.className = 'kimon-message-text';
+            sec.appendChild(p);
+            typables.push({ el: p, text: val });
+          }
+          container.appendChild(sec);
+        });
+      }
 
       let tIdx = 0; let cIdx = 0;
       function typeNext() {
         if (tIdx >= typables.length) {
-          if (kimonMessages) kimonMessages.scrollTop = kimonMessages.scrollHeight;
+          smartScroll(); // Final scroll when done
           return;
         }
         const curr = typables[tIdx];
         if (cIdx < curr.text.length) {
           curr.el.textContent += curr.text.charAt(cIdx);
           cIdx++;
-          if (kimonMessages) kimonMessages.scrollTop = kimonMessages.scrollHeight;
-          setTimeout(typeNext, 10);
+          smartScroll(); // Allow user to scroll up while reading
+          setTimeout(typeNext, 8);
         } else {
           tIdx++;
           cIdx = 0;
-          setTimeout(typeNext, 100);
+          setTimeout(typeNext, 50);
         }
       }
       typeNext();
@@ -2120,24 +2187,30 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       if (cached) {
         try {
           const bubble = createMessageBubble(true);
-          renderParsedSections(bubble, cached, [
-            { key: 'chienLuoc', label: '' },
-            { key: 'kyThuat', label: '🔍 Phân Tích' },
-            { key: 'nangLuong', label: '' },
-            { key: 'loiKhuyen', label: '📋 Hành Động' },
-            { key: 'gocNhinKymon', label: '🎯 Góc Nhìn Kymon' },
-          ]);
+            const keys = cached.tongQuan ? [
+              { key: 'tongQuan', label: '' },
+              { key: 'chienLuoc', label: '🚩 Chiến Lược' },
+              { key: 'tamLy', label: '🧠 Tâm Trí & Năng Lượng' },
+              { key: 'hanhDong', label: '📋 Hành Động' },
+              { key: 'kimonQuote', label: '🎯 Góc Nhìn Kymon' },
+            ] : [
+              { key: 'chienLuoc', label: '' },
+              { key: 'kyThuat', label: '🔍 Phân Tích' },
+              { key: 'nangLuong', label: '' },
+              { key: 'loiKhuyen', label: '📋 Hành Động' },
+              { key: 'gocNhinKymon', label: '🎯 Góc Nhìn Kymon' },
+            ];
+            renderParsedSections(bubble, cached, keys);
           if (cached.suggestedQuestions?.length) renderSuggestions(cached.suggestedQuestions);
           else if (cached.suggestions?.length) renderSuggestions(cached.suggestions);
           kimonMessages.appendChild(bubble);
-          if (kimonLoading) kimonLoading.style.display = 'none';
+          hideThinking();
           kimonMessages.scrollTop = kimonMessages.scrollHeight;
           return;
         } catch(e) {}
       }
 
       isKimonFetching = true;
-      if (kimonLoading) kimonLoading.style.display = 'flex';
       showThinking();
 
       const bubble = createMessageBubble(true);
@@ -2158,13 +2231,20 @@ function generateHTML(date, hour, minute = 0, options = {}) {
               return;
             }
             setCachedKimon(cacheKey, data);
-            renderParsedSections(bubble, data, [
+            const keys = data.tongQuan ? [
+              { key: 'tongQuan', label: '' },
+              { key: 'chienLuoc', label: '🚩 Chiến Lược' },
+              { key: 'tamLy', label: '🧠 Tâm Trí & Năng Lượng' },
+              { key: 'hanhDong', label: '📋 Hành Động' },
+              { key: 'kimonQuote', label: '🎯 Góc Nhìn Kymon' },
+            ] : [
               { key: 'chienLuoc', label: '' },
               { key: 'kyThuat', label: '🔍 Phân Tích' },
               { key: 'nangLuong', label: '' },
               { key: 'loiKhuyen', label: '📋 Hành Động' },
               { key: 'gocNhinKymon', label: '🎯 Góc Nhìn Kymon' },
-            ]);
+            ];
+            renderParsedSections(bubble, data, keys);
             if (data.suggestedQuestions?.length) renderSuggestions(data.suggestedQuestions);
             else if (data.suggestions?.length) renderSuggestions(data.suggestions);
           }
@@ -2179,7 +2259,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         kimonMessages.appendChild(bubble);
       } finally {
         isKimonFetching = false;
-        if (kimonLoading) kimonLoading.style.display = 'none';
         hideThinking();
         kimonMessages.scrollTop = kimonMessages.scrollHeight;
       }
@@ -2191,7 +2270,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       if (!question?.trim()) return;
 
       isKimonFetching = true;
+      resetScrollTracking(); // Reset scroll tracking for new message
       if (kimonSuggestions) kimonSuggestions.style.display = 'none';
+
+      // Remove tip if exists (only show on first load)
+      const existingTip = kimonMessages.querySelector('.kimon-tip');
+      if (existingTip) existingTip.remove();
 
       const userBubble = createMessageBubble(false);
       userBubble.innerHTML = '<p class="kimon-message-text">' + escapeHTML(question) + '</p>';
@@ -2204,7 +2288,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       
       kimonBtn.disabled = true;
       kimonContext.value = '';
-      if (kimonLoading) kimonLoading.style.display = 'flex';
       showThinking();
 
       // Use hiddenPrompt (rich context) if provided, otherwise displayText
@@ -2231,13 +2314,20 @@ function generateHTML(date, hour, minute = 0, options = {}) {
               liveEl.innerHTML = '<em>Không thể phân tích phản hồi.</em>';
               return;
             }
-            renderParsedSections(aiBubble, data, [
+            const keys = data.tongQuan ? [
+              { key: 'tongQuan', label: '' },
+              { key: 'chienLuoc', label: '🚩 Chiến Lược' },
+              { key: 'tamLy', label: '🧠 Tâm Trí & Năng Lượng' },
+              { key: 'hanhDong', label: '📋 Hành Động' },
+              { key: 'kimonQuote', label: '🎯 Góc Nhìn Kymon' },
+            ] : [
               { key: 'chienLuoc', label: '' },
               { key: 'kyThuat', label: '🔍 Phân Tích' },
               { key: 'nangLuong', label: '' },
               { key: 'loiKhuyen', label: '📋 Hành Động' },
               { key: 'gocNhinKymon', label: '🎯 Góc Nhìn Kymon' },
-            ]);
+            ];
+            renderParsedSections(aiBubble, data, keys);
             kimonMessages.scrollTop = kimonMessages.scrollHeight;
           }
         });
@@ -2249,7 +2339,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         kimonMessages.appendChild(aiBubble);
       } finally {
         isKimonFetching = false;
-        if (kimonLoading) kimonLoading.style.display = 'none';
         hideThinking();
         kimonBtn.disabled = false;
         kimonMessages.scrollTop = kimonMessages.scrollHeight;
@@ -2263,41 +2352,24 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     // (Topic chips have been removed)
 
-    // Show welcome message with suggestions (NO API call on page load)
-    function showWelcomeMessage() {
+    // Show greeting on load - wait for user to ask questions
+    function initChat() {
       if (!kimonMessages) return;
+      hideThinking();
 
-      const qData = getBaseQmdjData();
-      const bubble = createMessageBubble(true);
+      // Show greeting message
+      const greeting = createMessageBubble(true);
+      greeting.innerHTML = '<p class="kimon-paragraph">Chào bạn! Tôi là Kymon. Hãy hỏi tôi bất cứ điều gì về năng lượng hiện tại, công việc, tình cảm, hay quyết định bạn đang cân nhắc.</p>';
+      kimonMessages.appendChild(greeting);
 
-      // Build context-aware welcome based on current chart
-      const hourInfo = qData.hourStem && qData.hourBranch ? (qData.hourStem + ' ' + qData.hourBranch) : '';
-      const gateInfo = qData.mon || '';
-      const starInfo = qData.tinh || '';
-
-      bubble.innerHTML = '<div style="margin-bottom:12px; color:#1E293B;">' +
-        '<p style="margin:0 0 8px 0;"><strong>Xin chào!</strong> Tôi là Kymon.</p>' +
-        (hourInfo ? '<p style="margin:0 0 8px 0; font-size:0.9em; color:#475569;">Giờ hiện tại: <strong>' + escapeHTML(hourInfo) + '</strong>' +
-          (gateInfo ? ' • Môn: <strong>' + escapeHTML(gateInfo) + '</strong>' : '') +
-          (starInfo ? ' • Tinh: <strong>' + escapeHTML(starInfo) + '</strong>' : '') + '</p>' : '') +
-        '<p style="margin:0; font-size:0.9em; color:#475569;">Hãy chọn một câu hỏi bên dưới hoặc nhập câu hỏi của bạn:</p>' +
-        '</div>';
-
-      kimonMessages.appendChild(bubble);
-      if (kimonLoading) kimonLoading.style.display = 'none';
-
-      // Dynamic suggestions based on proactive strategic questions
-      const timeBasedSuggestions = [
-        'Sắp tới, tôi có nên đầu tư vào việc này không?',
-        'Làm việc này có thành?',
-        'Nên xuất hành khi nào?',
-        'Năng lượng hiện tại của tôi như thế nào?'
-      ];
-      
-      renderSuggestions(timeBasedSuggestions);
+      // Add tip about how to ask questions
+      const tip = document.createElement('div');
+      tip.className = 'kimon-tip';
+      tip.innerHTML = '<strong>Mẹo:</strong> Hỏi về một việc cụ thể sẽ cho kết quả chính xác nhất. Ví dụ: "Tôi có nên ký hợp đồng này hôm nay không?" thay vì "Hôm nay thế nào?"';
+      kimonMessages.appendChild(tip);
     }
 
-    if (kimonMessages) showWelcomeMessage();
+    if (kimonMessages) initChat();
 
   </script>
 </body>
@@ -2308,33 +2380,30 @@ export default function handler(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
   if (url.pathname === '/' || url.pathname === '') {
-    const dateParam = url.searchParams.get('date');
-    const hourParam = url.searchParams.get('hour');
-    const minuteParam = url.searchParams.get('minute');
-    const hasDateParam = url.searchParams.has('date');
-    const hasHourParam = url.searchParams.has('hour');
-    const hasMinuteParam = url.searchParams.has('minute');
-    const hasAnyTimeParam = hasDateParam || hasHourParam || hasMinuteParam;
-    const { date, hour, minute } = parseDateTimeQuery({ dateParam, hourParam, minuteParam });
+    // ALWAYS use current server time - refresh = present time
+    const now = new Date();
+    const date = now;
+    const hour = now.getHours();
+    const minute = now.getMinutes();
 
     try {
-      const html = generateHTML(date, hour, minute, { autoLocalNow: !hasAnyTimeParam });
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      // Redirect to clean URL if there are params (so refresh works correctly)
+      if (url.search) {
+        res.writeHead(302, { 'Location': '/' });
+        res.end();
+        return;
+      }
+      const html = generateHTML(date, hour, minute, { autoLocalNow: false });
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
       res.end(html);
     } catch (err) {
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       res.end('Error: ' + err.message);
-    }
-  } else if (url.pathname === '/dung-than' || url.pathname === '/dung-than.html') {
-    // Serve the Dụng Thần Analysis React page
-    try {
-      const htmlPath = path.join(__dirname, 'public', 'dung-than.html');
-      const html = fs.readFileSync(htmlPath, 'utf8');
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(html);
-    } catch (err) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end('Error loading page: ' + err.message);
     }
   } else if (url.pathname === '/favicon.png' || url.pathname === '/loading.gif') {
     // Serve static files like favicon and loading gif from public directory
@@ -2439,123 +2508,34 @@ export default function handler(req, res) {
         const isAutoLoad = userContext === '__AUTO_LOAD__';
 
         // ── KYMON AI SYSTEM PROMPT (from KYMON_AI_SYSTEM_PROMPT.md) ──────────────
-        const systemInstruction = `Bạn là **Kymon** — một cố vấn Kỳ Môn Độn Giáp (KMDG) giàu kinh nghiệm, am hiểu cả lý thuyết lẫn ứng dụng thực tiễn. Bạn có thể phân tích trận bàn KMDG để đưa ra nhận định về:
-- Sự nghiệp / hành động / thời điểm ra quyết định
-- Tài chính / đầu tư / thương mại
-- Sức khỏe / tình cảm / gia đạo
-- Phương hướng hành động tối ưu trong khung giờ/ngày
+        const systemInstruction = `Bạn là Kymon, một chiến lược gia lạnh lùng, thực dụng và sắc bén trong việc phân tích Kỳ Môn Độn Giáp. Giọng điệu của bạn: điềm tĩnh, khách quan, có chút khô khan nhưng rất trúng đích, tuyệt đối không sáo rỗng hay hứa hẹn viển vông. Bạn vừa là một nhà chiến lược vừa là một nhà tâm lý học. Bạn sẽ trả lời bằng tiếng Việt và đưa ra lời khuyên thực tế.
 
-Giọng điệu: ấm, bình tĩnh, hơi khô hài. Nói thẳng, không sáo rỗng, không lặp câu. Thừa nhận khi chưa chắc.
+[KỶ LUẬT TRÍCH XUẤT DỮ LIỆU]
+Bạn sẽ nhận được dữ liệu trận đồ. Mọi phân tích PHẢI bám sát dữ liệu này. KHÔNG tự suy diễn.
 
-## QUY TẮC ĐỌC BÀN
+[PHONG CÁCH VIẾT]
+- Viết như kể chuyện, mạch lạc, tự nhiên — KHÔNG dùng gạch đầu dòng hay bullet points.
+- Mỗi ý tưởng là một đoạn văn riêng biệt, rõ ràng.
+- Câu văn ngắn gọn, súc tích, dễ hiểu.
 
-### Bước 1 — Xác nhận dữ liệu
-Khi nhận raw table, đọc và xác nhận đầy đủ 9 cung trước khi phân tích.
-Nếu dữ liệu thiếu/mâu thuẫn → nói rõ phần nào bị lỗi, hỏi lại.
+[NGUYÊN TẮC]
+- KHÔNG bịa số liệu. Nếu thiếu data → nói rõ.
+- KHÔNG phán tuyệt đối. Dùng "xu hướng", "khả năng cao".
+- Thừa nhận giới hạn — bàn giờ chỉ phản ánh năng lượng khung giờ đó.
 
-### Bước 2 — Xác định bản mệnh người hỏi
-Nếu user cung cấp năm sinh → xác định Thiên Can năm sinh (bản mệnh can) để tìm cung đại diện trong bàn.
-Ví dụ: Sinh năm 1996 (Bính Tý) → Thiên Can = Bính → tìm cung có Thiên Can Bính.
+[ĐỊNH DẠNG TRẢ LỜI — JSON BẮT BUỘC]
+Trả về JSON hợp lệ, KHÔNG giải thích ngoài JSON:
 
-## KHUNG PHÂN TÍCH
-
-### Theo chủ đề câu hỏi
-
-**Sự nghiệp / hành động:**
-- Xem Khai môn, Sinh môn → cơ hội
-- Xem Tử môn, Kinh môn → rủi ro / trở ngại
-- Xem vị trí Trực Phù → thế lực hỗ trợ
-- Xem Lục Hợp → đối tác / hợp tác
-
-**Tài chính / đầu tư:**
-- Sinh môn + Cửu Thiên → xu hướng tăng
-- Tử môn + Cửu Địa → xu hướng giảm / tắc
-- Khai môn → thời điểm mở, cơ hội vào
-- Thương môn + Canh → xung đột, biến động mạnh
-
-**Sức khỏe:**
-- Hưu môn + Thiên Nhậm → phục hồi tốt
-- Tử môn → cần chú ý sức khỏe nghiêm trọng
-- Cửu Địa → ẩn bệnh, khó phát hiện
-
-**Tình cảm / quan hệ:**
-- Lục Hợp → hòa hợp
-- Đằng Xà → rắc rối, nghi ngờ
-- Thái Âm → bí ẩn, tình cảm ẩn
-
-### Cát Hung cơ bản
-
-**Cát (Tốt):** Sinh, Khai, Hưu môn | Thiên Bồng, Thiên Tâm, Thiên Trụ (trong bối cảnh phù hợp) | Trực Phù, Lục Hợp, Cửu Thiên
-**Hung (Xấu):** Tử, Kinh, Thương môn | Canh + bất kỳ → xung | Đằng Xà, Câu Trận | Phục Ngâm / Phản Ngâm
-
-### Các cách cục đặc biệt cần check
-- **Phục Ngâm:** Can địa bàn = Can thiên bàn → trì trệ, không tiến được
-- **Phản Ngâm:** Can thiên bàn xung với Can địa bàn → biến động đột ngột
-- **Thiên Môn Độn Giáp:** Ất/Bính/Đinh vào cung Càn → cát đặc biệt
-- **Tam Kỳ Đắc Sử:** Ất Bính Đinh gặp Sinh/Khai/Hưu môn → đại cát
-
-## NGUYÊN TẮC BẮT BUỘC
-
-1. KHÔNG bịa số liệu. Nếu raw table không cung cấp đủ → nói rõ thiếu gì.
-2. KHÔNG phán tuyệt đối kiểu "chắc chắn thắng / chắc chắn thua". Dùng "xu hướng", "khả năng cao", "cần thêm ngữ cảnh".
-3. LUÔN liệt kê cung khi đưa ra nhận xét — tránh nói chung chung.
-4. Tiếng Việt là mặc định. Thuật ngữ KMDG giữ nguyên tiếng Hán-Việt.
-5. Nếu user sửa → cập nhật ngay, không cự cãi, không xin lỗi quá mức.
-6. Thừa nhận giới hạn — bàn giờ chỉ phản ánh năng lượng khung giờ đó, không phải định mệnh cố định.
-
-## ERROR HANDLING
-
-- Raw table trống / null → "Mình chưa nhận được dữ liệu trận bàn. Bạn thử lập bàn lại nhé."
-- Thiếu một số cung → Phân tích những cung có data, ghi chú cung nào thiếu.
-- User hỏi không liên quan KMDG → Trả lời ngắn, gợi ý quay lại câu hỏi phù hợp.
-- Dữ liệu mâu thuẫn → "Mình thấy [X] và [Y] có vẻ mâu thuẫn nhau — bạn kiểm tra lại raw table giúp mình không?"
-
-## TƯ DUY PHÂN TÍCH NÂNG CAO (Advanced Reasoning)
-
-### Quy tắc "Cản trở & Biến số"
-Trước khi kết luận một cung là Cát (Tốt), PHẢI kiểm tra 3 yếu tố:
-
-1. **Không Vong (Void):** Nếu cung rơi vào Không Vong, mọi sự tốt lành giảm 80%, sự việc dễ rơi vào ảo ảnh, hứa hão. Phải cảnh báo: "Coi chừng 'giỏ nhà ai quai nhà nấy', nhìn vậy mà không phải vậy".
-2. **Dịch Mã (Horse):** Nếu có Dịch Mã, sự việc sẽ diễn ra rất nhanh hoặc có sự thay đổi địa điểm/kế hoạch bất ngờ.
-3. **Mộ (Grave):** Nếu Dụng thần nhập Mộ, năng lượng đang bị khóa, cần thời gian chờ đợi thay vì thúc ép.
-
-### Liên kết Ngũ Hành (Sheng-Ke Logic)
-Không chỉ đọc đơn cung, phải so sánh tương quan giữa Cung của Người (Nhật Can) và Cung của Việc (Dụng Thần):
-- **Sinh/Tương Hòa:** Thuận lợi, ít tốn sức.
-- **Khắc (Ta khắc Việc):** Thành công nhưng vất vả, tốn tài lực.
-- **Bị Khắc (Việc khắc Ta):** Áp lực lớn, rủi ro cao, nên rút lui hoặc tìm đường vòng.
-
-### Trích dẫn Tinh hoa
-Ưu tiên sử dụng các cách cục đặc biệt (như Ất Kỳ đắc sử, Long hồi đầu, Điểu điệp huyệt...) từ tài liệu của Đàm Liên và Trương Hải Ban để làm luận điểm sắc sảo hơn.
-
-## CẤU TRÚC PHẢN HỒI CHIẾN LƯỢC (4-Layer Output)
-
-- **Lớp 1 "Toàn cảnh trận đồ":** Tóm tắt nhanh trạng thái năng lượng tổng thể (Căng thẳng, Bình hòa, hay Cơ hội rực rỡ).
-- **Lớp 2 "Điểm rơi năng lượng":** Chỉ ra chính xác cung nào đang "vượng" nhất và cung nào là "tử huyệt" cần tránh.
-- **Lớp 3 "Lời khuyên thực thi":** Không nói lý thuyết suông. Ít nhất 3 hành động cụ thể (VD: "Nộp hồ sơ hướng Tây", "Im lặng trong cuộc họp chiều nay", "Chốt lời ngay khi giá chạm vùng X").
-- **Lớp 4 "Góc nhìn Kymon":** Một câu chốt hạ mang tính trực giác, có chút khô hài để người dùng cảm thấy sự tin cậy và gần gũi.
-
-## ĐỊNH DẠNG TRẢ LỜI (BẮT BUỘC — JSON)
-
-Bạn PHẢI luôn trả về JSON hợp lệ, KHÔNG chào hỏi, KHÔNG giải thích ngoài JSON.
-
-Khi auto-load (tổng quan bàn):
 {
-  "chienLuoc": "Lớp 1 — Toàn cảnh trận đồ: trạng thái năng lượng tổng thể + thế trận chủ/bị động.",
-  "kyThuat": "Lớp 2 — Điểm rơi năng lượng: cung vượng nhất, cung tử huyệt, kiểm tra Không Vong/Dịch Mã/Mộ, liên kết Ngũ Hành giữa Nhật Can và Dụng Thần.",
-  "nangLuong": "Đọc vị tâm lý + 1 ẩn dụ thực tế.",
-  "loiKhuyen": ["Hành động cụ thể 1 (VD: hướng, thời điểm)", "Hành động cụ thể 2", "Hành động cụ thể 3 hoặc điều cần tránh"],
-  "gocNhinKymon": "Lớp 4 — Một câu chốt hạ trực giác, khô hài, gần gũi.",
-  "suggestions": ["Câu hỏi gợi ý 1", "Câu hỏi gợi ý 2", "Câu hỏi gợi ý 3"]
-}
-
-Khi trả lời câu hỏi:
-{
-  "chienLuoc": "Kết luận + giải thích thế trận Sinh/Khắc.",
-  "kyThuat": "Phân tích kỹ thuật chi tiết: kiểm tra Không Vong/Dịch Mã/Mộ, liệt kê cung liên quan, so sánh Ngũ Hành.",
-  "nangLuong": "Đọc vị tâm lý + ẩn dụ.",
-  "loiKhuyen": ["Hành động cụ thể 1", "Hành động cụ thể 2", "Hành động cụ thể 3"],
-  "gocNhinKymon": "Câu chốt hạ trực giác, khô hài."
+  "tongQuan": "1-2 câu mở đầu nhìn nhận cục diện, viết như đang trò chuyện.",
+  "chienLuoc": {
+    "noiDung": "Phân tích chi tiết dưới dạng đoạn văn liền mạch: điểm mạnh, điểm yếu, tương tác ngũ hành."
+  },
+  "hanhDong": [
+    "Đoạn văn 1: Lời khuyên hành động cụ thể.",
+    "Đoạn văn 2: Điều cần lưu ý hoặc tránh."
+  ],
+  "kimonQuote": "Câu chốt hạ sắc bén, mang tính cảnh tỉnh."
 }`;
 
         const model = genAI.getGenerativeModel({
@@ -2679,7 +2659,7 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     console.log(`\n🔮 QMDJ Engine Server running at http://localhost:${PORT}\n`);
     console.log('Endpoints:');
     console.log(`  - GET /                  → Kymon UI`);
-    console.log(`  - GET /dung-than         → Dụng Thần Analysis (React)`);
+    console.log(`  - GET /api/kimon/stream  → Kimon Streaming Chat endpoints`);
     console.log(`  - GET /api/analyze       → JSON API`);
     console.log(`\nQuery params: ?date=YYYY-MM-DD&hour=0-23&minute=0-59\n`);
   });

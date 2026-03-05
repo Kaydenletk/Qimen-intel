@@ -58,15 +58,15 @@ export const PALACE_META = {
 
 // ── Cửu Tinh (Nine Stars) ─────────────────────────────────────────────────────
 export const CUU_TINH = [
-  { idx: 0, name: 'Thiên Bồng', short: 'Bồng', element: 'Thủy', type: 'hung', palace: 1 },
-  { idx: 1, name: 'Thiên Nhuế', short: 'Nhuế', element: 'Thổ', type: 'hung', palace: 2 },
-  { idx: 2, name: 'Thiên Xung', short: 'Xung', element: 'Mộc', type: 'cat', palace: 3 },
-  { idx: 3, name: 'Thiên Phụ', short: 'Phụ', element: 'Mộc', type: 'cat', palace: 4 },
-  { idx: 4, name: 'Thiên Cầm', short: 'Cầm', element: 'Thổ', type: 'binh', palace: 5 },
-  { idx: 5, name: 'Thiên Tâm', short: 'Tâm', element: 'Kim', type: 'cat', palace: 6 },
-  { idx: 6, name: 'Thiên Trụ', short: 'Trụ', element: 'Kim', type: 'hung', palace: 7 },
-  { idx: 7, name: 'Thiên Nhậm', short: 'Nhâm', element: 'Thủy', type: 'cat', palace: 8 },
-  { idx: 8, name: 'Thiên Anh', short: 'Anh', element: 'Hỏa', type: 'binh', palace: 9 },
+  { idx: 0, name: 'Thiên Bồng', short: 'Bồng', element: 'Thủy', type: 'hung', palace: 1, so: 1 },
+  { idx: 1, name: 'Thiên Nhuế', short: 'Nhuế', element: 'Thổ', type: 'hung', palace: 2, so: 9 },
+  { idx: 2, name: 'Thiên Xung', short: 'Xung', element: 'Mộc', type: 'cat', palace: 3, so: 3 },
+  { idx: 3, name: 'Thiên Phụ', short: 'Phụ', element: 'Mộc', type: 'cat', palace: 4, so: 4 },
+  { idx: 4, name: 'Thiên Cầm', short: 'Cầm', element: 'Thổ', type: 'binh', palace: 5, so: 5 },
+  { idx: 5, name: 'Thiên Tâm', short: 'Tâm', element: 'Kim', type: 'cat', palace: 6, so: 6 },
+  { idx: 6, name: 'Thiên Trụ', short: 'Trụ', element: 'Kim', type: 'hung', palace: 7, so: 7 },
+  { idx: 7, name: 'Thiên Nhậm', short: 'Nhâm', element: 'Thủy', type: 'cat', palace: 8, so: 2 },
+  { idx: 8, name: 'Thiên Anh', short: 'Anh', element: 'Hỏa', type: 'binh', palace: 9, so: 8 },
 ];
 
 // ── Bát Môn — fixed to Địa Bàn palaces ───────────────────────────────────────
