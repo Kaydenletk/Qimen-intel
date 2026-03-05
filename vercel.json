@@ -1,9 +1,15 @@
 {
-     "version": 2,
-     "rewrites": [
-          {
-               "source": "/(.*)",
-               "destination": "/api/index.js"
-          }
-     ]
+  "version": 2,
+  "buildCommand": "echo 'No build needed'",
+  "outputDirectory": ".",
+  "routes": [
+    {
+      "src": "/favicon.png",
+      "dest": "/public/favicon.png"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.js"
+    }
+  ]
 }

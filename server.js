@@ -569,7 +569,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kymon · QMDJ Engine</title>
-  <link rel="icon" type="image/png" href="/public/favicon.png">
+  <link rel="icon" type="image/png" href="/favicon.png">
   <style>
     :root {
       --bg: #F8FAFC;
@@ -1479,7 +1479,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   <div class="shell">
     <header class="card app-header">
       <div>
-        <h1 class="app-title"><img src="/public/favicon.png" alt="" style="height:32px; vertical-align:middle; margin-right:8px;">Kymon</h1>
+        <h1 class="app-title"><img src="/favicon.png" alt="" style="height:32px; vertical-align:middle; margin-right:8px;">Kymon</h1>
         <p class="app-subtitle">Vô xem cho biết, quyết cho nhanh.</p>
       </div>
       <form method="GET" action="/" class="controls" id="timeForm">
@@ -1503,7 +1503,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         <!-- KIMON AI TERMINAL -->
         <section class="kimon-terminal" id="kimonTerminal">
           <div class="kimon-terminal-header">
-            <img src="/public/favicon.png" alt="Kimon" style="width:24px;height:24px;border-radius:4px;object-fit:contain;">
+            <img src="/favicon.png" alt="Kimon" style="width:24px;height:24px;border-radius:4px;object-fit:contain;">
             <div class="kimon-status-dot"></div>
             <h2 class="kimon-terminal-title">Kymon nè</h2>
             <div class="kimon-meta-tags">
@@ -1768,11 +1768,14 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         // Tìm đoạn văn bản nằm giữa dấu { và }
         const jsonMatch = rawText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          return JSON.parse(jsonMatch[0]);
+          const parsed = JSON.parse(jsonMatch[0]);
+          console.log('[Kimon] Parsed JSON:', Object.keys(parsed));
+          return parsed;
         }
         return JSON.parse(rawText);
       } catch (e) {
-        console.error("Lỗi parse JSON:", e);
+        console.error("[Kimon] JSON parse error:", e.message);
+        console.error("[Kimon] Raw text:", rawText?.substring(0, 300));
         return null;
       }
     }
@@ -1794,7 +1797,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         const { done, value } = await reader.read();
         if (done) break;
         buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\\n');
+        const lines = buf.split('\n');
         buf = lines.pop();
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
@@ -2292,8 +2295,11 @@ CHỈ TRẢ VỀ JSON:
           // Extract JSON from any text (handles preamble/postamble)
           const jsonMatch = fullText.match(/\{[\s\S]*\}/);
           const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : fullText);
+          console.log('[Kimon] Parsed OK, keys:', Object.keys(parsed));
           res.write(`data: ${JSON.stringify({ __DONE__: true, parsed })}\n\n`);
-        } catch (_) {
+        } catch (parseErr) {
+          console.error('[Kimon] JSON parse failed:', parseErr.message);
+          console.error('[Kimon] Raw response:', fullText.substring(0, 500));
           res.write(`data: ${JSON.stringify({ __DONE__: true, raw: fullText })}\n\n`);
         }
         res.end();
