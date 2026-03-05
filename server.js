@@ -1864,24 +1864,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       });
     }
 
-    // On initial load (no query params), sync form to client's local time and auto-submit
-    // This ensures users see their local time, not server time (which may be UTC)
+    // On initial load, always sync form to client's local time
+    // This ensures users see their local time in the form inputs
     (function syncLocalTimeOnLoad() {
-      // Only auto-sync on clean URL (no params = first visit or refresh)
+      // Only sync on clean URL (first visit or refresh without params)
       if (window.location.search === '' && dateInputEl && hourInputEl && minuteInputEl) {
-        const now = new Date();
-        const serverHour = parseInt(hourInputEl.value, 10);
-        const serverMinute = parseInt(minuteInputEl.value, 10);
-        const clientHour = now.getHours();
-        const clientMinute = now.getMinutes();
-
-        // Check if server time differs from client time (timezone mismatch)
-        if (serverHour !== clientHour || Math.abs(serverMinute - clientMinute) > 1) {
-          applyClientNowToForm();
-          // Auto-submit to reload chart with correct local time
-          if (timeFormEl) {
-            timeFormEl.requestSubmit();
-          }
+        applyClientNowToForm();
+        // Auto-submit to load chart with correct local time
+        if (timeFormEl) {
+          timeFormEl.requestSubmit();
         }
       }
     })();
@@ -2413,19 +2404,13 @@ export default function handler(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
   if (url.pathname === '/' || url.pathname === '') {
-    // ALWAYS use current server time - refresh = present time
-    const now = new Date();
-    const date = now;
-    const hour = now.getHours();
-    const minute = now.getMinutes();
+    // Use query params if provided (from client timezone sync), otherwise use server time
+    const dateParam = url.searchParams.get('date');
+    const hourParam = url.searchParams.get('hour');
+    const minuteParam = url.searchParams.get('minute');
+    const { date, hour, minute } = parseDateTimeQuery({ dateParam, hourParam, minuteParam });
 
     try {
-      // Redirect to clean URL if there are params (so refresh works correctly)
-      if (url.search) {
-        res.writeHead(302, { 'Location': '/' });
-        res.end();
-        return;
-      }
       const html = generateHTML(date, hour, minute, { autoLocalNow: false });
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
