@@ -8,6 +8,10 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { enrichData } from './src/utils/qmdjHelper.js';
 import { analyze } from './src/index.js';
 import { generateDeterministicEnergyFlow } from './src/logic/dungThan/index.js';
 import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
@@ -22,6 +26,49 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = 3000;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SERVER-SIDE RATE LIMITING (prevents 429 from Gemini)
+// ══════════════════════════════════════════════════════════════════════════════
+const GEMINI_RATE_LIMIT = {
+  maxRequests: 8,        // Stay under 10 RPM for gemini-2.5-flash
+  windowMs: 60000,       // 1 minute
+  cooldownMs: 30000,     // 30 sec cooldown after 429
+  requests: [],          // timestamps
+  cooldownUntil: 0       // when cooldown expires
+};
+
+function canCallGemini() {
+  const now = Date.now();
+
+  // Check cooldown
+  if (GEMINI_RATE_LIMIT.cooldownUntil > now) {
+    const secsLeft = Math.ceil((GEMINI_RATE_LIMIT.cooldownUntil - now) / 1000);
+    return { allowed: false, reason: 'cooldown', secsLeft };
+  }
+
+  // Clean old requests
+  GEMINI_RATE_LIMIT.requests = GEMINI_RATE_LIMIT.requests.filter(
+    t => t > now - GEMINI_RATE_LIMIT.windowMs
+  );
+
+  if (GEMINI_RATE_LIMIT.requests.length >= GEMINI_RATE_LIMIT.maxRequests) {
+    const oldestExpires = GEMINI_RATE_LIMIT.requests[0] + GEMINI_RATE_LIMIT.windowMs;
+    const secsLeft = Math.ceil((oldestExpires - now) / 1000);
+    return { allowed: false, reason: 'rate_limit', secsLeft };
+  }
+
+  return { allowed: true };
+}
+
+function recordGeminiRequest() {
+  GEMINI_RATE_LIMIT.requests.push(Date.now());
+}
+
+function triggerGeminiCooldown() {
+  GEMINI_RATE_LIMIT.cooldownUntil = Date.now() + GEMINI_RATE_LIMIT.cooldownMs;
+  console.log('[Rate Limit] Cooldown triggered for 30 seconds');
+}
 
 function formatLocalDateInput(date) {
   const y = date.getFullYear();
@@ -521,7 +568,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Strategic Advisor · QMDJ Engine</title>
+  <title>Kymon · QMDJ Engine</title>
+  <link rel="icon" type="image/png" href="/public/favicon.png">
   <style>
     :root {
       --bg: #F8FAFC;
@@ -614,10 +662,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-weight: 600;
     }
     .workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 310px;
-      gap: 18px;
-      align-items: start;
+      display: block;
     }
     .main-column {
       position: relative;
@@ -1151,14 +1196,291 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       .palace-cell { padding: 8px; min-height: 80px; }
       .palace-summary { font-size: 0.7rem; }
     }
+    /* ── Kimon Chat ────────────────────────────────────────── */
+    .kimon-card {
+      padding: 20px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border-color: #334155;
+      color: #e2e8f0;
+      margin-top: 18px;
+    }
+    .kimon-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 14px;
+    }
+    .kimon-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+    }
+    .kimon-name { font-weight: 700; font-size: 1rem; color: #a5b4fc; }
+    .kimon-tagline { font-size: 0.78rem; color: #64748b; }
+    .kimon-messages {
+      min-height: 80px; max-height: 340px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 12px;
+      margin-bottom: 12px;
+    }
+    .kimon-message { padding: 12px 14px; border-radius: 12px; font-size: 0.9rem; line-height: 1.55; }
+    .kimon-message-ai {
+      background: #1e293b; border: 1px solid #334155; color: #e2e8f0;
+      border-bottom-left-radius: 4px;
+    }
+    .kimon-message-user {
+      background: #312e81; border: 1px solid #4338ca; color: #e0e7ff;
+      align-self: flex-end; border-bottom-right-radius: 4px;
+    }
+    .kimon-section { margin-top: 8px; }
+    .kimon-section:first-child { margin-top: 0; }
+    .kimon-section-label {
+      display: block; font-size: 0.68rem; text-transform: uppercase;
+      letter-spacing: 0.09em; color: #6366f1; font-weight: 700; margin-bottom: 3px;
+    }
+    .kimon-message-text { margin: 0; }
+    /* Real-time streaming cursor */
+    .kimon-stream-live::after {
+      content: '▋';
+      animation: kimon-blink 0.8s step-end infinite;
+      color: #6366f1;
+    }
+    @keyframes kimon-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .kimon-loading {
+      display: flex; align-items: center; gap: 8px;
+      color: #64748b; font-size: 0.85rem; padding: 6px 0;
+    }
+    .kimon-typing-indicator { display: flex; gap: 4px; align-items: center; }
+    .kimon-typing-indicator span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #6366f1; animation: kimon-dot 1.2s infinite;
+    }
+    .kimon-typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .kimon-typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes kimon-dot { 0%,80%,100%{opacity:0.3;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
+    .kimon-input-row {
+      display: flex; gap: 8px;
+    }
+    .kimon-input-row input {
+      flex: 1; background: #0f172a; border: 1px solid #334155;
+      color: #e2e8f0; border-radius: 10px; padding: 9px 13px;
+      font-size: 0.88rem;
+    }
+    .kimon-input-row input::placeholder { color: #475569; }
+    .kimon-input-row input:focus { outline: none; border-color: #6366f1; }
+    .kimon-btn {
+      background: #6366f1; border: none; color: #fff;
+      padding: 9px 16px; border-radius: 10px; cursor: pointer;
+      font-size: 0.88rem; font-weight: 600; transition: background 0.2s;
+    }
+    .kimon-btn:hover { background: #4f46e5; }
+    .kimon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .kimon-suggestions {
+      display: none; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+    }
+    .kimon-suggestion-chip {
+      background: #1e293b; border: 1px solid #334155; color: #94a3b8;
+      border-radius: 999px; padding: 4px 12px; font-size: 0.78rem;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .kimon-suggestion-chip:hover { border-color: #6366f1; color: #a5b4fc; }
+    .kimon-error {
+      display: none; color: #f87171; font-size: 0.82rem;
+      padding: 6px 10px; border-radius: 8px;
+      background: rgba(239,68,68,0.1); margin-bottom: 8px;
+    }
+    .kimon-error-inline { color: #f87171; margin: 0; font-size: 0.88rem; }
+    /* === KIMON AI TERMINAL (white theme) === */
+    .kimon-terminal {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 0;
+      color: #1E293B;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      font-family: 'SF Pro Text', 'Avenir Next', 'Helvetica Neue', sans-serif;
+    }
+    .kimon-terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid #E2E8F0;
+      background: #F8FAFC;
+    }
+    .kimon-status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px rgba(16,185,129,0.6);
+      animation: kimon-pulse 2s infinite;
+    }
+    @keyframes kimon-pulse {
+      0%,100% { opacity:1; box-shadow:0 0 8px rgba(16,185,129,0.6); }
+      50% { opacity:0.7; box-shadow:0 0 14px rgba(16,185,129,0.8); }
+    }
+    .kimon-terminal-title {
+      margin: 0;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #1E293B;
+    }
+    .kimon-meta-tags {
+      margin-left: auto;
+      font-size: 0.74rem;
+      color: #64748B;
+      font-weight: 500;
+    }
+    .kimon-messages {
+      padding: 20px;
+      min-height: 260px;
+      max-height: 60vh;
+      overflow-y: auto;
+      background: #FFFFFF;
+    }
+    .kimon-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 40px;
+      color: #64748B;
+    }
+    .kimon-loading p { font-size:0.9rem; margin:0; }
+    .kimon-typing-indicator { display:flex; gap:5px; }
+    .kimon-typing-indicator span {
+      width: 8px; height: 8px;
+      background: #3B82F6;
+      border-radius: 50%;
+      animation: kimon-bounce 1.4s infinite ease-in-out both;
+    }
+    .kimon-typing-indicator span:nth-child(1) { animation-delay:-0.32s; }
+    .kimon-typing-indicator span:nth-child(2) { animation-delay:-0.16s; }
+    @keyframes kimon-bounce {
+      0%,80%,100% { transform:scale(0.6); opacity:0.4; }
+      40% { transform:scale(1); opacity:1; }
+    }
+    @keyframes kimon-fadein {
+      from { opacity:0; transform:translateY(8px); }
+      to { opacity:1; transform:translateY(0); }
+    }
+    .kimon-message {
+      margin-bottom: 14px;
+      padding: 14px 18px;
+      border-radius: 12px;
+      animation: kimon-fadein 0.35s ease-out;
+      max-width: 88%;
+    }
+    .kimon-message-ai {
+      background: #F1F5F9;
+      border-left: 3px solid #3B82F6;
+      margin-right: auto;
+    }
+    .kimon-message-user {
+      background: #2563EB;
+      border-radius: 12px;
+      margin-left: auto;
+      margin-right: 0;
+    }
+    .kimon-message-user .kimon-message-text { color:#FFFFFF; }
+    .kimon-section { margin-bottom:12px; }
+    .kimon-section:last-child { margin-bottom:0; }
+    .kimon-section-label {
+      display:block; font-size:0.68rem; font-weight:700;
+      color:#3B82F6; margin-bottom:5px; letter-spacing:0.04em; text-transform:uppercase;
+    }
+    .kimon-message-text {
+      font-size:0.93rem; line-height:1.7; color:#1E293B; margin:0;
+    }
+    .kimon-message-text.typing-cursor::after {
+      content:'|'; animation:kimon-blink 0.6s infinite; color:#3B82F6; font-weight:300;
+    }
+    @keyframes kimon-blink { 0%,50% { opacity:1; } 51%,100% { opacity:0; } }
+    .kimon-suggestions-dynamic {
+      padding: 10px 20px;
+      display: flex; flex-wrap:wrap; gap:8px;
+      background: #FAFBFC;
+      border-top: 1px solid #E2E8F0;
+    }
+    .kimon-suggestion-chip {
+      background:#fff; border:1px solid #3B82F6; color:#3B82F6;
+      padding:7px 14px; border-radius:20px; font-size:0.78rem; font-weight:500;
+      cursor:pointer; transition:all 0.2s ease;
+    }
+    .kimon-suggestion-chip:hover {
+      background:#EFF6FF; border-color:#2563EB; color:#2563EB;
+      transform:translateY(-1px);
+    }
+    .kimon-input-area {
+      display:flex; gap:10px;
+      padding: 14px 20px 18px;
+      border-top: 1px solid #E2E8F0;
+      background:#FFFFFF;
+    }
+    .kimon-input {
+      flex:1; background:#FFFFFF; border:1px solid #E2E8F0;
+      color:#1E293B; border-radius:10px; padding:12px 16px;
+      font-size:0.92rem; font-family:inherit; box-sizing:border-box;
+      transition:all 0.2s ease;
+    }
+    .kimon-input:focus { outline:none; border-color:#3B82F6; box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
+    .kimon-input::placeholder { color:#94A3B8; }
+    .kimon-send-btn {
+      background:#3B82F6; border:none; color:#FFFFFF;
+      width:46px; height:46px; border-radius:10px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      transition:all 0.2s ease; flex-shrink:0;
+    }
+    .kimon-send-btn:hover:not(:disabled) { background:#2563EB; transform:translateY(-1px); box-shadow:0 4px 12px rgba(59,130,246,0.3); }
+    .kimon-send-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .kimon-error {
+      display:none; margin:10px 20px;
+      padding:9px 14px; background:#FEF2F2; border:1px solid #FECACA;
+      border-radius:8px; color:#DC2626; font-size:0.83rem;
+    }
+    .kimon-error-inline {
+      color:#DC2626; font-size:0.83rem; margin:0;
+      background:#FEF2F2; padding:10px 14px;
+      border-radius:8px; border:1px solid #FECACA;
+    }
+    .kimon-topic-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 20px 6px;
+      border-top: 1px solid #E2E8F0;
+    }
+    .kimon-topic-chips .topic-chip {
+      font-size: 0.78rem;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #E2E8F0;
+      background: #F8FAFC;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+    .kimon-topic-chips .topic-chip:hover {
+      background: #EEF2FF;
+      border-color: #818CF8;
+      color: #4338CA;
+    }
+    .kimon-topic-chips .topic-chip.is-active {
+      background: #3B82F6;
+      border-color: #3B82F6;
+      color: #FFFFFF;
+    }
   </style>
 </head>
 <body>
   <div class="shell">
     <header class="card app-header">
       <div>
-        <h1 class="app-title">Strategic Advisor</h1>
-        <p class="app-subtitle">Simple Mode mặc định: tập trung quyết định hành động, giảm tải dữ liệu kỹ thuật.</p>
+        <h1 class="app-title"><img src="/public/favicon.png" alt="" style="height:32px; vertical-align:middle; margin-right:8px;">Kymon</h1>
+        <p class="app-subtitle">Vô xem cho biết, quyết cho nhanh.</p>
       </div>
       <form method="GET" action="/" class="controls" id="timeForm">
         <label>Ngày
@@ -1170,89 +1492,73 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         <label>Phút
           <input id="minuteInput" type="number" name="minute" min="0" max="59" value="${selectedMinute}" style="width:80px;">
         </label>
-        <button type="submit">Cập nhật phân tích</button>
-        <a href="/" class="link-btn" id="useNowLink">Dùng thời điểm hiện tại</a>
+        <button type="submit">Lập Bàn</button>
+        <a href="/" class="link-btn" id="useNowLink">Hiện Tại</a>
+        <a href="/dung-than" class="link-btn" style="background:#10B981; border-color:#10B981; color:#fff;">Xem báo cáo chi tiết</a>
       </form>
     </header>
 
     <div class="workspace">
       <main class="main-column">
-        <section class="card briefing" id="briefingCard">
+        <!-- KIMON AI TERMINAL -->
+        <section class="kimon-terminal" id="kimonTerminal">
+          <div class="kimon-terminal-header">
+            <img src="/public/favicon.png" alt="Kimon" style="width:24px;height:24px;border-radius:4px;object-fit:contain;">
+            <div class="kimon-status-dot"></div>
+            <h2 class="kimon-terminal-title">Kymon nè</h2>
+            <div class="kimon-meta-tags">
+              <span>${escapeHTML(chart.solarTerm?.name || '')} · Cục ${chart.cucSo} ${chart.isDuong ? 'Dương' : 'Âm'}</span>
+            </div>
+          </div>
+          <div id="kimonError" class="kimon-error"></div>
+          <div class="kimon-messages" id="kimonMessages">
+            <div class="kimon-loading" id="kimonLoading">
+              <div class="kimon-typing-indicator"><span></span><span></span><span></span></div>
+              <p>Đang đọc trận bàn...</p>
+            </div>
+          </div>
+          <div class="kimon-suggestions-dynamic" id="kimonSuggestions" style="display:none;"></div>
+          <!-- Removing topic chips here -->
+          <div class="kimon-input-area">
+            <input type="text" id="kimonContext" class="kimon-input" placeholder="Hỏi Kymon chi tiết hơn...">
+            <button id="kimonBtn" class="kimon-send-btn" title="Gửi">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+        </section>
+
+        <section class="card briefing" id="briefingCard" hidden>
           <p class="eyebrow">Tóm Tắt Chiến Lược</p>
           <h2 id="briefingTitle">${briefingHeading}</h2>
           <p id="briefingContent" class="briefing-narrative">${briefingParagraph}</p>
           <span id="totalScoreValue" data-kimon-score="${evaluation.overallScore}" hidden>${evaluation.overallScore}</span>
+          <span id="kimonAutoData"
+            data-all-topics="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ topic: t.topic, score: t.score, action: t.actionAdvice, verdict: t.verdict }))))}"
+            data-mon="${escapeHTML(energyFlow.metadata?.door || '')}"
+            data-than="${escapeHTML(energyFlow.metadata?.deity || '')}"
+            data-tinh="${escapeHTML(energyFlow.metadata?.star || '')}"
+            data-score="${evaluation.overallScore}"
+            data-day-stem="${escapeHTML(chart.dayPillar?.stemName || '')}"
+            data-hour-stem="${escapeHTML(chart.gioPillar?.stemName || '')}"
+            data-solar-term="${escapeHTML(chart.solarTerm?.name || '')}"
+            data-cuc="${chart.cucSo}"
+            data-duong="${chart.isDuong}"
+            data-phuc-am="${chart.isPhucAm || false}"
+            data-phan-ngam="${chart.isPhanNgam || false}"
+            data-briefing-title="${escapeHTML(briefingHeading || '')}"
+            data-briefing-body="${escapeHTML(briefingParagraph || '')}"
+            data-mental-state="${escapeHTML(energyFlow.mentalState || '')}"
+            data-conflict="${escapeHTML(energyFlow.conflict || '')}"
+            data-blind-spot="${escapeHTML(energyFlow.blindSpot || '')}"
+            data-energy-advice="${escapeHTML(energyFlow.advice || '')}"
+            data-day-palace="${energyFlow.metadata?.dayPalace || ''}"
+            data-formations="${escapeHTML(evaluation.topFormations?.map(f => f.name).join(', ') || '')}"
+            hidden></span>
           <div class="signal-row">${signalBadges}</div>
         </section>
 
-        <section class="card energy-flow-card" id="energyFlowCard">
-          <p class="eyebrow">Tóm Tắt Dòng Năng Lượng Bên Trong</p>
-          <h2 id="energyFlowTitle">Đọc Vị Tâm Lý</h2>
-          <div class="energy-flow-content">
-            <div class="energy-sentence energy-mental">
-              <span class="energy-label">Trạng thái tinh thần:</span>
-              <p>${escapeHTML(energyFlow.mentalState || '')}</p>
-            </div>
-            <div class="energy-sentence energy-conflict">
-              <span class="energy-label">Dòng chảy năng lượng:</span>
-              <p>${escapeHTML(energyFlow.conflict || '')}</p>
-            </div>
-            <div class="energy-sentence energy-blindspot">
-              <span class="energy-label">Điểm mù năng lượng:</span>
-              <p>${escapeHTML(energyFlow.blindSpot || '')}</p>
-            </div>
-            <div class="energy-sentence energy-advice">
-              <span class="energy-label">Lời khuyên cân bằng:</span>
-              <p>${escapeHTML(energyFlow.advice || '')}</p>
-            </div>
-          </div>
-          <div class="energy-meta">
-            <span class="energy-tag">Nhật Can: ${escapeHTML(energyFlow.metadata?.dayStem || '—')}</span>
-            <span class="energy-tag">Cung: ${energyFlow.metadata?.dayPalace || '—'}</span>
-            <span class="energy-tag">Môn: ${escapeHTML(energyFlow.metadata?.door || '—')}</span>
-            <span class="energy-tag">Thần: ${escapeHTML(energyFlow.metadata?.deity || '—')}</span>
-            ${energyFlow.metadata?.hasFanYin ? '<span class="energy-tag energy-warning">Phản Ngâm</span>' : ''}
-            ${energyFlow.metadata?.hasFuYin ? '<span class="energy-tag energy-warning">Phục Ngâm</span>' : ''}
-            ${energyFlow.metadata?.hasVoid ? '<span class="energy-tag energy-warning">Không Vong</span>' : ''}
-            ${energyFlow.metadata?.hasDichMa ? '<span class="energy-tag energy-info">Dịch Mã</span>' : ''}
-          </div>
-        </section>
 
-        <section class="card insight-shell">
-          <div class="chip-row">
-            ${topicChips}
-          </div>
-          <article class="insight-card">
-            <div class="insight-top">
-              <div>
-                <p class="eyebrow" style="margin:0;color:#64748B;">Thẻ Cố Vấn</p>
-                <h3 class="insight-topic" id="insightTopic">${defaultTopic.headline || defaultTopic.topic}</h3>
-                <p class="insight-meta" id="insightMeta">Hướng ${defaultTopic.usefulGodDir} · Cung ${defaultTopic.usefulGodPalaceName}</p>
-              </div>
-              <span class="verdict-pill ${defaultTopic.tone}" id="insightVerdict">${defaultTopic.verdict}</span>
-            </div>
-            <p class="advice" id="insightAdvice" style="margin:12px 0;font-size:0.95rem;line-height:1.6;">${defaultTopic.oneLiner || defaultTopic.actionAdvice}</p>
-            <div class="tactics-grid">
-              <div class="tactics-box do">
-                <h4>Nên làm</h4>
-                <ul id="insightDoList">
-                  ${(defaultTopic.tactics?.do || []).slice(0, 3).map(item => `<li>${escapeHTML(item)}</li>`).join('') || '<li>Chưa có dữ liệu.</li>'}
-                </ul>
-              </div>
-              <div class="tactics-box avoid">
-                <h4>Nên tránh</h4>
-                <ul id="insightAvoidList">
-                  ${(defaultTopic.tactics?.avoid || []).slice(0, 2).map(item => `<li>${escapeHTML(item)}</li>`).join('') || '<li>Chưa có dữ liệu.</li>'}
-                </ul>
-              </div>
-            </div>
-            <p class="topic-disclaimer" id="insightDisclaimer" style="font-size:0.75rem;color:#94a3b8;margin-top:12px;">${defaultTopic.disclaimer || ''}</p>
-            <details style="margin-top:12px;">
-              <summary style="font-size:0.75rem;color:#64748B;cursor:pointer;">Chi tiết kỹ thuật</summary>
-              <pre class="evidence" id="insightEvidence" style="margin-top:8px;font-size:0.7rem;">${defaultTopic.insightEvidenceText}</pre>
-            </details>
-          </article>
-        </section>
+        <!-- Thẻ Cố Vấn (insight-shell) has been removed -->
 
         <details class="card expert">
           <summary>Developer / Expert Mode (Raw Tables)</summary>
@@ -1307,6 +1613,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
                 ${palaceRows.join('')}
               </tbody>
             </table>
+            <!--
             <table>
               <thead>
                 <tr>
@@ -1321,64 +1628,14 @@ function generateHTML(date, hour, minute = 0, options = {}) {
                 ${topicRows}
               </tbody>
             </table>
+            -->
           </div>
         </details>
       </main>
-
-      <aside class="side-column">
-        <section class="card snapshot-card">
-          <h2 class="side-title">Snapshot</h2>
-          <dl class="snapshot-list">
-            <div class="snapshot-item" data-field="tiet-khi"><dt class="snapshot-key">Tiết khí</dt><dd class="snapshot-value">${chart.solarTerm.name}</dd></div>
-            <div class="snapshot-item" data-field="nguyen"><dt class="snapshot-key">Nguyên</dt><dd class="snapshot-value">${chart.solarTerm.nguyenName}</dd></div>
-            <div class="snapshot-item" data-field="cuc"><dt class="snapshot-key">Cục</dt><dd class="snapshot-value">${chart.cucSo} ${chart.isDuong ? 'Dương' : 'Âm'}</dd></div>
-            <div class="snapshot-item" data-field="total-score"><dt class="snapshot-key">Total Score</dt><dd class="snapshot-value">${formatScore(evaluation.overallScore)}</dd></div>
-            <div class="snapshot-item" data-field="phuc-phan"><dt class="snapshot-key">Phục/Phản</dt><dd class="snapshot-value">${chart.isPhucAm ? 'Phục Âm' : chart.isPhanNgam ? 'Phản Ngâm' : 'Bình thường'}</dd></div>
-            <div class="snapshot-item" data-field="ngay"><dt class="snapshot-key">Ngày</dt><dd class="snapshot-value">${chart.dayPillar.stemName} ${chart.dayPillar.branchName}</dd></div>
-            <div class="snapshot-item" data-field="gio"><dt class="snapshot-key">Giờ</dt><dd class="snapshot-value">${chart.gioPillar.displayStemName || chart.gioPillar.stemName} ${chart.gioPillar.branchName}</dd></div>
-            <div class="snapshot-item" data-field="timezone"><dt class="snapshot-key">Cơ sở giờ</dt><dd class="snapshot-value">${timeBasis}</dd></div>
-            <div class="snapshot-item" data-field="khong-vong"><dt class="snapshot-key">Không Vong</dt><dd class="snapshot-value">${chart.khongVong.void1.name}, ${chart.khongVong.void2.name}</dd></div>
-            <div class="snapshot-item" data-field="dich-ma"><dt class="snapshot-key">Dịch Mã</dt><dd class="snapshot-value">${chart.dichMa ? `${chart.dichMa.horseBranch} · Cung ${chart.dichMa.palace}` : '—'}</dd></div>
-          </dl>
-        </section>
-        <section class="card legend-card">
-          <h2 class="side-title">Legend</h2>
-          <p>
-            Ưu tiên xem <strong>Tóm Tắt Chiến Lược</strong> và <strong>Insight Card</strong> trước.
-            Khi cần kiểm chứng kỹ thuật, mở <strong>Developer / Expert Mode</strong>.
-          </p>
-          <div class="legend-row">
-            <span class="signal signal-cat">Cát</span>
-            <span class="signal signal-hung">Hung</span>
-            <span class="signal signal-info">Thông tin</span>
-          </div>
-          <p style="margin-top:10px;">
-            API JSON vẫn giữ nguyên tại
-            <a href="/api/analyze?date=${selectedDate}&hour=${hour}&minute=${selectedMinute}" class="link">/api/analyze</a>.
-          </p>
-        </section>
-      </aside>
-    </div>
   </div>
 
   <script>
     const AUTO_LOCAL_NOW = ${autoLocalNow ? 'true' : 'false'};
-    const topics = ${topicPayloadJSON};
-    const defaultTopicKey = ${JSON.stringify(defaultTopic.key)};
-    const topicMap = Object.fromEntries(topics.map(t => [t.key, t]));
-    const chips = Array.from(document.querySelectorAll('.topic-chip'));
-    const topicEl = document.getElementById('insightTopic');
-    const metaEl = document.getElementById('insightMeta');
-    const actionMetaEl = document.getElementById('insightActionMeta');
-    const verdictEl = document.getElementById('insightVerdict');
-    const scoreEl = document.getElementById('insightScore');
-    const scoreFillEl = document.getElementById('insightScoreFill');
-    const adviceEl = document.getElementById('insightAdvice');
-    const narrativeEl = document.getElementById('insightNarrative');
-    const doListEl = document.getElementById('insightDoList');
-    const avoidListEl = document.getElementById('insightAvoidList');
-    const disclaimerEl = document.getElementById('insightDisclaimer');
-    const evidenceEl = document.getElementById('insightEvidence');
     const timeFormEl = document.getElementById('timeForm');
     const dateInputEl = document.getElementById('dateInput');
     const hourInputEl = document.getElementById('hourInput');
@@ -1386,59 +1643,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const useNowLinkEl = document.getElementById('useNowLink');
     const signalButtons = Array.from(document.querySelectorAll('.signal-with-tooltip'));
 
-    function toneClass(score) {
-      if (score >= 5) return 'cat';
-      if (score < 0) return 'hung';
-      return 'info';
-    }
-
-    function evidenceLines(topic) {
-      if (Array.isArray(topic.insightEvidence) && topic.insightEvidence.length) {
-        return topic.insightEvidence.map(line => '// ' + line).join('\\n');
-      }
-      const lines = [];
-      lines.push('// Huong: ' + topic.usefulGodDir + ' · Cung ' + topic.usefulGodPalace + ' (' + topic.usefulGodPalaceName + ')');
-      topic.reasons.slice(0, 6).forEach(r => lines.push('// ' + r));
-      if (topic.actionAdvice) lines.push('// Action: ' + topic.actionAdvice);
-      return lines.join('\\n');
-    }
-
-    function escapeText(text) {
-      return String(text || '')
+    function escapeHTML(raw) {
+      return String(raw || '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/\"/g, '&quot;')
+        .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-    }
-
-    function renderTopic(key) {
-      const topic = topicMap[key] || topics[0];
-      if (!topic) return;
-      chips.forEach(btn => btn.classList.toggle('is-active', btn.dataset.topic === topic.key));
-      topicEl.textContent = topic.headline || topic.topic;
-      metaEl.textContent = 'Hướng ' + topic.usefulGodDir + ' · Cung ' + topic.usefulGodPalaceName;
-      verdictEl.textContent = topic.verdict;
-      verdictEl.className = 'verdict-pill ' + toneClass(topic.score);
-      adviceEl.textContent = topic.oneLiner || topic.actionAdvice || 'Không có khuyến nghị cụ thể.';
-      if (doListEl) {
-        const doItems = Array.isArray(topic.tactics?.do) && topic.tactics.do.length
-          ? topic.tactics.do.slice(0, 3)
-          : ['Chưa có dữ liệu.'];
-        doListEl.innerHTML = doItems.map(item => '<li>' + escapeText(item) + '</li>').join('');
-      }
-      if (avoidListEl) {
-        const avoidItems = Array.isArray(topic.tactics?.avoid) && topic.tactics.avoid.length
-          ? topic.tactics.avoid.slice(0, 2)
-          : ['Chưa có dữ liệu.'];
-        avoidListEl.innerHTML = avoidItems.map(item => '<li>' + escapeText(item) + '</li>').join('');
-      }
-      if (disclaimerEl) {
-        disclaimerEl.textContent = topic.disclaimer || '';
-      }
-      if (evidenceEl) {
-        evidenceEl.textContent = evidenceLines(topic);
-      }
     }
 
     function pad2(value) {
@@ -1467,10 +1678,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       });
     }
 
-    chips.forEach(btn => {
-      btn.addEventListener('click', () => renderTopic(btn.dataset.topic));
-    });
-
     signalButtons.forEach(btn => {
       btn.addEventListener('click', event => {
         event.preventDefault();
@@ -1490,11 +1697,390 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       });
     }
 
-    renderTopic(defaultTopicKey);
-
     if (AUTO_LOCAL_NOW) {
       submitWithClientNow();
     }
+
+    // ── Kimon AI ─────────────────────────────────────────────────────────────
+    const kimonBtn = document.getElementById('kimonBtn');
+    const kimonContext = document.getElementById('kimonContext');
+    const kimonMessages = document.getElementById('kimonMessages');
+    const kimonLoading = document.getElementById('kimonLoading');
+    const kimonSuggestions = document.getElementById('kimonSuggestions');
+    const kimonError = document.getElementById('kimonError');
+    const kimonAutoData = document.getElementById('kimonAutoData');
+    let currentTopic = null; // set by renderTopic
+
+    function getBaseQmdjData() {
+      if (!kimonAutoData) return {};
+      return {
+        mon: kimonAutoData.dataset.mon || '',
+        than: kimonAutoData.dataset.than || '',
+        tinh: kimonAutoData.dataset.tinh || '',
+        cung: kimonAutoData.dataset.dayPalace || '',
+        score: parseInt(kimonAutoData.dataset.score) || 0,
+        overallScore: parseInt(kimonAutoData.dataset.score) || 0,
+        dayStem: kimonAutoData.dataset.dayStem || '',
+        hourStem: kimonAutoData.dataset.hourStem || '',
+        solarTerm: kimonAutoData.dataset.solarTerm || '',
+        cucSo: parseInt(kimonAutoData.dataset.cuc) || 1,
+        isDuong: kimonAutoData.dataset.duong === 'true',
+        isPhucAm: kimonAutoData.dataset.phucAm === 'true',
+        isPhanNgam: kimonAutoData.dataset.phanNgam === 'true',
+        briefingTitle: kimonAutoData.dataset.briefingTitle || '',
+        briefingBody: kimonAutoData.dataset.briefingBody || '',
+        mentalState: kimonAutoData.dataset.mentalState || '',
+        conflict: kimonAutoData.dataset.conflict || '',
+        blindSpot: kimonAutoData.dataset.blindSpot || '',
+        energyAdvice: kimonAutoData.dataset.energyAdvice || '',
+        formations: kimonAutoData.dataset.formations || '',
+        allTopics: kimonAutoData.dataset.allTopics || '[]'
+      };
+    }
+
+    function createMessageBubble(isKimon = true) {
+      const bubble = document.createElement('div');
+      bubble.className = 'kimon-message ' + (isKimon ? 'kimon-message-ai' : 'kimon-message-user');
+      return bubble;
+    }
+
+    function renderSuggestions(suggestions) {
+      if (!kimonSuggestions || !Array.isArray(suggestions) || !suggestions.length) return;
+      kimonSuggestions.innerHTML = suggestions.map(s =>
+        '<button class="kimon-suggestion-chip">' + escapeHTML(s) + '</button>'
+      ).join('');
+      kimonSuggestions.style.display = 'flex';
+      kimonSuggestions.querySelectorAll('.kimon-suggestion-chip').forEach(chip => {
+        chip.addEventListener('click', () => askKimon(chip.textContent));
+      });
+    }
+
+    function showKimonError(msg) {
+      if (!kimonError) return;
+      kimonError.textContent = msg;
+      kimonError.style.display = 'block';
+      setTimeout(() => { kimonError.style.display = 'none'; }, 8000);
+    }
+
+    // Hàm giúp trích xuất JSON sạch từ phản hồi của AI
+    function cleanAiResponse(rawText) {
+      try {
+        // Tìm đoạn văn bản nằm giữa dấu { và }
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          return JSON.parse(jsonMatch[0]);
+        }
+        return JSON.parse(rawText);
+      } catch (e) {
+        console.error("Lỗi parse JSON:", e);
+        return null;
+      }
+    }
+
+    // SSE stream helper — pipes chunks into liveEl, resolves with parsed JSON on __DONE__
+    async function callKimonStream({ qmdjData, userContext, liveEl, onDone }) {
+      const res = await fetch('/api/kimon/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qmdjData, userContext })
+      });
+      if (!res.ok || !res.body) throw new Error('Stream lỗi (' + res.status + ')');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const msg = JSON.parse(line.slice(6));
+            if (msg.__ERROR__) throw new Error(msg.__ERROR__);
+            if (msg.__DONE__) {
+              let parsed = msg.parsed;
+              // Fallback: cleanAiResponse - extract JSON from any text
+              if (!parsed && msg.raw) {
+                parsed = cleanAiResponse(msg.raw);
+              }
+              if (onDone) onDone(parsed || null);
+              return parsed;
+            }
+            if (msg.chunk && liveEl) {
+              liveEl.textContent += msg.chunk;
+              if (kimonMessages) kimonMessages.scrollTop = kimonMessages.scrollHeight;
+            }
+          } catch(e) { if (e.message && !e.message.startsWith('Unexpected')) throw e; }
+        }
+      }
+      return null;
+    }
+
+    function renderParsedSections(container, data, keys) {
+      container.innerHTML = '';
+      const typables = [];
+      keys.forEach(({ key, label }) => {
+        const val = data[key];
+        if (!val) return;
+        const sec = document.createElement('div');
+        sec.className = 'kimon-section';
+        if (label) {
+          const lbl = document.createElement('strong');
+          lbl.className = 'kimon-section-label';
+          lbl.textContent = label;
+          sec.appendChild(lbl);
+        }
+
+        // Handle array values (e.g., loiKhuyen as steps)
+        if (Array.isArray(val)) {
+          const ol = document.createElement('ol');
+          ol.style.cssText = 'margin:0; padding-left:1.2em; list-style-type:decimal;';
+          val.forEach(step => {
+            const li = document.createElement('li');
+            li.className = 'kimon-message-text';
+            li.style.marginBottom = '4px';
+            ol.appendChild(li);
+            typables.push({ el: li, text: step });
+          });
+          sec.appendChild(ol);
+        } else {
+          const p = document.createElement('p');
+          p.className = 'kimon-message-text';
+          sec.appendChild(p);
+          typables.push({ el: p, text: val });
+        }
+        container.appendChild(sec);
+      });
+
+      let tIdx = 0; let cIdx = 0;
+      function typeNext() {
+        if (tIdx >= typables.length) {
+          if (kimonMessages) kimonMessages.scrollTop = kimonMessages.scrollHeight;
+          return;
+        }
+        const curr = typables[tIdx];
+        if (cIdx < curr.text.length) {
+          curr.el.textContent += curr.text.charAt(cIdx);
+          cIdx++;
+          if (kimonMessages) kimonMessages.scrollTop = kimonMessages.scrollHeight;
+          setTimeout(typeNext, 10);
+        } else {
+          tIdx++;
+          cIdx = 0;
+          setTimeout(typeNext, 100);
+        }
+      }
+      typeNext();
+    }
+
+    let isKimonFetching = false;
+
+    // Clear stale rate limit state on page load (server handles rate limiting now)
+    localStorage.removeItem('kimon_rate_limit');
+
+    const CACHE_EXPIRE_MS = 3600000; // 1 hour cache
+
+    function getCachedKimon(cacheKey) {
+      try {
+        const item = JSON.parse(localStorage.getItem(cacheKey));
+        if (item && item.expireAt > Date.now()) return item.data;
+        localStorage.removeItem(cacheKey);
+      } catch {}
+      return null;
+    }
+
+    function setCachedKimon(cacheKey, data) {
+      localStorage.setItem(cacheKey, JSON.stringify({
+        data,
+        expireAt: Date.now() + CACHE_EXPIRE_MS
+      }));
+    }
+
+    async function autoLoadKimon() {
+      if (isKimonFetching) return;
+
+      const qData = getBaseQmdjData();
+      const cacheKey = 'kimon_auto_' + (qData.dayStem||'') + '_' + (qData.hourStem||'') + '_' + (qData.solarTerm||'');
+      const cached = getCachedKimon(cacheKey);
+
+      if (cached) {
+        try {
+          const bubble = createMessageBubble(true);
+          renderParsedSections(bubble, cached, [
+            { key: 'chienLuoc', label: '' },
+            { key: 'kyThuat', label: '🔍 Phân Tích' },
+            { key: 'nangLuong', label: '' },
+            { key: 'loiKhuyen', label: '📋 Hành Động' },
+          ]);
+          if (cached.suggestedQuestions?.length) renderSuggestions(cached.suggestedQuestions);
+          else if (cached.suggestions?.length) renderSuggestions(cached.suggestions);
+          kimonMessages.appendChild(bubble);
+          if (kimonLoading) kimonLoading.style.display = 'none';
+          kimonMessages.scrollTop = kimonMessages.scrollHeight;
+          return;
+        } catch(e) {}
+      }
+
+      isKimonFetching = true;
+      if (kimonLoading) kimonLoading.style.display = 'flex';
+
+      const bubble = createMessageBubble(true);
+      const liveEl = document.createElement('p');
+      liveEl.className = 'kimon-message-text kimon-stream-live';
+      bubble.appendChild(liveEl);
+
+      try {
+        await callKimonStream({
+          qmdjData: qData,
+          userContext: '__AUTO_LOAD__',
+          liveEl,
+          onDone: (data) => {
+            liveEl.classList.remove('kimon-stream-live');
+            if (!data) {
+              // Clean up raw text display
+              liveEl.innerHTML = '<em>Không thể phân tích phản hồi. Vui lòng thử lại.</em>';
+              return;
+            }
+            setCachedKimon(cacheKey, data);
+            renderParsedSections(bubble, data, [
+              { key: 'chienLuoc', label: '' },
+              { key: 'kyThuat', label: '🔍 Phân Tích' },
+              { key: 'nangLuong', label: '' },
+              { key: 'loiKhuyen', label: '📋 Hành Động' },
+            ]);
+            if (data.suggestedQuestions?.length) renderSuggestions(data.suggestedQuestions);
+            else if (data.suggestions?.length) renderSuggestions(data.suggestions);
+          }
+        });
+        kimonMessages.appendChild(bubble);
+      } catch(e) {
+        console.error('Lỗi autoLoadKimon:', e);
+        const errMsg = e.message || 'Lỗi kết nối';
+
+        liveEl.innerHTML = '⚠️ ' + escapeHTML(errMsg) + '<br><br><small><i>Vui lòng tiếp tục nhập câu hỏi phía dưới.</i></small>';
+        liveEl.classList.remove('kimon-stream-live');
+        kimonMessages.appendChild(bubble);
+      } finally {
+        isKimonFetching = false;
+        if (kimonLoading) kimonLoading.style.display = 'none';
+        kimonMessages.scrollTop = kimonMessages.scrollHeight;
+      }
+    }
+
+    async function askKimon(displayText, hiddenPrompt) {
+      if (isKimonFetching) return;
+      const question = displayText;
+      if (!question?.trim()) return;
+
+      isKimonFetching = true;
+      if (kimonSuggestions) kimonSuggestions.style.display = 'none';
+
+      const userBubble = createMessageBubble(false);
+      userBubble.innerHTML = '<p class="kimon-message-text">' + escapeHTML(question) + '</p>';
+      kimonMessages.appendChild(userBubble);
+
+      const aiBubble = createMessageBubble(true);
+      const liveEl = document.createElement('p');
+      liveEl.className = 'kimon-message-text kimon-stream-live';
+      aiBubble.appendChild(liveEl);
+      
+      kimonBtn.disabled = true;
+      kimonContext.value = '';
+      if (kimonLoading) kimonLoading.style.display = 'flex';
+
+      // Use hiddenPrompt (rich context) if provided, otherwise displayText
+      const promptToSend = hiddenPrompt || question;
+
+      try {
+        const base = getBaseQmdjData();
+        const payload = currentTopic ? {
+          ...base,
+          score: currentTopic.score,
+          mon: currentTopic.usefulGodGate || base.mon,
+          than: currentTopic.usefulGodDeity || base.than,
+          cung: currentTopic.usefulGodPalaceName || base.cung,
+          selectedTopic: currentTopic.chipLabel || 'chung'
+        } : base;
+
+        await callKimonStream({
+          qmdjData: payload,
+          userContext: promptToSend,
+          liveEl,
+          onDone: (data) => {
+            liveEl.classList.remove('kimon-stream-live');
+            if (!data) {
+              liveEl.innerHTML = '<em>Không thể phân tích phản hồi.</em>';
+              return;
+            }
+            renderParsedSections(aiBubble, data, [
+              { key: 'chienLuoc', label: '' },
+              { key: 'kyThuat', label: '🔍 Phân Tích' },
+              { key: 'nangLuong', label: '' },
+              { key: 'loiKhuyen', label: '📋 Hành Động' },
+            ]);
+            kimonMessages.scrollTop = kimonMessages.scrollHeight;
+          }
+        });
+        kimonMessages.appendChild(aiBubble);
+      } catch(e) {
+        console.error('Lỗi askKimon:', e);
+        const errMsg = e.message || 'Lỗi kết nối. Vui lòng thử lại sau.';
+        aiBubble.innerHTML = '<p class="kimon-error-inline" style="color:var(--hung); margin:0;">⚠️ ' + escapeHTML(errMsg) + '</p>';
+        kimonMessages.appendChild(aiBubble);
+      } finally {
+        isKimonFetching = false;
+        if (kimonLoading) kimonLoading.style.display = 'none';
+        kimonBtn.disabled = false;
+        kimonMessages.scrollTop = kimonMessages.scrollHeight;
+      }
+    }
+
+    if (kimonBtn) {
+      kimonBtn.addEventListener('click', () => askKimon(kimonContext.value.trim()));
+      kimonContext.addEventListener('keydown', e => { if (e.key === 'Enter') askKimon(kimonContext.value.trim()); });
+    }
+
+    // (Topic chips have been removed)
+
+    // Show welcome message with suggestions (NO API call on page load)
+    function showWelcomeMessage() {
+      if (!kimonMessages) return;
+
+      const qData = getBaseQmdjData();
+      const bubble = createMessageBubble(true);
+
+      // Build context-aware welcome based on current chart
+      const hourInfo = qData.hourStem && qData.hourBranch ? (qData.hourStem + ' ' + qData.hourBranch) : '';
+      const gateInfo = qData.mon || '';
+      const starInfo = qData.tinh || '';
+
+      bubble.innerHTML = '<div style="margin-bottom:12px; color:#1E293B;">' +
+        '<p style="margin:0 0 8px 0;"><strong>Xin chào!</strong> Tôi là Kymon.</p>' +
+        (hourInfo ? '<p style="margin:0 0 8px 0; font-size:0.9em; color:#475569;">Giờ hiện tại: <strong>' + escapeHTML(hourInfo) + '</strong>' +
+          (gateInfo ? ' • Môn: <strong>' + escapeHTML(gateInfo) + '</strong>' : '') +
+          (starInfo ? ' • Tinh: <strong>' + escapeHTML(starInfo) + '</strong>' : '') + '</p>' : '') +
+        '<p style="margin:0; font-size:0.9em; color:#475569;">Hãy chọn một câu hỏi bên dưới hoặc nhập câu hỏi của bạn:</p>' +
+        '</div>';
+
+      kimonMessages.appendChild(bubble);
+      if (kimonLoading) kimonLoading.style.display = 'none';
+
+      // Static suggestions based on common QMDJ questions
+      const defaultSuggestions = [
+        'Năng lượng hôm nay thế nào?',
+        'Tài vận hôm nay ra sao?',
+        'Hướng xuất hành tốt nhất?',
+        'Giờ tốt để hành động?'
+      ];
+      renderSuggestions(defaultSuggestions);
+    }
+
+    if (kimonMessages) showWelcomeMessage();
+
   </script>
 </body>
 </html>`;
@@ -1543,9 +2129,14 @@ export default function handler(req, res) {
         '.jsx': 'text/javascript; charset=utf-8',
         '.css': 'text/css; charset=utf-8',
         '.json': 'application/json; charset=utf-8',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.svg': 'image/svg+xml'
       };
       const contentType = contentTypes[ext] || 'text/plain';
-      const content = fs.readFileSync(filePath, 'utf8');
+      const content = fs.readFileSync(filePath);
       res.writeHead(200, { 'Content-Type': contentType });
       res.end(content);
     } catch (err) {
@@ -1562,7 +2153,7 @@ export default function handler(req, res) {
         '.json': 'application/json; charset=utf-8',
       };
       const contentType = contentTypes[ext] || 'text/plain';
-      const content = fs.readFileSync(filePath, 'utf8');
+      const content = fs.readFileSync(filePath);
       res.writeHead(200, { 'Content-Type': contentType });
       res.end(content);
     } catch (err) {
@@ -1583,6 +2174,185 @@ export default function handler(req, res) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: err.message }));
     }
+  } else if (url.pathname === '/api/kimon/stream' && req.method === 'POST') {
+    // ── STREAMING SSE ENDPOINT ────────────────────────────────────────────────
+    let bodyData = '';
+    req.on('data', chunk => { bodyData += chunk.toString(); });
+    req.on('end', async () => {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      try {
+        const body = JSON.parse(bodyData);
+        const { qmdjData, userContext = 'chung' } = body;
+
+        // Server-side rate limit check BEFORE calling Gemini
+        const rateCheck = canCallGemini();
+        if (!rateCheck.allowed) {
+          const msg = rateCheck.reason === 'cooldown'
+            ? `Đang cooldown. Vui lòng đợi ${rateCheck.secsLeft} giây.`
+            : `Đã đạt giới hạn 12 request/phút. Đợi ${rateCheck.secsLeft} giây.`;
+          res.write(`data: ${JSON.stringify({ __ERROR__: msg })}\n\n`);
+          res.end();
+          return;
+        }
+        recordGeminiRequest();
+
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const isAutoLoad = userContext === '__AUTO_LOAD__';
+
+        const systemInstruction = isAutoLoad
+          ? `ROLE: Bạn là Kimon - Chuyên gia cấp cao về Kỳ Môn Độn Giáp (QMDJ Strategist).
+MISSION: Luận giải dữ liệu từ bảng Cửu Cung để đưa ra chiến lược hành động sắc bén.
+
+QUY TẮC LUẬN GIẢI (BẮT BUỘC):
+1. KIỂM TRA FLAGS KỸ THUẬT:
+   - "Không Vong" (KV): Năng lượng rỗng → khuyên "Chờ đợi" hoặc "Cẩn trọng"
+   - "Dịch Mã" (DM): Ưu tiên di chuyển, thay đổi nhanh
+   - "Trực Phù" (TF): Hướng có quý nhân, năng lượng dẫn dắt tốt nhất
+   - "Phục Âm": Mọi thứ trì trệ → giữ nguyên hiện trạng
+   - "Phản Ngâm": Đảo lộn → cần linh hoạt thay đổi kế hoạch
+
+2. PHÂN TÍCH SINH/KHẮC:
+   - Nhật Can (Bạn) vs Thời Can (Sự việc): Ai đang chiếm thế chủ động?
+   - Môn + Tinh + Thần: Bộ ba này nói gì về chất lượng năng lượng?
+
+3. PHONG CÁCH: Gãy gọn, logic, tiếng Việt hiện đại. Dùng ẨN DỤ thực tế (kinh doanh, thể thao, đời thường).
+
+CHỈ TRẢ VỀ JSON (KHÔNG CHÀO HỎI, KHÔNG GIẢI THÍCH NGOÀI JSON):
+{
+  "chienLuoc": "1-2 câu khẳng định thế trận (Chủ động/Bị động, Thuận/Nghịch). Ví dụ: 'GO - Thế trận thuận, bạn (Mộc) đang được môi trường (Thủy) tiếp sức.'",
+  "kyThuat": "Giải thích kỹ thuật ngắn gọn. Ví dụ: 'Cung 1 có Sinh Môn + Cửu Địa = nền tảng vững, cơ hội sinh lời. Tuy nhiên Đằng Xà cho thấy có biến số bất ngờ.'",
+  "nangLuong": "Đọc vị tâm lý + 1 ẩn dụ. Ví dụ: 'Bạn đang như vận động viên trước trận đấu - hưng phấn nhưng hơi lo lắng. Kinh Môn cho thấy cần kiểm soát cảm xúc.'",
+  "loiKhuyen": ["Bước 1: Hành động cụ thể trong 1 giờ tới", "Bước 2: Hành động tiếp theo trong 2-3 giờ", "Bước 3: Điều cần tránh/lưu ý"],
+  "suggestions": ["Câu hỏi gợi ý sâu hơn 1", "Câu hỏi gợi ý sâu hơn 2", "Câu hỏi gợi ý sâu hơn 3"]
+}`
+          : `ROLE: Bạn là Kimon - Chuyên gia cấp cao về Kỳ Môn Độn Giáp (QMDJ Strategist).
+MISSION: Trả lời câu hỏi của người dùng dựa trên bảng Cửu Cung.
+
+CÂU HỎI: "${userContext}"
+
+QUY TẮC LUẬN GIẢI:
+1. KIỂM TRA FLAGS: Không Vong (rỗng), Dịch Mã (di chuyển), Trực Phù (quý nhân), Phục/Phản Ngâm.
+2. PHÂN TÍCH: Nhật Can vs Thời Can, Môn + Tinh + Thần.
+3. PHONG CÁCH: Gãy gọn, logic, dùng ẨN DỤ thực tế.
+
+CHỈ TRẢ VỀ JSON:
+{
+  "chienLuoc": "Kết luận Go/No-go + giải thích thế trận Sinh/Khắc.",
+  "kyThuat": "Phân tích kỹ thuật: Môn + Tinh + Thần đang nói gì?",
+  "nangLuong": "Đọc vị tâm lý + 1 ẩn dụ thực tế.",
+  "loiKhuyen": ["Bước 1: ...", "Bước 2: ...", "Bước 3: ..."]
+}`;
+
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-2.5-flash',
+          systemInstruction,
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+          safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+          ]
+        });
+
+        const score = qmdjData?.score ?? 0;
+        const overallScore = qmdjData?.overallScore ?? score;
+        const extras = [
+          qmdjData?.isPhucAm ? 'Phục Âm' : '',
+          qmdjData?.isPhanNgam ? 'Phản Ngâm' : ''
+        ].filter(Boolean).join(' | ');
+
+        const allTopicsStr = qmdjData?.allTopics || '[]';
+        let parsedTopics = [];
+        try { parsedTopics = JSON.parse(allTopicsStr); } catch (e) { }
+        const topicsContext = parsedTopics.map(t => `- ${t.topic} (${t.verdict}, ${t.score >= 0 ? '+' : ''}${t.score}): ${t.action}`).join('\n');
+
+        const prompt = isAutoLoad
+          ? `[TRẬN ĐỒ]\n${enrichData(qmdjData || {})}\nĐiểm: ${overallScore} | ${qmdjData?.solarTerm || ''} | Cục ${qmdjData?.cucSo || '?'} ${qmdjData?.isDuong ? 'Dương' : 'Âm'}${extras ? ' | ' + extras : ''}\n\n[DỮ LIỆU DỤNG THẦN CÁC LĨNH VỰC]\n${topicsContext}\n\nDựa vào tất cả dữ liệu trên, hãy tổng hợp lời khuyên 2-4h tới.\nTrả JSON ngay.`
+          : `[TRẬN ĐỒ]\n${enrichData(qmdjData || {})}\nĐiểm: ${score}/${overallScore} | Chủ đề: ${qmdjData?.selectedTopic || 'chung'}${extras ? ' | ' + extras : ''}\n\n[DỮ LIỆU DỤNG THẦN CÁC LĨNH VỰC]\n${topicsContext}\n\nCâu hỏi: ${userContext}`;
+
+        const streamResult = await model.generateContentStream(prompt);
+        let fullText = '';
+
+        for await (const chunk of streamResult.stream) {
+          const txt = chunk.text();
+          if (txt) {
+            fullText += txt;
+            // Send intermediate SSE chunk so frontend can show real-time text
+            res.write(`data: ${JSON.stringify({ chunk: txt })}\n\n`);
+          }
+        }
+
+        try {
+          // Extract JSON from any text (handles preamble/postamble)
+          const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : fullText);
+          res.write(`data: ${JSON.stringify({ __DONE__: true, parsed })}\n\n`);
+        } catch (_) {
+          res.write(`data: ${JSON.stringify({ __DONE__: true, raw: fullText })}\n\n`);
+        }
+        res.end();
+      } catch (error) {
+        console.error('Kimon Stream Error:', error);
+        let errorMsg = error.message;
+        if (error.status === 429 || String(error.message).includes('429')) {
+          triggerGeminiCooldown(); // Activate cooldown on 429
+          errorMsg = 'API Rate Limit (429). Vui lòng đợi 30 giây.';
+        }
+        res.write(`data: ${JSON.stringify({ __ERROR__: errorMsg })}\n\n`);
+        res.end();
+      }
+    });
+
+  } else if (url.pathname === '/api/kimon' && req.method === 'POST') {
+    // ── FALLBACK NON-STREAMING (kept for compatibility) ───────────────────────
+    let bodyData = '';
+    req.on('data', chunk => { bodyData += chunk.toString(); });
+    req.on('end', async () => {
+      // Server-side rate limit check
+      const rateCheck = canCallGemini();
+      if (!rateCheck.allowed) {
+        res.writeHead(429, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: rateCheck.reason === 'cooldown'
+            ? `Đang cooldown. Vui lòng đợi ${rateCheck.secsLeft} giây.`
+            : `Đã đạt giới hạn 12 request/phút. Đợi ${rateCheck.secsLeft} giây.`
+        }));
+        return;
+      }
+      recordGeminiRequest();
+
+      try {
+        const body = JSON.parse(bodyData);
+        const { qmdjData, userContext = 'chung' } = body;
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const isAutoLoad = userContext === '__AUTO_LOAD__';
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-2.5-flash',
+          generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 512 }
+        });
+        const score = qmdjData?.score ?? 0;
+        const overallScore = qmdjData?.overallScore ?? score;
+        const prompt = isAutoLoad
+          ? `${enrichData(qmdjData || {})} Điểm: ${overallScore}. Trả JSON: {"chienLuoc":"...","nangLuong":"...","cauHoiMo":"...","suggestions":[]}`
+          : `${enrichData(qmdjData || {})} Hỏi: ${userContext}. Trả JSON: {"chienLuoc":"...","nangLuong":"...","loiKhuyen":"..."}`;
+        const result = await model.generateContent(prompt);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(await result.response.text());
+      } catch (error) {
+        if (error.status === 429 || String(error.message).includes('429')) {
+          triggerGeminiCooldown();
+        }
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message }));
+      }
+    });
+
   } else {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
@@ -1595,7 +2365,7 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   server.listen(PORT, () => {
     console.log(`\n🔮 QMDJ Engine Server running at http://localhost:${PORT}\n`);
     console.log('Endpoints:');
-    console.log(`  - GET /                  → Strategic Advisor UI`);
+    console.log(`  - GET /                  → Kymon UI`);
     console.log(`  - GET /dung-than         → Dụng Thần Analysis (React)`);
     console.log(`  - GET /api/analyze       → JSON API`);
     console.log(`\nQuery params: ?date=YYYY-MM-DD&hour=0-23&minute=0-59\n`);
