@@ -190,7 +190,16 @@ export const enrichData = (raw) => {
   push('TÂM LÝ', insights);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 6. ĐIỂM SỐ & METADATA
+  // 6. THỜI ĐIỂM HIỆN TẠI (Linear Time Awareness)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (raw.currentHour !== undefined) {
+    push('THỜI ĐIỂM', [
+      `Giờ hiện tại: ${raw.currentHour}:${String(raw.currentMinute || 0).padStart(2, '0')}. Mọi gợi ý khung giờ phải > mốc này.`
+    ]);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 7. ĐIỂM SỐ & METADATA
   // ─────────────────────────────────────────────────────────────────────────
   const score = raw.score ?? raw.overallScore ?? '';
   const meta = [];

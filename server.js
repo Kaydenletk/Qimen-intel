@@ -37,8 +37,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = 3000;
-const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 2200;
-const KYMON_MAX_OUTPUT_TOKENS = 3072;
+const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 3072;
+const KYMON_MAX_OUTPUT_TOKENS = 5120;
 const KYMON_PARTIAL_LEAD = 'Kymon chưa trả lời trọn vẹn.';
 const KYMON_PARTIAL_MESSAGE = 'Phản hồi vừa rồi bị cắt giữa chừng ở phía hệ thống. Mình chưa muốn chốt nửa vời.';
 const KYMON_PARTIAL_ACTION = 'Bạn gửi lại câu hỏi ngắn hơn nhé.';
@@ -3110,7 +3110,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         directEnvoyActionVerdict: kimonAutoData.dataset.routeVerdict || '',
         directEnvoyActionScore: parseInt(kimonAutoData.dataset.routeScore) || 0,
         quickReadSummary: kimonAutoData.dataset.quickReadSummary || '',
-        allTopics: kimonAutoData.dataset.allTopics || '[]'
+        allTopics: kimonAutoData.dataset.allTopics || '[]',
+        // Linear time awareness
+        currentHour: parseInt(hourInputEl?.value) || new Date().getHours(),
+        currentMinute: parseInt(minuteInputEl?.value) || new Date().getMinutes(),
       };
     }
 
@@ -4060,10 +4063,10 @@ export default function handler(req, res) {
         const systemInstruction = buildKimonSystemInstruction();
 
         const model = genAI.getGenerativeModel({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-2.5-pro',
           systemInstruction,
           generationConfig: {
-            temperature: 0.7,
+            temperature: 0.3,
             maxOutputTokens: KYMON_MAX_OUTPUT_TOKENS,
             responseMimeType: 'application/json',
           },
@@ -4138,9 +4141,10 @@ export default function handler(req, res) {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const isAutoLoad = userContext === '__AUTO_LOAD__';
         const model = genAI.getGenerativeModel({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-2.5-pro',
           systemInstruction: buildKimonSystemInstruction(),
           generationConfig: {
+            temperature: 0.3,
             responseMimeType: 'application/json',
             maxOutputTokens: KYMON_MAX_OUTPUT_TOKENS,
           }
