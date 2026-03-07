@@ -39,6 +39,10 @@ const __dirname = path.dirname(__filename);
 const PORT = 3000;
 const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 2200;
 const KYMON_MAX_OUTPUT_TOKENS = 3072;
+const KYMON_PARTIAL_LEAD = 'Kymon chưa trả lời trọn vẹn.';
+const KYMON_PARTIAL_MESSAGE = 'Phản hồi vừa rồi bị cắt giữa chừng ở phía hệ thống. Mình chưa muốn chốt nửa vời.';
+const KYMON_PARTIAL_ACTION = 'Bạn gửi lại câu hỏi ngắn hơn nhé.';
+const KYMON_UNCLEAR_MESSAGE = 'Phản hồi từ hệ thống chưa đủ rõ để hiển thị an toàn.';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SERVER-SIDE RATE LIMITING (prevents 429 from Gemini)
@@ -2955,7 +2959,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     let activeKimonRequestId = 0;
     let activeKimonRequestSource = '';
     let activeKimonTypingSession = null;
-    const KYMON_REQUEST_TIMEOUT_MS = 30000;
+    const KYMON_REQUEST_TIMEOUT_MS = 45000;
     const TYPEWRITER_CHUNK_SIZE = 3;
     const TYPEWRITER_TICK_MS = 18;
     const TYPEWRITER_SECTION_PAUSE_MS = 110;
@@ -3179,12 +3183,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       const structured = /"(?:summary|analysis|action|mode|lead|timeHint|message|closingLine)"\\s*:/.test(source);
       return {
         mode: 'interpretation',
-        lead: 'Kymon bị gián đoạn.',
+        lead: KYMON_PARTIAL_LEAD,
         timeHint: '',
         message: structured
-          ? 'Phản hồi vừa rồi bị cắt giữa chừng, nên hệ thống không hiển thị nội dung thô lên màn hình.'
-          : 'Phản hồi từ hệ thống không đủ rõ để dựng câu trả lời an toàn.',
-        closingLine: 'Bạn hỏi lại một lần nữa nhé.',
+          ? KYMON_PARTIAL_MESSAGE
+          : KYMON_UNCLEAR_MESSAGE,
+        closingLine: KYMON_PARTIAL_ACTION,
       };
     }
 
@@ -3244,15 +3248,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       }
 
       if (!normalized.message) {
-        normalized.message = 'Phần phân tích vừa rồi chưa đủ hoàn chỉnh để hiển thị an toàn.';
+        normalized.message = KYMON_UNCLEAR_MESSAGE;
       }
 
       if (!normalized.lead) {
-        normalized.lead = 'Kymon bị gián đoạn.';
+        normalized.lead = KYMON_PARTIAL_LEAD;
       }
 
       if (!normalized.closingLine) {
-        normalized.closingLine = 'Bạn hỏi lại một lần nữa nhé.';
+        normalized.closingLine = KYMON_PARTIAL_ACTION;
       }
 
       return normalized;

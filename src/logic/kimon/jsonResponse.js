@@ -1,3 +1,8 @@
+const PARTIAL_RESPONSE_LEAD = 'Kymon chưa trả lời trọn vẹn.';
+const PARTIAL_RESPONSE_MESSAGE = 'Phản hồi vừa rồi bị cắt giữa chừng ở phía hệ thống. Mình chưa muốn chốt nửa vời.';
+const PARTIAL_RESPONSE_ACTION = 'Bạn gửi lại câu hỏi ngắn hơn nhé.';
+const UNCLEAR_RESPONSE_MESSAGE = 'Phản hồi từ hệ thống chưa đủ rõ để hiển thị an toàn.';
+
 function stripMarkdownCodeFences(rawText = '') {
   return String(rawText)
     .replace(/^\s*```(?:json)?\s*/i, '')
@@ -174,9 +179,9 @@ function salvageMalformedStructuredPayload(rawText = '') {
   if (!salvaged.summary && !salvaged.analysis && !salvaged.action && !salvaged.timeHint) {
     return {
       mode: 'interpretation',
-      summary: 'Kymon đang ghép lại câu trả lời cho bạn.',
-      analysis: 'Câu trả lời vừa rồi bị gãy nhịp ở phía hệ thống, nên mình chưa muốn kết luận theo kiểu nửa vời.',
-      action: 'Bạn hỏi lại ngắn hơn một lần nữa nhé.',
+      summary: PARTIAL_RESPONSE_LEAD,
+      analysis: PARTIAL_RESPONSE_MESSAGE,
+      action: PARTIAL_RESPONSE_ACTION,
       quickTake: '',
       timeHint: '',
       lead: '',
@@ -191,18 +196,18 @@ function salvageMalformedStructuredPayload(rawText = '') {
 function createFallbackPayload(rawText = '') {
   const source = String(rawText).trim();
   const message = looksLikeStructuredKimonOutput(source)
-    ? 'Kymon bị gián đoạn giữa chừng, nên mình chưa muốn đưa cho bạn một kết luận nửa vời.'
-    : 'Kymon chưa nhận được một phản hồi đủ rõ để hiển thị an toàn.';
+    ? PARTIAL_RESPONSE_MESSAGE
+    : UNCLEAR_RESPONSE_MESSAGE;
   return {
     mode: 'interpretation',
-    summary: 'Kymon bị gián đoạn.',
+    summary: PARTIAL_RESPONSE_LEAD,
     analysis: message,
-    action: 'Bạn hỏi lại một lần nữa nhé.',
-    quickTake: 'Kymon bị gián đoạn.',
+    action: PARTIAL_RESPONSE_ACTION,
+    quickTake: PARTIAL_RESPONSE_LEAD,
     timeHint: '',
-    lead: 'Kymon bị gián đoạn.',
+    lead: PARTIAL_RESPONSE_LEAD,
     message,
-    closingLine: 'Bạn hỏi lại một lần nữa nhé.',
+    closingLine: PARTIAL_RESPONSE_ACTION,
     traLoiTrucTiep: message,
     thoiDiemGoiY: '',
     tongQuan: message,
@@ -254,8 +259,8 @@ function normalizeKimonPayload(parsed, rawText = '') {
   normalized.closingLine = typeof normalized.closingLine === 'string' ? normalized.closingLine.trim() : '';
 
   if (!normalized.message) {
-    const compositeMessage = [normalized.lead, normalized.quickTake, normalized.timeHint, normalized.closingLine]
-      .filter(Boolean)
+    const compositeMessage = [...new Set([normalized.lead, normalized.quickTake, normalized.timeHint, normalized.closingLine]
+      .filter(Boolean))]
       .join('\n\n');
     if (compositeMessage) normalized.message = compositeMessage;
   }
@@ -363,7 +368,12 @@ export function coerceKimonResponsePayload(payload, rawText = '') {
 }
 
 export function toKimonResponseSchema(payload, rawText = '') {
-  if (rawText && !extractBalancedJsonObject(rawText)) {
+  const normalized = normalizeKimonPayload(payload, rawText);
+
+  const hasUsableSalvage = [normalized.lead, normalized.timeHint, normalized.message, normalized.closingLine]
+    .some(value => typeof value === 'string' && value.trim());
+
+  if (rawText && !extractBalancedJsonObject(rawText) && !hasUsableSalvage) {
     const fallback = createFallbackPayload(rawText);
     return {
       mode: fallback.mode,
@@ -374,12 +384,12 @@ export function toKimonResponseSchema(payload, rawText = '') {
     };
   }
 
-  const normalized = normalizeKimonPayload(payload, rawText);
+  const closingLine = normalized.closingLine || (rawText && !extractBalancedJsonObject(rawText) ? PARTIAL_RESPONSE_ACTION : '');
   return {
     mode: typeof normalized.mode === 'string' && normalized.mode.trim() ? normalized.mode.trim() : 'interpretation',
     lead: typeof normalized.lead === 'string' ? normalized.lead.trim() : '',
     timeHint: typeof normalized.timeHint === 'string' ? normalized.timeHint.trim() : '',
     message: typeof normalized.message === 'string' ? normalized.message.trim() : '',
-    closingLine: typeof normalized.closingLine === 'string' ? normalized.closingLine.trim() : '',
+    closingLine: typeof closingLine === 'string' ? closingLine.trim() : '',
   };
 }

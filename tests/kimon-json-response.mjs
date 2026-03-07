@@ -45,9 +45,9 @@ assert.equal(surrounded.message, 'Bạn vẫn còn một chi tiết chưa nhìn 
 assert.equal(surrounded.closingLine, 'Đừng ký khi còn thấy mờ.');
 
 const plain = parseKimonJsonResponse('Đèn đỏ. Nên chậm lại và quan sát thêm.');
-assert.equal(plain.summary, 'Kymon bị gián đoạn.');
-assert.equal(plain.tongQuan, 'Kymon chưa nhận được một phản hồi đủ rõ để hiển thị an toàn.');
-assert.equal(plain.traLoiTrucTiep, 'Kymon chưa nhận được một phản hồi đủ rõ để hiển thị an toàn.');
+assert.equal(plain.summary, 'Kymon chưa trả lời trọn vẹn.');
+assert.equal(plain.tongQuan, 'Phản hồi từ hệ thống chưa đủ rõ để hiển thị an toàn.');
+assert.equal(plain.traLoiTrucTiep, 'Phản hồi từ hệ thống chưa đủ rõ để hiển thị an toàn.');
 assert.deepEqual(plain.hanhDong, []);
 assert.equal(plain.kimonQuote, '');
 
@@ -111,11 +111,11 @@ const strictFallbackSchema = toKimonResponseSchema(
   '{"mode":"decision","lead":"Đang xem..."\n{"mode":"decision"'
 );
 assert.deepEqual(strictFallbackSchema, {
-  mode: 'interpretation',
-  lead: 'Kymon bị gián đoạn.',
+  mode: 'decision',
+  lead: 'Đang xem...',
   timeHint: '',
-  message: 'Kymon bị gián đoạn giữa chừng, nên mình chưa muốn đưa cho bạn một kết luận nửa vời.',
-  closingLine: 'Bạn hỏi lại một lần nữa nhé.',
+  message: 'Đang xem...',
+  closingLine: 'Bạn gửi lại câu hỏi ngắn hơn nhé.',
 });
 
 console.log('ASSERTIONS: OK');

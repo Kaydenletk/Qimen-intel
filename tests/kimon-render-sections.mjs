@@ -29,7 +29,7 @@ assert.match(serverSource, /let activeKimonAbortController = null;/, 'Phải lư
 assert.match(serverSource, /let activeKimonRequestId = 0;/, 'Phải có request id để chống stale cleanup');
 assert.match(serverSource, /let activeKimonRequestSource = '';/, 'Phải track source của request đang chạy');
 assert.match(serverSource, /let activeKimonTypingSession = null;/, 'Phải có typing session state duy nhất');
-assert.match(serverSource, /const KYMON_REQUEST_TIMEOUT_MS = 30000;/, 'Phải có hard timeout rõ ràng cho Kymon');
+assert.match(serverSource, /const KYMON_REQUEST_TIMEOUT_MS = 45000;/, 'Phải có hard timeout rõ ràng cho Kymon');
 assert.match(serverSource, /const TYPEWRITER_CHUNK_SIZE = 3;/, 'Typewriter phải reveal theo chunk 3 ký tự');
 assert.match(serverSource, /const TYPEWRITER_TICK_MS = 18;/, 'Typewriter phải dùng interval mượt, không quá chậm');
 assert.match(serverSource, /const TYPEWRITER_SECTION_PAUSE_MS = 110;/, 'Typewriter phải có pause ngắn giữa các section');
@@ -53,7 +53,7 @@ assert.match(serverSource, /function normalizeKimonUiPayload\(rawData\)/, 'Front
 assert.match(serverSource, /function extractFirstJsonBlockText\(rawText\)/, 'Frontend phải có helper balanced-brace extraction');
 assert.match(serverSource, /console\.warn\('\[Kymon\] Frontend parse direct failed:'/,'Frontend phải log parse fail để debug');
 assert.match(serverSource, /logKimonDebug\('response received', \{\s*status: res\.status,\s*responseLength: responseText\.length,\s*\}\);/, 'Frontend nên log response length để debug truncation');
-assert.match(serverSource, /function createEmergencyKimonPayload\(rawText\) \{[\s\S]*mode: 'interpretation'[\s\S]*lead: 'Kymon bị gián đoạn\.'[\s\S]*message: structured[\s\S]*closingLine: 'Bạn hỏi lại một lần nữa nhé\.'/s, 'Fallback UI phải là payload sạch theo schema mới');
+assert.match(serverSource, /function createEmergencyKimonPayload\(rawText\) \{[\s\S]*mode: 'interpretation'[\s\S]*lead: KYMON_PARTIAL_LEAD[\s\S]*message: structured[\s\S]*closingLine: KYMON_PARTIAL_ACTION/s, 'Fallback UI phải là payload sạch theo schema mới');
 assert.doesNotMatch(serverSource, /function extractLooseStringField\(rawText, key\)/, 'Frontend không nên salvage field lẻ từ raw text bị gãy');
 assert.doesNotMatch(serverSource, /async function callKimonJsonFallback\(/, 'Không nên còn helper request cũ tên fallback trong active chat path');
 assert.doesNotMatch(serverSource, /async function callKimonStream\(/, 'Frontend Kymon không nên còn helper stream');
