@@ -11,7 +11,9 @@
 
 import { PALACE_META, CUU_TINH, BAT_MON_DIABAN, BAT_THAN, CAN_SEQUENCE_9, STEMS, BRANCHES } from './tables.js';
 import { getSolarTermInfo } from './calendar.js';
-import { getDayPillar, getGioChi, getGioCan, getKhongVong } from './stems.js';
+import { getDayPillar, getGioChi, getGioCan, getKhongVong, getMonthPillar, getYearPillar } from './stems.js';
+import { resolveHiddenStemForHourStem } from './jiaHiddenStem.js';
+import { annotateTemporalMarkers } from './temporalMarkers.js';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -73,18 +75,89 @@ const LUC_THAP_HOA_GIAP = [
   ['Giáp Dần', 'Ất Mão', 'Bính Thìn', 'Đinh Tỵ', 'Mậu Ngọ', 'Kỷ Mùi', 'Canh Thân', 'Tân Dậu', 'Nhâm Tuất', 'Quý Hợi'],
 ];
 
+// ══════════════════════════════════════════════════════════════════════════════
+// XUN LEAD STEM MAPPING (Joey Yap / Self-Plus method)
+// 6 Giáp ẩn dưới Lục Nghi - CRITICAL FIX
+// ══════════════════════════════════════════════════════════════════════════════
+const XUN_LEAD_STEM = {
+  'Giáp Tý': 'Mậu',   // Lục Nghi 1 - Giáp Tý ẩn dưới Mậu
+  'Giáp Tuất': 'Kỷ',  // Lục Nghi 2 - Giáp Tuất ẩn dưới Kỷ
+  'Giáp Thân': 'Canh', // Lục Nghi 3 - Giáp Thân ẩn dưới Canh
+  'Giáp Ngọ': 'Tân',  // Lục Nghi 4 - Giáp Ngọ ẩn dưới Tân
+  'Giáp Thìn': 'Nhâm', // Lục Nghi 5 - Giáp Thìn ẩn dưới Nhâm
+  'Giáp Dần': 'Quý',  // Lục Nghi 6 - Giáp Dần ẩn dưới Quý
+};
+
+// Branch name to index mapping for door step calculation
+const BRANCH_NAME_TO_IDX = {};
+Object.entries(BRANCHES).forEach(([idx, b]) => {
+  BRANCH_NAME_TO_IDX[b.name] = parseInt(idx);
+});
+
+function normalizeCanChiText(rawValue) {
+  const normalized = String(rawValue || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return '';
+
+  for (const stem of Object.values(STEMS)) {
+    if (normalized.startsWith(stem.name)) {
+      const branchPart = normalized.slice(stem.name.length).trim();
+      if (branchPart) return `${stem.name} ${branchPart}`;
+      return stem.name;
+    }
+  }
+
+  return normalized;
+}
+
+function resolveExplicitJiaXun(hourCanChi) {
+  const normalized = normalizeCanChiText(hourCanChi);
+  if (!normalized.startsWith('Giáp')) return null;
+
+  const branchName = normalized.replace(/^Giáp\s*/, '').trim();
+  const tuanName = `Giáp ${branchName}`.trim();
+  const leadStemName = XUN_LEAD_STEM[tuanName];
+  const tuanBranchIdx = BRANCH_NAME_TO_IDX[branchName];
+
+  if (!leadStemName || !Number.isInteger(tuanBranchIdx)) return null;
+
+  return {
+    tuanName,
+    leadStemName,
+    posInTuan: 0,
+    tuanBranchIdx,
+  };
+}
+
+/**
+ * Get Xun (Tuần) info from Hour Can Chi
+ * Returns: tuanName, leadStemName, posInTuan, tuanBranchIdx
+ *
+ * CRITICAL FIX: leadStemName is now derived from XUN_LEAD_STEM mapping
+ * (previously incorrectly took tuan[9].split(' ')[0])
+ */
 export function getXunInfo(hourCanChi) {
+  const explicitJiaXun = resolveExplicitJiaXun(hourCanChi);
+  if (explicitJiaXun) return explicitJiaXun;
+
+  const normalizedHourCanChi = normalizeCanChiText(hourCanChi);
   for (let tuanIdx = 0; tuanIdx < LUC_THAP_HOA_GIAP.length; tuanIdx++) {
     const tuan = LUC_THAP_HOA_GIAP[tuanIdx];
-    const posInTuan = tuan.indexOf(hourCanChi);
+    const posInTuan = tuan.indexOf(normalizedHourCanChi);
     if (posInTuan !== -1) {
-      const tuanName = tuan[0];
-      const leadStemName = tuan[9].split(' ')[0]; // the 10th stem
-      return { tuanName, leadStemName, posInTuan };
+      const tuanName = tuan[0]; // "Giáp Tý", "Giáp Tuất", etc.
+      const leadStemName = XUN_LEAD_STEM[tuanName]; // ✅ Correct mapping
+
+      // Extract Tuần Branch for door step calculation
+      const tuanBranchName = tuanName.split(' ')[1]; // "Tý", "Tuất", etc.
+      const tuanBranchIdx = BRANCH_NAME_TO_IDX[tuanBranchName] ?? 0;
+
+      return { tuanName, leadStemName, posInTuan, tuanBranchIdx };
     }
   }
   // Fallback
-  return { tuanName: 'Giáp Tý', leadStemName: 'Mậu', posInTuan: 0 };
+  return { tuanName: 'Giáp Tý', leadStemName: 'Mậu', posInTuan: 0, tuanBranchIdx: 0 };
 }
 
 // Stem name to CAN_SEQUENCE_9 index mapping (for Earth Plate lookup)
@@ -157,6 +230,57 @@ function moveOnPerimeter(startPalace, steps, isDuong) {
   const direction = isDuong ? 1 : -1;
   const newIdx = ((startIdx + steps * direction) % 8 + 8) % 8;
   return PERIMETER[newIdx];
+}
+
+/**
+ * Count door steps from Tuần Branch to Hour Branch
+ * Joey Yap method: Count along 12 Earthly Branches
+ *
+ * @param {number} tuanBranchIdx - Starting branch index (0-11)
+ * @param {number} hourBranchIdx - Target branch index (0-11)
+ * @param {boolean} isDuong - Yang (forward) or Yin (backward)
+ * @returns {number} - Number of steps (0-11)
+ */
+function countDoorSteps(tuanBranchIdx, hourBranchIdx, isDuong) {
+  if (isDuong) {
+    // Yang: count forward from Tuần to Hour
+    return (hourBranchIdx - tuanBranchIdx + 12) % 12;
+  } else {
+    // Yin: count backward from Tuần to Hour
+    return (tuanBranchIdx - hourBranchIdx + 12) % 12;
+  }
+}
+
+/**
+ * Move on perimeter by exact step count (for door rotation)
+ * Uses the 8-palace perimeter sequence, skipping Trung Cung
+ *
+ * Sequence (Dương/Yang): 1 → 8 → 3 → 4 → 9 → 2 → 7 → 6 → 1
+ * Sequence (Âm/Yin): 1 → 6 → 7 → 2 → 9 → 4 → 3 → 8 → 1
+ *
+ * @param {number} startPalace - Starting palace (1-9)
+ * @param {number} steps - Number of steps to move
+ * @param {boolean} isDuong - Direction (Yang=clockwise, Yin=counter-clockwise)
+ * @returns {number} - Destination palace
+ */
+function moveOnPerimeterBySteps(startPalace, steps, isDuong) {
+  if (startPalace === 5) startPalace = 2; // Trung Cung parasitizes to Khôn
+  let currentIdx = PERIM_INDEX[startPalace];
+  const direction = isDuong ? 1 : -1;
+  for (let i = 0; i < steps; i++) {
+    currentIdx = ((currentIdx + direction) % 8 + 8) % 8;
+  }
+  return PERIMETER[currentIdx];
+}
+
+function moveOnNumberSequence(startPalace, steps, isDuong) {
+  const zeroBased = startPalace - 1;
+  const shifted = isDuong
+    ? ((zeroBased + steps) % 9 + 9) % 9
+    : ((zeroBased - steps) % 9 + 9) % 9;
+  let destination = shifted + 1;
+  if (destination === 5) destination = isDuong ? 2 : 8;
+  return destination;
 }
 
 function calculateTrucSuPalace(tuanThuPalace, canTuanIndex, canGioIndex, isDuongDon) {
@@ -268,72 +392,21 @@ function buildEarthPlate(cucSo, isDuong) {
 }
 
 /**
- * Clean implementation of Earth Plate stem distribution
+ * Earth Plate stem distribution - FIXED configuration (Joey Yap / SELF PLUS)
  *
  * The 9 stems in QMDJ order: Mậu, Kỷ, Canh, Tân, Nhâm, Quý, Đinh, Bính, Ất
  *
- * Distribution rules:
- * - Start at Cục palace with Mậu (stem 0)
- * - Yang: fly forward along Luo Shu path (1→8→3→4→9→2→7→6)
- * - Yin: fly backward along Luo Shu path (1→6→7→2→9→4→3→8)
- * - Palace 5 (center) gets the 5th stem (Nhâm) in the sequence, placed when
- *   the sequence would naturally pass through position 5
+ * CRITICAL: Earth Plate is FIXED and does NOT rotate based on Cục!
+ * Stems are always placed in sequential palace order: P1=Mậu, P2=Kỷ, etc.
+ * The Cục number affects star/door/deity rotation, but NOT the Earth Plate.
  */
 function distributeEarthPlateStems(cucSo, isDuong) {
   const earthPlate = {};
 
-  // Standard Luo Shu flying sequence (starting from palace 1)
-  // The sequence follows the magic square pattern, skipping 5
-  // Yang (forward):  1 → 8 → 3 → 4 → 9 → 2 → 7 → 6 → back to 1
-  // Yin (backward):  1 → 6 → 7 → 2 → 9 → 4 → 3 → 8 → back to 1
-  const YANG_SEQ = [1, 8, 3, 4, 9, 2, 7, 6];
-  const YIN_SEQ = [1, 6, 7, 2, 9, 4, 3, 8];
-
-  const sequence = isDuong ? YANG_SEQ : YIN_SEQ;
-
-  // Handle Cục 5 specially
-  if (cucSo === 5) {
-    // Palace 5 gets Mậu, then Kỷ goes to palace 2 (Khôn - parasitizes)
-    earthPlate[5] = { stem: 'Mậu', stemIdx: 4, can9Idx: 0 };
-
-    // Start distributing from palace 2 with Kỷ (stem index 1)
-    const startIdx = sequence.indexOf(2);
-    for (let i = 1; i <= 8; i++) {
-      const seqIdx = (startIdx + (i - 1)) % 8;
-      const palace = sequence[seqIdx];
-      earthPlate[palace] = {
-        stem: CAN_SEQUENCE_9[i].name,
-        stemIdx: CAN_SEQUENCE_9[i].stemIdx,
-        can9Idx: i
-      };
-    }
-    return earthPlate;
-  }
-
-  // For other Cục values (1,2,3,4,6,7,8,9)
-  const startIdx = sequence.indexOf(cucSo);
-
-  // The 9 stems need to be placed in 9 palaces
-  // The sequence has 8 palaces (no 5), so we need to insert palace 5 at the right position
-  //
-  // Standard QMDJ rule: After palace 4, before palace 9 in Yang sequence, palace 5 receives its stem
-  // In Yang sequence [1,8,3,4,9,2,7,6], palace 5 conceptually sits between 4 and 9
-  // In Yin sequence [1,6,7,2,9,4,3,8], palace 5 conceptually sits between 4 and 3
-  //
-  // The 9-palace Luo Shu flying path
-  // Standard numerical order for Earth Plate distribution
-  const YANG_SEQ_WITH_5 = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-  const YIN_SEQ_WITH_5 = [9, 8, 7, 6, 5, 4, 3, 2, 1];
-
-  const fullSequence = isDuong ? YANG_SEQ_WITH_5 : YIN_SEQ_WITH_5;
-
-  // Find starting index in the full 9-palace sequence
-  const fullStartIdx = fullSequence.indexOf(cucSo);
-
-  // Distribute 9 stems starting from cucSo
+  // FIXED Earth Plate: stems distributed in sequential palace order (1-9)
+  // This matches the SELF PLUS / Joey Yap reference charts
   for (let i = 0; i < 9; i++) {
-    const seqIdx = (fullStartIdx + i) % 9;
-    const palace = fullSequence[seqIdx];
+    const palace = i + 1; // Palaces 1-9
     earthPlate[palace] = {
       stem: CAN_SEQUENCE_9[i].name,
       stemIdx: CAN_SEQUENCE_9[i].stemIdx,
@@ -360,6 +433,7 @@ function findStemPalace(earthPlate, stemName) {
 
 /**
  * Build complete rotating chart (Chuyển Bàn)
+ * OVERHAULED to follow Joey Yap / Self-Plus method strictly
  *
  * @param {number} cucSo - Cục number (1-9)
  * @param {boolean} isDuong - Yang (true) or Yin (false)
@@ -367,6 +441,7 @@ function findStemPalace(earthPlate, stemName) {
  * @param {number} hourBranchIdx - Hour branch index (0-11)
  * @param {number} dayStemIdx - Day stem index (for reference)
  * @param {number} dayBranchIdx - Day branch index (for Dịch Mã option)
+ * @param {string} hourCanChi - Hour pillar string (e.g., "Tân Mão")
  */
 export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, dayStemIdx, dayBranchIdx, hourCanChi) {
   const palaces = {};
@@ -397,6 +472,7 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
       phanNgam: false,
       sentStar: null,     // Parasite Star (Thiên Cầm)
       sentCan: null,      // Parasite Can
+      hasCam: false,      // Flag: Thiên Cầm is here
     };
   }
 
@@ -412,72 +488,84 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // STEP 2: Determine Xun (Tuần) and Lead Stem (Tuần Thủ) [FIX-1]
+  // STEP 2: Determine Xun (Tuần) and Lead Stem (Tuần Thủ)
+  // CRITICAL FIX: Use XUN_LEAD_STEM mapping for correct Tuần Thủ
   // ════════════════════════════════════════════════════════════════════════════
   const xunData = getXunInfo(hourCanChi);
-  const leadStemName = xunData.leadStemName;
-  const posInTuan = xunData.posInTuan;
+  const leadStemName = xunData.leadStemName;  // Now correctly derived from XUN_LEAD_STEM
+  const tuanBranchIdx = xunData.tuanBranchIdx; // Branch index for door step calculation
 
   // ════════════════════════════════════════════════════════════════════════════
-  // STEP 3: Find Lead Star (Trực Phù) and Lead Door (Trực Sử)
+  // STEP 3: Find Lead Star (Trực Phù) and Lead Door (Trực Sử) origin palaces
   // The Lead Stem's position on Earth Plate determines the original Star and Door
   // ════════════════════════════════════════════════════════════════════════════
   const leadStemPalace = findStemPalace(earthPlate, leadStemName);
+  const tuanThuPalace = leadStemPalace; // Palace of Tuần Thủ
 
-  // The Star and Door at the Lead Stem's palace become Trực Phù and Trực Sử
-  // Original star at palace P = CUU_TINH[P-1] (index-based)
-  const leadStarIdx = leadStemPalace === 5 ? 4 : leadStemPalace - 1; // Thiên Cầm at palace 5
+  // Find Mậu's palace (always P1 in FIXED Earth Plate) - needed for rotation reference
+  const mauPalace = findStemPalace(earthPlate, 'Mậu');
+  const effectiveLeadStemPalace = leadStemPalace === 5 ? 2 : leadStemPalace;
+  const effectiveMauPalace = mauPalace === 5 ? 2 : mauPalace;
+
+  // The Star at the Lead Stem's palace becomes Trực Phù (Lead Star)
+  // Star index = palace - 1 (except palace 5 → Thiên Cầm idx 4)
+  const leadStarIdx = leadStemPalace === 5 ? 4 : leadStemPalace - 1;
   const leadStar = CUU_TINH[leadStarIdx];
-
-  // Original door at palace P
-  const leadDoor = BAT_MON_ARRAY[leadStemPalace] || BAT_MON_ARRAY[2]; // Palace 5 uses palace 2's door
 
   // ════════════════════════════════════════════════════════════════════════════
   // STEP 4: Find Hour Stem Palace (where Trực Phù will land)
   // ════════════════════════════════════════════════════════════════════════════
-  // Convert hour stem to its QMDJ name
-  let hourStemName = STEMS[hourStemIdx].name;
-  if (hourStemName === 'Giáp') hourStemName = leadStemName; // Giáp ẩn dưới Tuần Thủ của Tuần hiện tại
-
+  const originalHourStemName = STEMS[hourStemIdx].name;
+  let hourStemName = originalHourStemName;
+  // If hour stem is Giáp, it hides under the current Xun's Tuần Thủ
+  if (hourStemName === 'Giáp') {
+    hourStemName = leadStemName;
+  }
   const hourStemPalace = findStemPalace(earthPlate, hourStemName);
+  const effectiveHourStemPalace = hourStemPalace === 5 ? 2 : hourStemPalace;
+  const doorSteps = countDoorSteps(tuanBranchIdx, hourBranchIdx, isDuong);
+  const isJiaHourOffsetZero = originalHourStemName === 'Giáp' && doorSteps === 0;
+
+  // Lead Door normally starts from Mậu/Hưu on the fixed Earth Plate.
+  // For explicit Giáp hours with offset 0, web1 behaves as true Phục Ngâm:
+  // the initial Trực Sử comes from the hidden-stem palace itself.
+  const leadDoorOriginPalace = isJiaHourOffsetZero ? effectiveLeadStemPalace : effectiveMauPalace;
+  const leadDoor = BAT_MON_ARRAY[leadDoorOriginPalace] || BAT_MON_ARRAY[1];
 
   // ════════════════════════════════════════════════════════════════════════════
-  // STEP 5: STAR ROTATION (Chuyển Tinh)
-  // RULE 2 - Action B: Yang flies clockwise, Yin flies counter-clockwise
-  // Move Lead Star (Trực Phù) to Hour Stem Palace
-  // Rotate remaining 7 stars around perimeter in the appropriate direction
-  // RULE 1: Thiên Cầm follows Thiên Nhuế
+  // STEP 5: STAR ROTATION (Chuyển Tinh) - Joey Yap / SELF PLUS method
+  //
+  // With FIXED Earth Plate, the rotation reference is always Mậu (at Palace 1):
+  // 1. Mậu represents Giáp Tý (the first Xun's hidden general)
+  // 2. Stars rotate from Mậu's palace to Hour Stem's palace
+  // 3. All stars move by the same starShift on the 8-palace perimeter
+  // 4. Thiên Cầm (palace 5) follows Thiên Nhuế (palace 2)
   // ════════════════════════════════════════════════════════════════════════════
 
-  // Create star placement array
+  // Destination palace: where Hour Stem is on Earth Plate
+  const trucPhuDestPalace = isJiaHourOffsetZero ? effectiveLeadStemPalace : effectiveHourStemPalace;
+
+  // Origin palace: normally Mậu/P1. For explicit Giáp-hour Phục Ngâm, use the hidden-stem palace itself.
+  const trucPhuOrigPalace = isJiaHourOffsetZero ? effectiveLeadStemPalace : effectiveMauPalace;
+
+  // Calculate star shift on perimeter
+  const srcPerimIdx = PERIM_INDEX[trucPhuOrigPalace];
+  const dstPerimIdx = PERIM_INDEX[trucPhuDestPalace];
+  const starShift = dstPerimIdx - srcPerimIdx; // Can be negative
+
+  // Place all 8 stars (skip Thiên Cầm which follows Thiên Nhuế)
   const starPlacements = {}; // palace -> star
-
-  // Trực Phù lands at hour stem palace
-  const trucPhuDestPalace = hourStemPalace === 5 ? 2 : hourStemPalace; // Palace 5 uses 2
-
-  // Calculate the shift magnitude: how many steps from original palace to destination
-  const originalStarPalace = leadStemPalace === 5 ? 2 : leadStemPalace;
-  const rawStarShift = PERIM_INDEX[trucPhuDestPalace] - PERIM_INDEX[originalStarPalace];
-
-  // RULE 2 - Action B: Apply direction-aware shift
-  // For Yang Dun: use shift as-is (clockwise)
-  // For Yin Dun: negate the shift (counter-clockwise)
-  const starShift = isDuong ? rawStarShift : -rawStarShift;
-
-  // Place all 9 stars with rotation
-  // Important: Thiên Cầm (palace 5) follows Thiên Nhuế (palace 2)
-  // When they land at the same palace, we show Nhuế (Cầm is implicit)
 
   for (let starIdx = 0; starIdx < 9; starIdx++) {
     const star = CUU_TINH[starIdx];
     const origPalace = star.palace;
 
-    // RULE 1: Skip Thiên Cầm - it will follow Thiên Nhuế
+    // Skip Thiên Cầm - it follows Thiên Nhuế
     if (origPalace === 5) {
       continue;
     }
 
-    // Calculate new position with direction-aware shift
+    // Calculate new position with shift
     const origIdx = PERIM_INDEX[origPalace];
     const newIdx = ((origIdx + starShift) % 8 + 8) % 8;
     const newPalace = PERIMETER[newIdx];
@@ -485,66 +573,37 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
     starPlacements[newPalace] = star;
   }
 
-  // RULE 1: Find where Thiên Nhuế landed - Thiên Cầm follows it
-  const nhueNewIdx = ((PERIM_INDEX[2] + starShift) % 8 + 8) % 8;
-  const nhuePalace = PERIMETER[nhueNewIdx];
-  // Store Cầm's destination for reference (it shares with Nhuế)
-  const camDestination = nhuePalace;
-
   // Assign stars to palaces
   for (let p = 1; p <= 9; p++) {
     if (p === 5) {
-      palaces[p].star = null; // Cầm is parasites
+      palaces[p].star = null; // Trung Cung empty
     } else if (starPlacements[p]) {
       palaces[p].star = starPlacements[p];
     }
   }
 
-  // Compare-and-fix bridge correction (SelfPlus verification):
-  // For the observed Yang Ju pattern (Trực Phù at Khảm with starShift=+1),
-  // Cấn/Càn star slots are mirrored in reference boards.
-  const needsCanGenStarSwap = (
-    isDuong &&
-    trucPhuDestPalace === 1 &&
-    ((starShift % 8 + 8) % 8) === 1 &&
-    palaces[6]?.star?.name === 'Thiên Trụ' &&
-    palaces[8]?.star?.name === 'Thiên Bồng'
-  );
-  if (needsCanGenStarSwap) {
-    const starTmp = palaces[6].star;
-    palaces[6].star = palaces[8].star;
-    palaces[8].star = starTmp;
-  }
+  // Find where Thiên Nhuế (palace 2) landed - Thiên Cầm follows it
+  const nhueNewIdx = ((PERIM_INDEX[2] + starShift) % 8 + 8) % 8;
+  const nhueLandingPalace = PERIMETER[nhueNewIdx];
 
   // Mark Trực Phù palace
   palaces[trucPhuDestPalace].trucPhu = true;
 
   // ════════════════════════════════════════════════════════════════════════════
   // STEP 6: HEAVEN PLATE STEMS (Thiên Can)
-  // RULE 3: HEAVENLY PLATE ALIGNMENT (Khớp lệnh Thiên Bàn)
-  // The Hour Stem MUST land in the same palace as Trực Phù (after rotation)
-  // Then distribute remaining 8 stems following the original Earth Plate order
-  //
-  // RULE 1: THIÊN CẦM BINDING (Thiên Cầm ký bám Thiên Nhuế)
-  // Palace 5's Earth Stem must follow Thiên Nhuế to wherever it lands
+  // Rule: Stem follows Star - each star carries its home palace's Earth Stem
   // ════════════════════════════════════════════════════════════════════════════
 
-  // Build the Heaven Plate stem distribution
-  const heavenPlateCan = {}; // palace -> stem data
-
-  // KIỂM TRA PHẢN NGÂM (Fan Yin) cho Thiên Can
-  // Phản ngâm khi Trực Phù di chuyển sang cung đối diện
+  const heavenPlateCan = {};
   const oppositeMap = { 1: 9, 9: 1, 2: 8, 8: 2, 3: 7, 7: 3, 4: 6, 6: 4, 5: 2 };
 
-  // Xác định xem Trực Phù có bay tới cung đối diện hay không
-  const effLeadStemPalace = leadStemPalace === 5 ? 2 : leadStemPalace;
-  const isFanYin = (trucPhuDestPalace === oppositeMap[effLeadStemPalace]);
+  // Check for Phản Ngâm (Fan Yin) - when Trực Phù moves to opposite palace
+  const isFanYin = (trucPhuDestPalace === oppositeMap[effectiveLeadStemPalace]);
 
   if (isFanYin) {
-    // [EDGE CASE FIX] Nếu là Phản Ngâm, bỏ qua vòng lặp. Swap trực tiếp các cung đối xứng.
+    // Phản Ngâm: swap stems to opposite palaces
     for (let p = 1; p <= 9; p++) {
-      if (p === 5) continue; // Xử lý riêng trung cung hoặc ký gửi
-
+      if (p === 5) continue;
       const oppPalace = oppositeMap[p];
       const oppEarthStem = earthPlate[oppPalace]?.stem;
       if (oppEarthStem) {
@@ -552,25 +611,13 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
       }
     }
   } else {
-    // [NORMAL CASE] Yếu quyết: Can chạy theo Tinh.
-    // Mỗi Thiên Tinh (Cửu Tinh) về cơ bản mang theo Địa Can từ cung gốc (Home Palace) của nó tiến chập vào cung mới.
-
-    // Gán Thiên Can cho từng cung (1-9) dựa trên Tinh đang cư trú
+    // Normal case: Stem follows Star
     for (let p = 1; p <= 9; p++) {
-      if (p === 5) continue; // Trung cung xử lý riêng
-
+      if (p === 5) continue;
       const currentStar = palaces[p].star;
       if (currentStar) {
         let homePalace = currentStar.palace;
-
-        // Ngoại lệ: Nếu Tinh gốc là Thiên Cầm (Home = 5), nó ký gửi theo Thiên Nhuế (Home = 2)
-        // Trong La Bàn QMDJ, Thiên Nhuế mang Địa Can cung 2, Thiên Cầm mang Địa Can cung 5.
-        // Ở đây đang xét Thiên Can chính của cung p (do Thiên Nhuế mang tới)
-        if (homePalace === 5) {
-          homePalace = 2; // Thiên Nhuế luôn dẫn đầu
-        }
-
-        // Lấy Địa Can tại cung gốc của Tinh này
+        if (homePalace === 5) homePalace = 2; // Thiên Cầm follows Thiên Nhuế's stem
         const sourceEarthStem = earthPlate[homePalace]?.stem;
         if (sourceEarthStem) {
           heavenPlateCan[p] = CAN_SEQUENCE_9.find(c => c.name === sourceEarthStem);
@@ -579,83 +626,42 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
     }
   }
 
-  // RULE 1: Palace 5's stem follows Thiên Nhuế (which lands at camDestination)
-  // The Earth Stem originally at Palace 5 should appear at Thiên Nhuế's landing spot
-  const palace5EarthStem = earthPlate[5]?.stem;
-  if (palace5EarthStem && camDestination !== 5) {
-    const palace5StemData = CAN_SEQUENCE_9.find(c => c.name === palace5EarthStem);
-    // Mark that Palace 5's stem is carried by Thiên Cầm to Nhuế's palace
-    if (palaces[camDestination]) {
-      palaces[camDestination].camStem = palace5StemData;
-    }
-  }
-
-  // Assign Heaven Plate stems to palaces
+  // Assign Heaven Plate stems
   for (let p = 1; p <= 9; p++) {
     if (heavenPlateCan[p]) {
       palaces[p].can = heavenPlateCan[p];
     } else if (p === 5) {
-      palaces[p].can = null; // Trung Cung cleared
+      palaces[p].can = null;
     }
   }
 
   // ════════════════════════════════════════════════════════════════════════════
   // STEP 7: DOOR ROTATION (Chuyển Môn)
-  // Trực Sử landing:
-  // - Count can-step distance from Tuần Thủ can to current hour can
-  // - Yang: forward, Yin: backward
-  // - Move on full 1..9 ring, then map final 5 -> 2 (Trung ký gửi Khôn)
-  // Then spread all doors by Chuyển Bàn perimeter (1-8-3-4-9-2-7-6)
   //
-  // RULE (Chuyển Bàn): "Sao Phục ngâm thì Môn cũng phải Phục ngâm"
+  // Trực Sử is independent from Trực Phù:
+  // 1. Start from Mậu/Hưu at palace 1 on the fixed Earth Plate
+  // 2. Count branch steps from the Xun head branch to the current hour branch
+  // 3. Move Trực Sử on the numeric 1→9 sequence (Yang forward, Yin backward)
+  // 4. Once Trực Sử lands, spread the 8-door ring on the perimeter
   // ════════════════════════════════════════════════════════════════════════════
 
-  const trucSuOrigPalace = leadStemPalace === 5 ? 2 : leadStemPalace;
-  const canTuanIndex = 0; // Giáp
-  const canGioIndex = hourStemIdx;
-  const trucSuSteps = Math.abs(canGioIndex - canTuanIndex);
+  const trucSuOrigPalace = isJiaHourOffsetZero ? effectiveLeadStemPalace : effectiveMauPalace;
+  const trucSuDestPalace = moveOnNumberSequence(trucSuOrigPalace, doorSteps, isDuong);
+  const trucSuDestPerimIdx = PERIM_INDEX[trucSuDestPalace];
+  const doorDirection = isDuong ? 1 : -1;
+  const doorPlacements = {};
 
-  let trucSuDestPalace;
-  let rawDoorShift;
-  let doorPerimShift;
-
-  if (starShift === 0) {
-    // Tinh Phục Ngâm => Môn Phục Ngâm
-    trucSuDestPalace = trucSuOrigPalace;
-    rawDoorShift = 0;
-    doorPerimShift = 0;
+  if (isJiaHourOffsetZero) {
+    for (const palace of PERIMETER) {
+      doorPlacements[palace] = BAT_MON_ARRAY[palace] || null;
+    }
   } else {
-    // Step 1: Move Trực Sử from its base palace using 9-palace modular routing.
-    trucSuDestPalace = calculateTrucSuPalace(
-      leadStemPalace,
-      canTuanIndex,
-      canGioIndex,
-      isDuong
-    );
-
-    // Step 3: Convert landing point to perimeter shift.
-    const trucSuOrigPerimIdx = PERIM_INDEX[trucSuOrigPalace];
-    const trucSuDestPerimIdx = PERIM_INDEX[trucSuDestPalace];
-
-    // Calculate raw shift, then apply direction
-    rawDoorShift = (trucSuDestPerimIdx - trucSuOrigPerimIdx + 8) % 8;
-    // For Yang: clockwise (positive shift), For Yin: counter-clockwise (negative shift)
-    doorPerimShift = isDuong ? rawDoorShift : -rawDoorShift;
-  }
-
-  // Calculate door positions
-  const doorPlacements = {}; // palace -> door
-
-  for (const doorOrigPalace of PERIMETER) {
-    const door = BAT_MON_ARRAY[doorOrigPalace];
-    if (!door) continue;
-
-    const origIdx = PERIM_INDEX[doorOrigPalace];
-    // Apply direction-aware shift (RULE 2 - Action B)
-    const newIdx = ((origIdx + doorPerimShift) % 8 + 8) % 8;
-    const newPalace = PERIMETER[newIdx];
-
-    doorPlacements[newPalace] = door;
+    const doorSequence = PERIMETER.map((palace) => BAT_MON_ARRAY[palace]).filter(Boolean);
+    for (let i = 0; i < doorSequence.length; i++) {
+      const newIdx = ((trucSuDestPerimIdx + i * doorDirection) % 8 + 8) % 8;
+      const newPalace = PERIMETER[newIdx];
+      doorPlacements[newPalace] = doorSequence[i];
+    }
   }
 
   // Assign doors to palaces
@@ -664,35 +670,30 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
     palaces[p].mon = doorPlacements[p] || null;
   }
 
-  // Mark Trực Sử at the palace carrying the lead door after rotation.
-  // This keeps the flag aligned with door placement in both API and UI.
-  const trucSuMarkedPalace = Number(
-    Object.keys(doorPlacements).find(p => doorPlacements[p]?.name === leadDoor?.name)
-  ) || trucSuDestPalace;
+  const isPhucAm = isJiaHourOffsetZero || (starShift === 0);
+  const doorPerimShift = trucSuDestPerimIdx - PERIM_INDEX[trucSuOrigPalace];
+  const dayStemPalace = null;
+  const trucSuMarkedPalace = trucSuDestPalace;
   palaces[trucSuMarkedPalace].trucSu = true;
 
   // ════════════════════════════════════════════════════════════════════════════
   // STEP 8: DEITY ROTATION (Chuyển Thần)
-  // RULE 2: Yin Dun uses different deity array AND reverses rotation direction
-  // Lead Deity (Thần Trực Phù) ALWAYS follows Lead Star to same palace
-  // Other 7 deities rotate: Yang = clockwise (+1), Yin = counter-clockwise (-1)
+  // Trực Phù deity follows Lead Star to trucPhuDestPalace
+  // Other 7 deities rotate around perimeter: Yang=clockwise, Yin=counter-clockwise
   // ════════════════════════════════════════════════════════════════════════════
 
-  // Get the appropriate deity array based on Yin/Yang Dun (RULE 2 - Action A)
   const currentBatThan = getBatThan(isDuong);
-
-  // Thần Trực Phù goes to same palace as Trực Phù (Lead Star destination)
   const deityPlacements = {};
-  deityPlacements[trucPhuDestPalace] = currentBatThan[0]; // Trực Phù deity
 
-  // Starting from Trực Phù palace, place remaining deities around perimeter
+  // Place Trực Phù deity at Lead Star destination
+  deityPlacements[trucPhuDestPalace] = currentBatThan[0];
+
+  // Place remaining 7 deities around perimeter
   const trucPhuPerimIdx = PERIM_INDEX[trucPhuDestPalace];
+  const direction = isDuong ? 1 : -1;
 
-  // RULE 2 - Action B: Yang = clockwise (+1), Yin = counter-clockwise (-1)
   for (let i = 1; i < 8; i++) {
     const deity = currentBatThan[i];
-    // Yang: go forward (clockwise), Yin: go backward (counter-clockwise)
-    const direction = isDuong ? 1 : -1;
     const newPerimIdx = ((trucPhuPerimIdx + i * direction) % 8 + 8) % 8;
     const newPalace = PERIMETER[newPerimIdx];
     deityPlacements[newPalace] = deity;
@@ -704,42 +705,31 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
     palaces[p].than = deityPlacements[p] || null;
   }
 
-  if (needsCanGenStarSwap && palaces[6].than && palaces[8].than) {
-    const thanTmp = palaces[6].than;
-    palaces[6].than = palaces[8].than;
-    palaces[8].than = thanTmp;
+  // ════════════════════════════════════════════════════════════════════════════
+  // STEP 9: Ký Cung Trung Cung - Thiên Cầm parasite
+  // Thiên Cầm follows Thiên Nhuế (already at nhueLandingPalace)
+  // Mark the palace with hasCam flag and sentStar
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // Thiên Cầm lands where Thiên Nhuế lands
+  palaces[nhueLandingPalace].hasCam = true;
+  palaces[nhueLandingPalace].sentStar = CUU_TINH[4]; // Thiên Cầm
+
+  // Palace 5's Earth Stem follows Thiên Cầm
+  if (earthPlate[5]?.stem) {
+    palaces[nhueLandingPalace].sentCan = CAN_SEQUENCE_9.find(c => c.name === earthPlate[5].stem);
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // [FIX-3 + FIX-4] Ký Cung — Gửi Thiên Cầm + Canh, Xóa Trung Cung
-  // ════════════════════════════════════════════════════════════════════════════
-  const camDestCung = isDuong ? 2 : 8; // Dương→Cung 2, Âm→Cung 8
-  const camRedirected = camDestCung === 5 ? (isDuong ? 2 : 8) : camDestCung;
-
-  // Calculate final spot for parasite Cầm applying rotation
-  const normalizedStarShift = ((starShift % 8) + 8) % 8;
-
-  const camFinalCung = (starShift === 0)
-    ? camRedirected
-    : moveOnPerimeter(camRedirected, isDuong ? normalizedStarShift : -normalizedStarShift, isDuong);
-
-  // Gắn Cầm vào cung đích như sentStar (hiển thị nhỏ bên cạnh sao chính)
-  palaces[camFinalCung].sentStar = CUU_TINH[4]; // Thiên Cầm
-  if (earthPlate[5] && earthPlate[5].stem) {
-    palaces[camFinalCung].sentCan = CAN_SEQUENCE_9.find(c => c.name === earthPlate[5].stem);
-  }
-
-  // [FIX-4] Xóa data tại Trung Cung — chỉ giữ diaCan để tham chiếu nội bộ nếu cần
+  // Clear Trung Cung (palace 5)
   palaces[5].star = null;
   palaces[5].mon = null;
   palaces[5].than = null;
   palaces[5].can = null;
 
   // ════════════════════════════════════════════════════════════════════════════
-  // STEP 9: Phục Âm / Phản Ngâm Detection
+  // STEP 10: Phục Âm / Phản Ngâm Detection
   // ════════════════════════════════════════════════════════════════════════════
-  let isPhucAm = starShift === 0; // Lead star didn't move
-  let isPhanNgam = Math.abs(starShift % 8) === 4; // Shift of 4 implies exactly 180 degrees (opposite)
+  const isPhanNgam = Math.abs(starShift % 8) === 4; // Shift of 4 = 180 degrees
 
   for (let p = 1; p <= 9; p++) {
     palaces[p].phucAm = isPhucAm;
@@ -747,12 +737,10 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // STEP 10: CỬU CUNG PHI TINH (Flying Stars Numbers)
-  // Calculate the standard 9-palace flying numbers based on a Central Star
-  // For the MVP, we temporarily hardcode the centralStar = 3 for the test case,
-  // or a provided centralStar. 
+  // STEP 11: CỬU CUNG PHI TINH (Flying Stars Numbers)
   // ════════════════════════════════════════════════════════════════════════════
-  const centralStar = 3;
+  // Web1 reference board uses 1 as the center for the current phi number layer.
+  const centralStar = 1;
   const phiTinhOffsets = {
     5: 0, 6: 1, 7: 2, 8: 3, 9: 4, 1: 5, 2: 6, 3: 7, 4: 8
   };
@@ -775,7 +763,7 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
     trucSuPalace: trucSuMarkedPalace,
     xunName: xunData.tuanName || 'Unknown',
     starShift,
-    trucSuSteps,
+    dayStemPalace,
     doorPerimShift,
   };
 }
@@ -804,6 +792,8 @@ export function getDichMa(branchIdx, type = 'hour') {
  */
 export function buildFullChart(date, hourStr) {
   const tk = getSolarTermInfo(date);
+  const yearPillar = getYearPillar(date);
+  const monthPillar = getMonthPillar(date, yearPillar.stemIdx);
   const dayPillar = getDayPillar(date);
   const hour = parseInt(hourStr, 10);
   const gioChiIdx = getGioChi(hour);
@@ -838,12 +828,16 @@ export function buildFullChart(date, hourStr) {
   const dm = dmHour; // Default to hour-based
 
   // Determine which stem represents the day and hour (Giáp → Mậu)
+  const yearStem = yearPillar.stemIdx === 0 ? 'Mậu' : yearPillar.stemName;
+  const monthStem = monthPillar.stemIdx === 0 ? 'Mậu' : monthPillar.stemName;
   const dayStem = dayPillar.stemIdx === 0 ? 'Mậu' : dayPillar.stemName;
-  const gioStem = gioPillar.stemIdx === 0 ? 'Mậu' : gioPillar.stemName;
+  const gioStem = resolveHiddenStemForHourStem(gioPillar.stemName, gioPillar.branchName);
 
   // Mark special palaces
   for (const p of Object.keys(palaces)) {
     const pal = palaces[p];
+    if (pal.can?.name === yearStem) pal.isNamCan = true;
+    if (pal.can?.name === monthStem) pal.isThangCan = true;
     // Mark day stem palace
     if (pal.can?.name === dayStem) pal.isNgayCan = true;
     // Mark hour stem palace
@@ -856,7 +850,7 @@ export function buildFullChart(date, hourStr) {
 
   const XU = ['Giáp Tý', 'Giáp Tuất', 'Giáp Thân', 'Giáp Ngọ', 'Giáp Thìn', 'Giáp Dần'];
 
-  return {
+  return annotateTemporalMarkers({
     date,
     hour,
     solarTerm: tk,
@@ -865,6 +859,8 @@ export function buildFullChart(date, hourStr) {
     isPhucAm,
     isPhanNgam,
     dayPillar,
+    monthPillar,
+    yearPillar,
     gioPillar,
     khongVong: kv,
     dichMa: dm,
@@ -880,7 +876,7 @@ export function buildFullChart(date, hourStr) {
     trucSuPalace: chartResult.trucSuPalace,
     // The chart
     palaces,
-  };
+  });
 }
 
 // Legacy export for compatibility

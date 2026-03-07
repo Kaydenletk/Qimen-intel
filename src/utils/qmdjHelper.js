@@ -1,7 +1,10 @@
 /**
- * enrichData() - Biến dữ liệu thô thành "câu chuyện" cho AI hiểu
+ * enrichData() - Biến dữ liệu thô thành ngữ cảnh hành vi cho Kimon.
  *
- * Logic: Thay vì đưa thuật ngữ khô khan, ta đưa ngữ cảnh có nghĩa
+ * Mục tiêu:
+ * - Ưu tiên tín hiệu quick-read đã được engine tính sẵn
+ * - Giảm ngôn ngữ kỹ thuật/ngũ hành khô
+ * - Đưa AI vào thế "đọc bàn để tư vấn", không phải "giải bài tập"
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -61,7 +64,7 @@ const SINH_ORDER = ['Mộc', 'Hỏa', 'Thổ', 'Kim', 'Thủy'];
 
 function moTaQuanHe(hanh1, hanh2, ten1 = 'Bạn', ten2 = 'Sự việc') {
   if (!hanh1 || !hanh2) return '';
-  if (hanh1 === hanh2) return `${ten1} và ${ten2} cùng hành, ngang sức ngang tài.`;
+  if (hanh1 === hanh2) return `${ten1} và ${ten2} đang giằng co, chưa bên nào thật sự áp đảo.`;
 
   const i1 = SINH_ORDER.indexOf(hanh1);
   const i2 = SINH_ORDER.indexOf(hanh2);
@@ -69,18 +72,18 @@ function moTaQuanHe(hanh1, hanh2, ten1 = 'Bạn', ten2 = 'Sự việc') {
 
   // Sinh
   if ((i1 + 1) % 5 === i2) {
-    return `${ten1} đang "nuôi dưỡng" ${ten2} (${hanh1} sinh ${hanh2}) - bạn bỏ công sức, có thể hao tán nếu không cẩn thận.`;
+    return `${ten1} đang dồn lực cho ${ten2}, dễ hao sức nếu cố ôm hết phần nặng.`;
   }
   if ((i2 + 1) % 5 === i1) {
-    return `${ten2} đang "hỗ trợ" ${ten1} (${hanh2} sinh ${hanh1}) - thuận lợi, được tiếp sức.`;
+    return `${ten2} đang tiếp sức cho ${ten1}, nhịp này có lực đẩy từ bên ngoài.`;
   }
 
   // Khắc
   if ((i1 + 2) % 5 === i2) {
-    return `${ten1} đang "kiểm soát" ${ten2} (${hanh1} khắc ${hanh2}) - bạn chủ động nhưng tốn sức.`;
+    return `${ten1} đang cố cầm nhịp ${ten2}, chủ động nhưng sẽ tốn sức.`;
   }
   if ((i2 + 2) % 5 === i1) {
-    return `${ten2} đang "gây áp lực" lên ${ten1} (${hanh2} khắc ${hanh1}) - bạn bị kìm hãm, cần cẩn trọng.`;
+    return `${ten2} đang ép ${ten1} phải phản ứng, nhịp này dễ rơi vào thế bị động.`;
   }
 
   return '';
@@ -95,6 +98,37 @@ export const enrichData = (raw) => {
   }
 
   const parts = [];
+  const push = (label, lines = []) => {
+    const cleaned = lines.filter(Boolean);
+    if (cleaned.length > 0) parts.push(`[${label}] ${cleaned.join(' ')}`);
+  };
+
+  const hourMarkerPalace = raw.hourMarkerPalace || '';
+  const dayMarkerPalace = raw.dayMarkerPalace || '';
+  const hourDirection = raw.hourPalaceDirection || raw.hourMarkerDirection || '';
+  const routeDirection = raw.directEnvoyDirection || '';
+  const hourTone = raw.hourEnergyTone || '';
+  const routeTone = raw.directEnvoyActionTone || '';
+  const sameMarkerPalace = Boolean(raw.markersSamePalace);
+
+  push('TÍN HIỆU ĐÈN', [
+    raw.quickReadSummary || '',
+    (hourMarkerPalace || raw.hourDoor || raw.hourStar || raw.hourDeity)
+      ? `Cung Giờ: P${hourMarkerPalace || '—'}${hourDirection ? ` · ${hourDirection}` : ''} · Thần ${raw.hourDeity || '—'} · Môn ${raw.hourDoor || '—'} · Tinh ${raw.hourStar || '—'} · tone ${hourTone || 'neutral'} · verdict ${raw.hourEnergyVerdict || 'trung'} · score ${raw.hourEnergyScore ?? 0}.`
+      : '',
+    (raw.directEnvoyPalace || raw.directEnvoyDoor)
+      ? `Cung Trực Sử: P${raw.directEnvoyPalace || '—'}${routeDirection ? ` · ${routeDirection}` : ''} · Thần ${raw.directEnvoyDeity || '—'} · Môn ${raw.directEnvoyDoor || '—'} · Tinh ${raw.directEnvoyStar || '—'} · tone ${routeTone || 'neutral'} · verdict ${raw.directEnvoyActionVerdict || 'trung'} · score ${raw.directEnvoyActionScore ?? 0}.`
+      : '',
+  ]);
+
+  push('MARKER THỜI GIAN', [
+    dayMarkerPalace ? `Ngày ở P${dayMarkerPalace}${raw.dayMarkerDirection ? ` ${raw.dayMarkerDirection}` : ''}.` : '',
+    hourMarkerPalace ? `Giờ ở P${hourMarkerPalace}${hourDirection ? ` ${hourDirection}` : ''}.` : '',
+    sameMarkerPalace ? 'Ngày và Giờ cùng một cung: sự việc đang quấn sát vào người hỏi, khó tách mình khỏi tình huống.' : '',
+    raw.hourMarkerResolutionSource === 'sent-stem'
+      ? 'Dấu giờ đang ký gửi, nên đọc đây là kết quả chịu tác động ngoại lực hoặc phụ thuộc người khác.'
+      : '',
+  ]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // 1. BẠN (NHẬT CAN) - Người đang hỏi
@@ -107,14 +141,13 @@ export const enrichData = (raw) => {
   const than = raw.than || '';
   const tinh = raw.tinh || '';
 
-  if (dayStem) {
-    let selfDesc = `[BẠN] Nhật Can ${dayStem} (${dayStemHanh})`;
-    if (cung) selfDesc += ` tại cung ${cung}`;
-    if (mon) selfDesc += `. Công cụ hành động: ${mon} - ${MON_MEANING[mon] || mon}`;
-    if (than) selfDesc += `. Năng lượng hỗ trợ: ${than} - ${THAN_MEANING[than] || than}`;
-    if (tinh) selfDesc += `. Sao chiếu: ${tinh}`;
-    parts.push(selfDesc);
-  }
+  push('NGƯỜI HỎI', [
+    dayStem ? `Nhật Can: ${dayStem}.` : '',
+    cung ? `Bạn đang đứng ở cung ${cung}.` : '',
+    mon ? `Cửa đang cầm tay: ${mon} - ${MON_MEANING[mon] || mon}.` : '',
+    than ? `Nền hỗ trợ: ${than} - ${THAN_MEANING[than] || than}.` : '',
+    tinh ? `Sao đi cùng: ${tinh}.` : '',
+  ]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // 2. SỰ VIỆC (THỜI CAN) - Cái đang diễn ra
@@ -122,29 +155,29 @@ export const enrichData = (raw) => {
   const hourStem = raw.hourStem || '';
   const hourStemHanh = CAN_HANH[hourStem] || '';
 
-  if (hourStem) {
-    let eventDesc = `[SỰ VIỆC] Thời Can ${hourStem} (${hourStemHanh})`;
-    parts.push(eventDesc);
-  }
+  push('SỰ VIỆC', [
+    hourStem ? `Thời Can: ${hourStem}.` : '',
+    raw.hourMarkerResolutionSource === 'sent-stem'
+      ? 'Kết quả không đứng độc lập, nó đang bám vào một vật mang hoặc yếu tố trung gian.'
+      : hourStem ? 'Sự việc đang lộ mặt trực tiếp hơn, ít vòng vo hơn.' : '',
+  ]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // 3. QUAN HỆ BẠN ↔ SỰ VIỆC (Cái quan trọng nhất!)
   // ─────────────────────────────────────────────────────────────────────────
   if (dayStemHanh && hourStemHanh) {
     const relation = moTaQuanHe(dayStemHanh, hourStemHanh, 'Bạn', 'Sự việc');
-    if (relation) parts.push(`[TƯƠNG TÁC] ${relation}`);
+    if (relation) push('TƯƠNG TÁC', [relation]);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // 4. TRẠNG THÁI ĐẶC BIỆT
   // ─────────────────────────────────────────────────────────────────────────
   const specials = [];
-  if (raw.isPhucAm) specials.push('PHỤC ÂM - Mọi thứ trì trệ, nên giữ nguyên, không hành động lớn');
-  if (raw.isPhanNgam) specials.push('PHẢN NGÂM - Xung đột, đảo lộn, cần linh hoạt thay đổi kế hoạch');
-  if (raw.formations) specials.push(`Cách cục: ${raw.formations}`);
-  if (specials.length > 0) {
-    parts.push(`[CẢNH BÁO] ${specials.join('. ')}`);
-  }
+  if (raw.isPhucAm) specials.push('Nhịp đang trì, đẩy mạnh quá dễ bị ì.');
+  if (raw.isPhanNgam) specials.push('Tình thế dễ dội ngược, cần chừa đường lùi.');
+  if (raw.formations) specials.push(`Các tín hiệu nổi bật: ${raw.formations}.`);
+  push('CẢNH BÁO', specials);
 
   // ─────────────────────────────────────────────────────────────────────────
   // 5. PHÂN TÍCH TÂM LÝ CÓ SẴN (Đã được tính toán trước)
@@ -154,9 +187,7 @@ export const enrichData = (raw) => {
   if (raw.conflict) insights.push(`Xung đột: ${raw.conflict}`);
   if (raw.blindSpot) insights.push(`Điểm mù: ${raw.blindSpot}`);
   if (raw.energyAdvice) insights.push(`Năng lượng: ${raw.energyAdvice}`);
-  if (insights.length > 0) {
-    parts.push(`[TÂM LÝ] ${insights.join(' | ')}`);
-  }
+  push('TÂM LÝ', insights);
 
   // ─────────────────────────────────────────────────────────────────────────
   // 6. ĐIỂM SỐ & METADATA
@@ -166,9 +197,8 @@ export const enrichData = (raw) => {
   if (score) meta.push(`Điểm: ${score}/10`);
   if (raw.cucSo) meta.push(`Cục ${raw.cucSo} ${raw.isDuong ? 'Dương' : 'Âm'}`);
   if (raw.solarTerm) meta.push(raw.solarTerm);
-  if (meta.length > 0) {
-    parts.push(`[METADATA] ${meta.join(' | ')}`);
-  }
+  if (raw.selectedTopic) meta.push(`Chủ đề: ${raw.selectedTopic}`);
+  push('BỐI CẢNH', meta);
 
   return parts.join('\n');
 };

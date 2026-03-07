@@ -19,6 +19,8 @@ export * from './core/cachcuc.js';
 export * from './core/dungthan.js';
 export * from './core/insightEngine.js';
 export * from './core/palaceLayout.js';
+export * from './core/temporalMarkers.js';
+export * from './ui/displayMappings.js';
 export * from './logic/dungThan/index.js';
 export { generateEnergyFlowSummary, generateDeterministicEnergyFlow } from './logic/dungThan/energyFlowLogic.js';
 export * from './state/analysisContext.js';
@@ -31,6 +33,7 @@ import { scoreChartStates }  from './core/states.js';
 import { PALACE_META }       from './core/tables.js';
 import { buildInsight }      from './core/insightEngine.js';
 import { generateStrategicInsight } from './logic/dungThan/index.js';
+import { buildDisplayChart, getSectionLabel, getVisualPalaceEntries } from './ui/displayMappings.js';
 
 /**
  * analyze(date, hour, topics?)
@@ -87,36 +90,37 @@ export function runDemo() {
   const { chart, states, evaluation, topicResults } = analyze(date, hour, [
     'tai-van', 'suc-khoe', 'su-nghiep', 'kinh-doanh', 'xuat-hanh',
   ]);
+  const displayChart = buildDisplayChart(chart);
 
   // ── Solar Term + Cục ──────────────────────────────────────────────────────
   const tk = chart.solarTerm;
   console.log(`\n[L0] Tiết Khí   : ${tk.name} (${tk.nguyenName} Nguyên)`);
-  console.log(`     Cục         : ${chart.cucSo} ${chart.isDuong ? 'Dương' : 'Âm'}`);
+  console.log(`     ${getSectionLabel('Cục').padEnd(12)}: ${chart.cucSo} ${getSectionLabel(chart.isDuong ? 'Dương Độn' : 'Âm Độn')}`);
   console.log(`     Phục/Phản   : ${chart.isPhucAm ? '⚠️ Phục Âm' : chart.isPhanNgam ? '⚠️ Phản Ngâm' : '✅ Bình thường'}`);
 
   // ── Day/Hour Pillars ──────────────────────────────────────────────────────
-  console.log(`\n[L1] Ngày        : ${chart.dayPillar.stemName} ${chart.dayPillar.branchName} (Tuần: ${chart.xuName})`);
-  console.log(`     Giờ         : ${chart.gioPillar.stemName} ${chart.gioPillar.branchName}`);
-  console.log(`     Không Vong  : ${chart.khongVong.void1.name}, ${chart.khongVong.void2.name}  (${chart.khongVong.xunName})`);
-  if (chart.dichMa) console.log(`     Dịch Mã     : ${chart.dichMa.horseBranch} → Cung ${chart.dichMa.palace} ${chart.dichMa.dir}`);
+  console.log(`\n[L1] ${getSectionLabel('Ngày').padEnd(11)}: ${displayChart.dayPillar?.stem?.displayShort || chart.dayPillar.stemName} ${displayChart.dayPillar?.branch?.displayShort || chart.dayPillar.branchName} (Tuần: ${chart.xuName})`);
+  console.log(`     ${getSectionLabel('Giờ').padEnd(11)}: ${displayChart.gioPillar?.stem?.displayShort || chart.gioPillar.stemName} ${displayChart.gioPillar?.branch?.displayShort || chart.gioPillar.branchName}`);
+  console.log(`     ${getSectionLabel('Không Vong').padEnd(11)}: ${displayChart.khongVong?.void1?.branch?.displayShort || chart.khongVong.void1.name}, ${displayChart.khongVong?.void2?.branch?.displayShort || chart.khongVong.void2.name}  (${chart.khongVong.xunName})`);
+  if (chart.dichMa) console.log(`     ${getSectionLabel('Dịch Mã').padEnd(11)}: ${displayChart.dichMa?.horseBranchLabel?.displayShort || chart.dichMa.horseBranch} → Cung ${chart.dichMa.palace} ${displayChart.dichMa?.directionLabel || PALACE_META[chart.dichMa.palace].dir}`);
+  if (chart.dayMarkerPalace || chart.hourMarkerPalace) {
+    console.log(`     Marker ngày  : P${chart.dayMarkerPalace || '—'}`);
+    console.log(`     Marker giờ   : P${chart.hourMarkerPalace || '—'}  →  ${chart.hourEnergyVerdict || 'trung'} (${chart.hourEnergyTone || 'neutral'}, ${chart.hourEnergyScore ?? 0})`);
+  }
 
   // ── Palace grid ───────────────────────────────────────────────────────────
-  console.log('\n[L2] THIÊN BÀN:');
-  console.log('  Cung  │ Hướng       │ Tinh         │ Thiên Can │ Môn      │ Thần         │ Flags');
-  console.log('  ──────┼─────────────┼──────────────┼───────────┼──────────┼──────────────┼──────');
-  for (let p = 1; p <= 9; p++) {
-    const pal   = chart.palaces[p];
+  console.log(`\n[L2] ${getSectionLabel('Thiên Bàn').toUpperCase()}:`);
+  console.log('  Hướng      │ P  │ Cửu Tinh     │ Thiên Can    │ Bát Môn   │ Bát Thần     │ Cờ');
+  console.log('  ───────────┼────┼──────────────┼──────────────┼───────────┼──────────────┼──────');
+  for (const [slot, pal] of getVisualPalaceEntries(displayChart.palaces)) {
+    const palaceNum = pal?.palaceNum || (slot === 'C' ? 5 : '');
     const flags = [
-      pal.trucPhu   ? '🔹Trực Phù' : '',
-      pal.khongVong ? '⬜KV' : '',
-      pal.dichMa    ? '🐴DM' : '',
-      pal.isNgayCan ? '☀️Ngày' : '',
-      pal.isGioCan  ? '⏰Giờ'  : '',
-    ].filter(Boolean).join(' ');
+      ...(pal?.flagLabels || []).map(flag => flag.displayShort),
+    ].join(' ');
     console.log(
-      `  ${String(p).padEnd(5)} │ ${(PALACE_META[p].dir).padEnd(11)} │ ` +
-      `${(pal.star?.short||'').padEnd(12)} │ ${(pal.can?.name||'').padEnd(9)} │ ` +
-      `${(pal.mon?.short||'—').padEnd(8)} │ ${(pal.than?.name||'—').padEnd(12)} │ ${flags}`
+      `  ${String(pal?.directionLabel?.displayShort || slot).padEnd(10)} │ ${String(palaceNum).padEnd(2)} │ ` +
+      `${(pal?.star?.displayName || '—').padEnd(12)} │ ${(pal?.can?.displayShort || '—').padEnd(12)} │ ` +
+      `${(pal?.mon?.displayName || '—').padEnd(9)} │ ${(pal?.than?.displayName || '—').padEnd(12)} │ ${flags}`
     );
   }
 
@@ -136,7 +140,7 @@ export function runDemo() {
     console.log(`  ${res.topic.padEnd(26)} → ${res.usefulGodDir.padEnd(10)} Cung ${res.usefulGodPalace} [${res.verdict.label}] score ${res.score >= 0 ? '+' : ''}${res.score}`);
   }
 
-  console.log(`\n${hr}\n  Demo complete — all 6 layers operational.\n${hr}\n`);
+  console.log(`\n${hr}\n  Demo complete — đã dựng đủ 6 tầng.\n${hr}\n`);
 }
 
 // ── Direct execution ──────────────────────────────────────────────────────────

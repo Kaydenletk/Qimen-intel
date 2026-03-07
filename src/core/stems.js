@@ -4,6 +4,7 @@
  */
 
 import { STEMS, BRANCHES, PRODUCES, CONTROLS, PALACE_META } from './tables.js';
+import { jdOfSolarLon, solarLongitude, toJD } from './calendar.js';
 
 // ── Thập Thần (Ten Gods) ──────────────────────────────────────────────────────
 /**
@@ -95,6 +96,51 @@ export function getDayPillar(date) {
   return {
     stemIdx: jiazi % 10, branchIdx: jiazi % 12, jiazi,
     stemName: STEMS[jiazi % 10].name, branchName: BRANCHES[jiazi % 12].name
+  };
+}
+
+function getTargetJD(date) {
+  const timeOfDay = (date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds()) / 86400;
+  return toJD(date.getFullYear(), date.getMonth() + 1, date.getDate()) + timeOfDay;
+}
+
+export function getYearPillar(date) {
+  const year = date.getFullYear();
+  const targetJD = getTargetJD(date);
+  const liChunJD = jdOfSolarLon(315, year, 2);
+  const solarYear = targetJD < liChunJD ? year - 1 : year;
+
+  return {
+    stemIdx: (solarYear - 4) % 10,
+    branchIdx: (solarYear - 4) % 12,
+    stemName: STEMS[(solarYear - 4) % 10].name,
+    branchName: BRANCHES[(solarYear - 4) % 12].name,
+    solarYear,
+  };
+}
+
+function getTigerMonthStemStart(yearStemIdx) {
+  if ([0, 5].includes(yearStemIdx)) return 2; // Giáp/Kỷ -> Bính Dần
+  if ([1, 6].includes(yearStemIdx)) return 4; // Ất/Canh -> Mậu Dần
+  if ([2, 7].includes(yearStemIdx)) return 6; // Bính/Tân -> Canh Dần
+  if ([3, 8].includes(yearStemIdx)) return 8; // Đinh/Nhâm -> Nhâm Dần
+  return 0; // Mậu/Quý -> Giáp Dần
+}
+
+export function getMonthPillar(date, yearStemIdx = getYearPillar(date).stemIdx) {
+  const targetJD = getTargetJD(date);
+  const longitude = solarLongitude(targetJD);
+  const monthOffset = Math.floor(((longitude - 315 + 360) % 360) / 30);
+  const branchIdx = (monthOffset + 2) % 12; // Dần starts at Lập Xuân
+  const tigerMonthStemIdx = getTigerMonthStemStart(yearStemIdx);
+  const stemIdx = (tigerMonthStemIdx + monthOffset) % 10;
+
+  return {
+    stemIdx,
+    branchIdx,
+    stemName: STEMS[stemIdx].name,
+    branchName: BRANCHES[branchIdx].name,
+    monthOffset,
   };
 }
 

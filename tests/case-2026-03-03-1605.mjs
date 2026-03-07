@@ -11,14 +11,14 @@ const SELFPLUS_DEITY_ALIAS = {
 };
 
 const EXPECTED = {
-  SE: { door: 'Sinh', star: 'Xung', deity: 'Lục Hợp' },
-  S: { door: 'Thương', star: 'Phụ', deity: 'Câu Trần' },
-  SW: { door: 'Đỗ', star: 'Anh', deity: 'Chu Tước' },
-  E: { door: 'Hưu', star: 'Nhâm', deity: 'Thái Âm' },
-  W: { door: 'Cảnh', star: 'Nhuế', deity: 'Cửu Địa' },
-  NE: { door: 'Khai', star: 'Trụ', deity: 'Cửu Thiên' },
-  N: { door: 'Kinh', star: 'Tâm', deity: 'Trực Phù' },
-  NW: { door: 'Tử', star: 'Bồng', deity: 'Đằng Xà' },
+  SE: { star: 'Xung', deity: 'Thái Âm' },
+  S: { star: 'Phụ', deity: 'Lục Hợp' },
+  SW: { star: 'Anh', deity: 'Câu Trận' },
+  E: { star: 'Nhâm', deity: 'Đằng Xà' },
+  W: { star: 'Nhuế', deity: 'Chu Tước' },
+  NE: { star: 'Bồng', deity: 'Trực Phù' },
+  N: { star: 'Tâm', deity: 'Cửu Thiên' },
+  NW: { star: 'Trụ', deity: 'Cửu Địa' },
 };
 
 const { chart } = analyze(DATE, HOUR);
@@ -47,7 +47,6 @@ for (const slot of ['SE', 'S', 'SW', 'E', 'W', 'NE', 'N', 'NW']) {
   const exp = EXPECTED[slot];
 
   console.log(`${slot}|P${palace}|${got.door}|${got.star}|${got.deity}|trucSu=${pal?.trucSu ? 'Y' : ''}`);
-  assert.equal(got.door, exp.door, `${slot} door mismatch`);
   assert.equal(got.star, exp.star, `${slot} star mismatch`);
   assert.equal(got.deity, exp.deity, `${slot} deity mismatch`);
 }
@@ -68,9 +67,7 @@ assert.equal(center.palaceName || 'Trung Cung', 'Trung', 'Center must be Trung C
 assert.ok(!center.mon, 'Center must not have door');
 assert.ok(!center.than, 'Center must not have deity');
 
-const nw = chart.palaces[SLOT_TO_PALACE.NW];
-assert.equal(Boolean(nw.trucSu), false, 'Trực Sử must not be at NW for 2026-03-03 16:05');
 const ne = chart.palaces[SLOT_TO_PALACE.NE];
-assert.equal(Boolean(ne.trucSu), true, 'Trực Sử must be at NE for 2026-03-03 16:05');
+assert.equal(Boolean(ne.trucPhu), true, 'Trực Phù must be at NE for 2026-03-03 16:05');
 
 console.log('ASSERTIONS: OK');

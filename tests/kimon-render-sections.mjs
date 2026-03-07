@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const serverSource = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+
+assert.match(serverSource, /function appendGenericKimonSection\(/, 'Renderer phải có helper render section động');
+assert.match(serverSource, /Object\.entries\(data\)[\s\S]*appendGenericKimonSection/, 'Renderer phải quét thêm các section mới từ payload');
+assert.match(serverSource, /function humanizeKimonSectionLabel\(/, 'Renderer phải có label humanizer cho section mới');
+assert.match(serverSource, /data-display-palaces=/, 'Kimon payload phải embed displayPalaces để lookup cung giờ và trực sử');
+assert.match(serverSource, /const resolvePalaceSignals = palaceNum =>/, 'getBaseQmdjData phải có lookup fallback từ palace grid');
+assert.match(serverSource, /function formatKimonRichText\(/, 'Renderer phải có formatter cho markdown nhẹ');
+assert.match(serverSource, /else if \(ch === '\\\\''\) escaped \+= '&#39;';/, 'escapeHTML trong script browser phải escape dấu nháy đơn đúng cách');
+assert.match(serverSource, /return formatted\.split\('\\\\n'\)\.join\('<br>'\);/, 'Formatter không được render newline literal vỡ cú pháp vào script browser');
+assert.match(serverSource, /curr\.el\.innerHTML = formatKimonRichText\(curr\._raw\)/, 'Typewriter phải render markdown thành HTML');
+assert.match(serverSource, /const KYMON_CACHE_VERSION = 'v2-markdown'/, 'Cache auto-load phải bump version để tránh dùng response cũ');
+assert.match(serverSource, /<div class="kimon-message kimon-message-ai kimon-greeting">/, 'Greeting phải được render sẵn trong HTML');
+assert.match(serverSource, /<form id="kimonChatForm" class="kimon-input-area" novalidate onsubmit="if\(event\)\{event\.preventDefault\(\);event\.stopPropagation\(\);\} if\(window\.__kymonSend\)\{window\.__kymonSend\(event\);\} return false;">/, 'Chat form phải chặn native submit ngay tại markup để tránh reload');
+assert.match(serverSource, /<button id="kimonBtn" class="kimon-send-btn" title="Gửi" type="submit">/, 'Nút gửi phải là submit button');
+assert.match(serverSource, /function handleKymonSend\(event\)/, 'Phải có một submit handler duy nhất cho chat');
+assert.match(serverSource, /if \(event\?\.preventDefault\) event\.preventDefault\(\);/, 'Submit handler phải luôn chặn browser default submit');
+assert.match(serverSource, /if \(event\?\.stopPropagation\) event\.stopPropagation\(\);/, 'Submit handler phải chặn native bubbling gây reload');
+assert.match(serverSource, /window\.__kymonSend = handleKymonSend;/, 'Phải expose handler gửi trên window');
+assert.match(serverSource, /document\.addEventListener\('click', event => \{[\s\S]*const btn = event\.target\.closest\('#kimonBtn'\);/, 'Phải có delegated click listener cho nút gửi');
+assert.match(serverSource, /console\.log\('Kymon: Send button clicked!'\);/, 'Click listener phải có debug log rõ ràng');
+assert.match(serverSource, /document\.addEventListener\('keydown', event => \{[\s\S]*event\.target\?\.id !== 'kimonContext'[\s\S]*event\.key !== 'Enter'/, 'Phải có delegated keydown listener cho ô chat');
+assert.match(serverSource, /console\.log\('Kymon: Enter key pressed!'\);/, 'Keydown listener phải có debug log rõ ràng');
+assert.doesNotMatch(serverSource, /kimonForm\.addEventListener\('submit', handleKymonSend\);/, 'Không nên phụ thuộc vào direct form submit binding nữa');
+assert.doesNotMatch(serverSource, /document\.addEventListener\('keypress', function\(event\)/, 'Không nên dùng delegated keypress kiểu cũ');
+assert.match(serverSource, /async function callKimonJsonFallback\(/, 'Phải có fallback non-stream route cho chat');
+assert.match(serverSource, /fetch\('\/api\/kimon'/, 'Fallback phải gọi \/api\/kimon');
+assert.match(serverSource, /let rawStreamText = '';/, 'Stream client phải buffer raw text riêng thay vì lộ ra UI');
+assert.match(serverSource, /if \(!parsed && rawStreamText\) \{[\s\S]*cleanAiResponse\(rawStreamText\)/, 'Stream client phải parse buffer kín khi parsed payload thiếu');
+assert.doesNotMatch(serverSource, /liveEl\.textContent \+= msg\.chunk;/, 'Không được append raw chunk trực tiếp vào bubble AI');
+assert.doesNotMatch(serverSource, /function createLoadingMessage\(text = 'Kymon đang luận\.\.\.'\)/, 'Không nên render loading bubble riêng nếu đã có thinking bubble chung');
+assert.match(serverSource, /showThinking\(\);[\s\S]*await callKimonStream\(/, 'Trong lúc chờ chỉ nên dùng thinking bubble chung');
+assert.match(serverSource, /onDone: \(data\) => \{[\s\S]*const aiBubble = createMessageBubble\(true\);[\s\S]*kimonMessages\.appendChild\(aiBubble\);/, 'Bubble AI chỉ nên được append khi đã có kết quả cuối');
+assert.match(serverSource, /showKimonError\('Nhập câu hỏi trước khi gửi\.'/,'Gửi rỗng phải hiện lỗi rõ ràng');
+assert.match(serverSource, /showKimonError\(errMsg\);/, 'Lỗi gửi phải được surface lên UI');
+
+console.log('ASSERTIONS: OK');

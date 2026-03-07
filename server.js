@@ -11,16 +11,27 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
-import { enrichData } from './src/utils/qmdjHelper.js';
 import { analyze } from './src/index.js';
 import { generateDeterministicEnergyFlow } from './src/logic/dungThan/index.js';
 import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
+import { buildKimonPrompt, buildKimonSystemInstruction } from './src/logic/kimon/promptBuilder.js';
+import { parseKimonJsonResponse } from './src/logic/kimon/jsonResponse.js';
 import {
   ORDER as SLOT_ORDER,
   SLOT_TO_PALACE,
   normalizePalaces,
-  displayStarShort,
 } from './src/core/palaceLayout.js';
+import {
+  DISPLAY_MODE_WEB1,
+  buildDisplayChart,
+  getDirectionLabel,
+  getSectionLabel,
+  getVisualPalaceEntries,
+} from './src/ui/displayMappings.js';
+import {
+  formatLocalDateInput,
+  getEffectiveChartTime,
+} from './src/ui/chartTime.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,22 +81,6 @@ function triggerGeminiCooldown() {
   console.log('[Rate Limit] Cooldown triggered for 30 seconds');
 }
 
-function formatLocalDateInput(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function parseBoundedInt(rawValue, min, max) {
-  if (rawValue === null || rawValue === undefined) return null;
-  const text = String(rawValue).trim();
-  if (!text || !/^-?\d+$/.test(text)) return null;
-  const parsed = Number(text);
-  if (!Number.isFinite(parsed)) return null;
-  return Math.min(max, Math.max(min, parsed));
-}
-
 function escapeHTML(raw) {
   return String(raw ?? '')
     .replace(/&/g, '&amp;')
@@ -95,36 +90,26 @@ function escapeHTML(raw) {
     .replace(/'/g, '&#39;');
 }
 
-function parseDateTimeQuery({ dateParam, hourParam, minuteParam }) {
-  const now = new Date();
-  const parsedHour = parseBoundedInt(hourParam, 0, 23);
-  const parsedMinute = parseBoundedInt(minuteParam, 0, 59);
-  const hour = parsedHour ?? now.getHours();
-  const minute = parsedMinute ?? now.getMinutes();
-
-  if (!dateParam) {
-    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
-    return { date, hour, minute };
-  }
-
-  const [yRaw, mRaw, dRaw] = String(dateParam).split('-').map(n => Number(n));
-  if (!Number.isFinite(yRaw) || !Number.isFinite(mRaw) || !Number.isFinite(dRaw)) {
-    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
-    return { date, hour, minute };
-  }
-
-  const date = new Date(yRaw, mRaw - 1, dRaw, hour, minute, 0, 0);
-  return { date, hour, minute };
-}
-
 function generateHTML(date, hour, minute = 0, options = {}) {
   const { chart, evaluation, topicResults } = analyze(date, hour);
-  const autoLocalNow = options.autoLocalNow === true;
+  const chartTimeMode = options.chartTimeMode || 'live';
+  const loaderPhrases = [
+    'Đang channel năng lượng...',
+    'Đang lập trận đồ...',
+    'Đang xoay Cửu Cung...',
+    'Đang dò nhịp thời khí...',
+    'Đang mở khóa Thiên Bàn...',
+    'Đang căn lại Môn - Tinh - Thần...',
+    'Đang gom tín hiệu cho Kymon...',
+  ];
+  const initialLoaderPhrase = loaderPhrases[Math.floor(Math.random() * loaderPhrases.length)];
 
   // Generate Energy Flow Summary
   const energyFlow = generateDeterministicEnergyFlow(chart);
 
-  const palacesByNum = normalizePalaces(chart.palaces);
+  const rawPalacesByNum = normalizePalaces(chart.palaces);
+  const displayChart = buildDisplayChart(chart);
+  const palacesByNum = displayChart.palaces;
 
   // Generate Quick Summaries for 9 Palaces (using 'tai-van' as test topic)
   const PALACE_META_MAP = {
@@ -140,7 +125,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   };
   const palaceSummaries = {};
   for (let p = 1; p <= 9; p++) {
-    const pal = palacesByNum[p];
+    const pal = rawPalacesByNum[p];
     const meta = PALACE_META_MAP[p];
     if (p === 5 || !pal) {
       palaceSummaries[p] = { summary: 'Trung Cung', verdict: 'Bình', emoji: '⊕', color: 'gray' };
@@ -171,18 +156,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     'bat-dong-san': 'Bất động sản',
     'muu-luoc': 'Mưu lược',
   };
-  const DIRECTION_LABELS_VI = {
-    SE: 'Đông Nam',
-    S: 'Nam',
-    SW: 'Tây Nam',
-    E: 'Đông',
-    C: 'Trung Cung',
-    W: 'Tây',
-    NE: 'Đông Bắc',
-    N: 'Bắc',
-    NW: 'Tây Bắc',
-  };
-  const SELFPLUS_DEITY_ALIAS = { 'Bạch Hổ': 'Câu Trận', 'Huyền Vũ': 'Chu Tước' };
   const formatScore = score => `${score >= 0 ? '+' : ''}${score}`;
   const scoreTone = score => (score >= 5 ? 'cat' : score < 0 ? 'hung' : 'info');
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -283,20 +256,61 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     Khai: 'đây là cửa mở tốt, hợp chốt việc quan trọng bằng thông điệp ngắn và rõ.',
   };
   const normalizeDoorKey = rawDoor => DOOR_KEY_MAP[String(rawDoor || '').trim()] || '';
-  const palaceLabelFromNum = palaceNum => {
-    const slot = Object.entries(SLOT_TO_PALACE).find(([, p]) => Number(p) === Number(palaceNum))?.[0];
-    return DIRECTION_LABELS_VI[slot] || `Cung ${palaceNum}`;
+  const palaceLabelFromNum = palaceNum => palacesByNum[palaceNum]?.directionLabel?.displayShort || `P${palaceNum}`;
+  const toneLabelFromKey = tone => ({
+    'very-bright': 'Rất sáng',
+    bright: 'Sáng',
+    neutral: 'Trung',
+    dim: 'Sẫm',
+    dark: 'Tối',
+  }[tone] || 'Trung');
+  const renderLabel = (label, fallback = '—') => {
+    const displayName = label?.displayName || label?.displayShort || fallback;
+    const internalName = label?.internalName || '';
+    const safeDisplay = escapeHTML(displayName || fallback);
+    const safeInternal = escapeHTML(internalName);
+    const internalMarkup = internalName && internalName !== displayName
+      ? `<span class="internal-label">${safeInternal}</span>`
+      : '';
+    const title = safeInternal || safeDisplay;
+    return `<span class="dual-label" title="${title}"><span class="display-label">${safeDisplay}</span>${internalMarkup}</span>`;
   };
-  const displayDeity = pal => {
-    const canonical = pal?.than?.name || '';
-    if (!canonical) return '—';
-    const alias = SELFPLUS_DEITY_ALIAS[canonical];
-    return alias || canonical;
+  const renderEntity = (entity, fallback = '—') => renderLabel(entity, fallback);
+  const renderFlagList = pal => {
+    if (!Array.isArray(pal?.flagLabels) || !pal.flagLabels.length) return '';
+    return `
+      <div class="palace-flag-badges">
+        ${pal.flagLabels.map(flag => `<span class="flag-badge">${renderLabel(flag, flag.displayShort)}</span>`).join('')}
+      </div>
+    `;
   };
+  const renderTemporalBadgeList = pal => {
+    if (!Array.isArray(pal?.temporalBadgeLabels) || !pal.temporalBadgeLabels.length) return '';
+    return `
+      <div class="temporal-badges">
+        ${pal.temporalBadgeLabels.map(flag => `<span class="temporal-badge">${renderLabel(flag, flag.displayShort)}</span>`).join('')}
+      </div>
+    `;
+  };
+  const renderSecondaryEntity = (entity, fallback = '—') => (
+    entity ? `<span class="palace-secondary">${renderEntity(entity, fallback)}</span>` : ''
+  );
+  const formatPalaceScore = score => `${Number(score) >= 0 ? '+' : ''}${Number(score) || 0}`;
+  const formatDebugScore = score => `${Number(score) >= 0 ? '+' : ''}${Math.round(Number(score || 0) * 100) / 100}`;
+  const formatTagAdjustments = backgroundDebug => {
+    const components = backgroundDebug?.tagAdjustments || {};
+    const entries = Object.entries(components)
+      .filter(([, value]) => Number(value) !== 0)
+      .map(([key, value]) => `${key}:${formatDebugScore(value)}`);
+    return entries.join(', ');
+  };
+  const formatBackgroundReasons = backgroundDebug => Array.isArray(backgroundDebug?.reasons)
+    ? backgroundDebug.reasons.join(' | ')
+    : '';
   const buildCounselorNarrative = ({ topic, pal, actionLabel, coreMessage, fallbackNarrative }) => {
-    const doorName = pal?.mon?.short || pal?.mon?.name || 'Môn chưa xác định';
-    const starName = displayStarShort(pal) || 'Tinh chưa xác định';
-    const deityName = displayDeity(pal);
+    const doorName = pal?.mon?.displayName || pal?.mon?.displayShort || 'Môn chưa xác định';
+    const starName = pal?.star?.displayName || pal?.star?.displayShort || 'Tinh chưa xác định';
+    const deityName = pal?.than?.displayName || pal?.than?.displayShort || 'Thần chưa xác định';
     const actionDirective = actionLabel === 'Chủ động'
       ? 'chủ động chốt một bước nhỏ ngay bây giờ và đo phản hồi thực tế.'
       : actionLabel === 'Phòng thủ'
@@ -307,47 +321,53 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   };
 
   const palaceRows = [];
-  for (const dir of SLOT_ORDER) {
+  for (const [dir, pal] of getVisualPalaceEntries(palacesByNum)) {
     const p = SLOT_TO_PALACE[dir];
-    const pal = palacesByNum[p];
-    const directionLabel = DIRECTION_LABELS_VI[dir] || dir;
+    const directionLabel = pal?.directionLabel?.displayShort || getDirectionLabel(dir);
     if (dir === 'C') {
       palaceRows.push(`
         <tr>
           <td>5</td>
           <td>${pal?.phiTinhNum ?? ''}</td>
-          <td>Trung Cung</td>
-          <td>${displayStarShort(pal)}</td>
-          <td>${pal?.can?.name ?? ''}</td>
-          <td>${pal?.earthStem ?? ''}</td>
+          <td>${renderLabel(pal?.directionLabel, 'Trung Cung')}</td>
+          <td>—</td>
+          <td>—</td>
+          <td>${renderLabel(pal?.earthStemLabel, '')}</td>
           <td>—</td>
           <td>—</td>
           <td></td>
+          <td>${formatPalaceScore(pal?.score ?? 0)}</td>
+          <td>${escapeHTML(pal?.tone || 'neutral')}</td>
+          <td>${escapeHTML(formatDebugScore(pal?.backgroundDebug?.baseScore ?? 0))}</td>
+          <td>${escapeHTML(formatTagAdjustments(pal?.backgroundDebug) || '—')}</td>
+          <td>${escapeHTML(pal?.backgroundTone || pal?.tone || 'neutral')}</td>
+          <td>${escapeHTML(formatBackgroundReasons(pal?.backgroundDebug) || '—')}</td>
         </tr>
       `);
       continue;
     }
     if (!pal) continue;
-    const flags = [
-      pal.trucPhu ? 'Trực Phù' : '',
-      pal.trucSu ? 'Trực Sử' : '',
-      pal.khongVong ? 'Không Vong' : '',
-      pal.dichMa ? 'Dịch Mã' : '',
-      pal.isNgayCan ? 'Ngày Can' : '',
-      pal.isGioCan ? 'Giờ Can' : '',
-    ].filter(Boolean).join(', ');
+    const flags = Array.isArray(pal.flagLabels)
+      ? pal.flagLabels.map(flag => `${flag.displayShort}${flag.internalName && flag.internalName !== flag.displayShort ? ` (${flag.internalName})` : ''}`).join(', ')
+      : '';
 
     palaceRows.push(`
       <tr>
         <td>${p}</td>
         <td>${pal.phiTinhNum}</td>
-        <td>${directionLabel}</td>
-        <td>${displayStarShort(pal)}</td>
-        <td>${pal.can?.name || ''}</td>
-        <td>${pal.earthStem || ''}</td>
-        <td>${pal.mon?.short || '—'}</td>
-        <td>${displayDeity(pal)}</td>
+        <td>${renderLabel(pal.directionLabel, directionLabel)}</td>
+        <td>${renderEntity(pal.star)}</td>
+        <td>${renderEntity(pal.can)}</td>
+        <td>${renderLabel(pal.earthStemLabel)}</td>
+        <td>${renderEntity(pal.mon)}</td>
+        <td>${renderEntity(pal.than)}</td>
         <td>${flags}</td>
+        <td>${formatPalaceScore(pal?.score ?? 0)}</td>
+        <td>${escapeHTML(pal?.tone || 'neutral')}</td>
+        <td>${escapeHTML(formatDebugScore(pal?.backgroundDebug?.baseScore ?? 0))}</td>
+        <td>${escapeHTML(formatTagAdjustments(pal?.backgroundDebug) || '—')}</td>
+        <td>${escapeHTML(pal?.backgroundTone || pal?.tone || 'neutral')}</td>
+        <td>${escapeHTML(formatBackgroundReasons(pal?.backgroundDebug) || '—')}</td>
       </tr>
     `);
   }
@@ -406,10 +426,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const insightEvidence = Array.from(new Set([...formationEvidence, ...baseInsightEvidence])).slice(0, 8);
     const usefulPalaceNum = Number(t.usefulGodPalace);
     const usefulPalace = Number.isFinite(usefulPalaceNum) ? palacesByNum[usefulPalaceNum] : null;
+    const usefulGodDir = Number.isFinite(usefulPalaceNum)
+      ? palaceLabelFromNum(usefulPalaceNum)
+      : t.usefulGodDir;
     const actionLabel = strategic ? mapStrategicAction(strategic.score) : (insight?.actionLabel || fallbackActionLabel(t.score));
     const oneLiner = strategic?.coreMessage || insight?.oneLiner || t.actionAdvice || '';
     const counselorNarrative = buildCounselorNarrative({
-      topic: t,
+      topic: { ...t, usefulGodDir },
       pal: usefulPalace,
       actionLabel,
       coreMessage: oneLiner,
@@ -424,7 +447,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       scorePct: scorePercent(t.score),
       tone: scoreTone(t.score),
       verdict: t.verdict?.label || 'Bình',
-      usefulGodDir: t.usefulGodDir,
+      usefulGodDir,
       usefulGodPalace: t.usefulGodPalace,
       usefulGodPalaceName: t.usefulGodPalaceName,
       actionAdvice: t.actionAdvice || '',
@@ -450,45 +473,35 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   const rankedTopics = [...uiTopics].sort((a, b) => b.score - a.score);
   const bestTopic = rankedTopics[0] || fallbackTopic;
   const dayStem = chart.dayPillar?.stemName || '';
-  let dayPalaceNum = null;
-  for (let p = 1; p <= 9; p++) {
-    if (palacesByNum[p]?.isNgayCan) {
-      dayPalaceNum = p;
-      break;
-    }
-  }
-  if (!dayPalaceNum && dayStem) {
-    for (let p = 1; p <= 9; p++) {
-      if (palacesByNum[p]?.can?.name === dayStem) {
-        dayPalaceNum = p;
-        break;
-      }
-    }
-  }
+  const dayPalaceNum = displayChart.dayMarkerPalace || chart.dayMarkerPalace || null;
   const dayPalace = dayPalaceNum ? palacesByNum[dayPalaceNum] : null;
-  const dayDoorKey = normalizeDoorKey(dayPalace?.mon?.short || dayPalace?.mon?.name);
-  const dayDoorText = DOOR_DISPLAY[dayDoorKey] || dayPalace?.mon?.short || 'Môn chưa xác định';
+  const dayDoorKey = normalizeDoorKey(dayPalace?.mon?.internalName || dayPalace?.mon?.name);
+  const dayDoorText = dayPalace?.mon?.displayName || dayPalace?.mon?.displayShort || 'Môn chưa xác định';
   const dayDirText = dayPalaceNum ? palaceLabelFromNum(dayPalaceNum) : 'vị trí chưa xác định';
-  const hourStem = chart.gioPillar?.stemName || '';
-  let hourPalaceNum = null;
-  for (let p = 1; p <= 9; p++) {
-    if (palacesByNum[p]?.isGioCan) {
-      hourPalaceNum = p;
-      break;
-    }
-  }
-  if (!hourPalaceNum) {
-    for (let p = 1; p <= 9; p++) {
-      if (palacesByNum[p]?.earthStem === hourStem) {
-        hourPalaceNum = p;
-        break;
-      }
-    }
-  }
+  const dayMarkerSource = displayChart.dayMarkerResolutionSource || chart.dayMarkerResolutionSource || '';
+  const hourPalaceNum = displayChart.hourMarkerPalace || chart.hourMarkerPalace || null;
   const hourPalace = hourPalaceNum ? palacesByNum[hourPalaceNum] : null;
-  const hourDoorKey = normalizeDoorKey(hourPalace?.mon?.short || hourPalace?.mon?.name);
-  const hourDoorText = DOOR_DISPLAY[hourDoorKey] || hourPalace?.mon?.short || 'Môn chưa xác định';
+  const hourDoorKey = normalizeDoorKey(hourPalace?.mon?.internalName || hourPalace?.mon?.name);
+  const hourDoorText = hourPalace?.mon?.displayName || hourPalace?.mon?.displayShort || 'Môn chưa xác định';
+  const hourStarText = hourPalace?.star?.displayName || hourPalace?.star?.displayShort || 'Tinh chưa xác định';
+  const hourDeityText = hourPalace?.than?.displayName || hourPalace?.than?.displayShort || 'Thần chưa xác định';
   const hourDirText = hourPalaceNum ? palaceLabelFromNum(hourPalaceNum) : 'vị trí chưa xác định';
+  const hourMarkerSource = displayChart.hourMarkerResolutionSource || chart.hourMarkerResolutionSource || '';
+  const hourCarrierStar = chart?.palaces?.[hourPalaceNum || 0]?.sentStar?.short || chart?.palaces?.[hourPalaceNum || 0]?.sentStar?.name || '';
+  const hourEnergyTone = displayChart.hourEnergyTone || chart.hourEnergyTone || 'neutral';
+  const hourEnergyVerdict = displayChart.hourEnergyVerdict || chart.hourEnergyVerdict || 'trung';
+  const hourEnergyScore = displayChart.hourEnergyScore ?? chart.hourEnergyScore ?? 0;
+  const routePalaceNum = displayChart.directEnvoyActionPalace || chart.directEnvoyActionPalace || chart.trucSuPalace || null;
+  const routePalace = routePalaceNum ? palacesByNum[routePalaceNum] : null;
+  const routeDoorText = routePalace?.mon?.displayName || routePalace?.mon?.displayShort || 'Môn chưa xác định';
+  const routeStarText = routePalace?.star?.displayName || routePalace?.star?.displayShort || 'Tinh chưa xác định';
+  const routeDeityText = routePalace?.than?.displayName || routePalace?.than?.displayShort || 'Thần chưa xác định';
+  const routeDirText = routePalaceNum ? palaceLabelFromNum(routePalaceNum) : 'vị trí chưa xác định';
+  const routeEnergyTone = displayChart.directEnvoyActionTone || chart.directEnvoyActionTone || 'neutral';
+  const routeEnergyVerdict = displayChart.directEnvoyActionVerdict || chart.directEnvoyActionVerdict || 'trung';
+  const routeEnergyScore = displayChart.directEnvoyActionScore ?? chart.directEnvoyActionScore ?? 0;
+  const quickReadSummary = displayChart.hourQuickReadSummary || chart.hourQuickReadSummary || 'Khí giờ đang trung tính, cần quan sát thêm trước khi tăng lực';
+  const markersSamePalace = Boolean(dayPalaceNum && hourPalaceNum && dayPalaceNum === hourPalaceNum);
   let chiefPalaceNum = null;
   for (let p = 1; p <= 9; p++) {
     if (palacesByNum[p]?.trucPhu) {
@@ -497,22 +510,23 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
   }
   const chiefPalace = chiefPalaceNum ? palacesByNum[chiefPalaceNum] : null;
-  const chiefDoorKey = normalizeDoorKey(chiefPalace?.mon?.short || chiefPalace?.mon?.name);
-  const chiefDoorText = DOOR_DISPLAY[chiefDoorKey] || chiefPalace?.mon?.short || 'Môn chưa xác định';
+  const chiefDoorKey = normalizeDoorKey(chiefPalace?.mon?.internalName || chiefPalace?.mon?.name);
+  const chiefDoorText = chiefPalace?.mon?.displayName || chiefPalace?.mon?.displayShort || 'Môn chưa xác định';
   const chiefDirText = chiefPalaceNum ? palaceLabelFromNum(chiefPalaceNum) : 'vị trí chưa xác định';
 
   // Trực Phù prefers Nhuế over Cầm
-  let trucPhuDisplay = chart.leadStar || 'Thiên chưa xác định';
-  if (trucPhuDisplay === 'Thiên Cầm' || trucPhuDisplay === 'Cầm') {
-    trucPhuDisplay = 'Thiên Nhuế';
+  let trucPhuDisplay = chiefPalace?.star?.displayName || chiefPalace?.star?.displayShort || 'Tinh chưa xác định';
+  if (chiefPalace?.sentStar && chiefPalace?.trucPhu) {
+    trucPhuDisplay = chiefPalace.sentStar.displayName;
   }
 
   const briefingHeading = BRIEFING_TITLE_BY_DOOR[dayDoorKey] || strategicTitle;
-  const internalLine = `${INTERNAL_STATE_BY_DOOR[dayDoorKey] || 'Năng lượng hiện tại của bạn đang khá nhiễu, cần chậm một nhịp để nhìn rõ ưu tiên chính.'} (Nhật Can ${dayStem || '—'} tại ${dayDoorText}, ${dayDirText}).`;
+  const internalLine = `${INTERNAL_STATE_BY_DOOR[dayDoorKey] || 'Năng lượng hiện tại của bạn đang khá nhiễu, cần chậm một nhịp để nhìn rõ ưu tiên chính.'} (Nhật Can ${displayChart.dayPillar?.stem?.displayShort || dayStem || '—'} tại ${dayDoorText}, ${dayDirText}).`;
   const hourRealityTail = REALITY_CHECK_BY_DOOR[hourDoorKey] || 'hãy ưu tiên bước nhỏ có thể kiểm chứng, tránh quyết định vì cảm xúc nhất thời.';
+  const routeRealityTail = REALITY_CHECK_BY_DOOR[normalizeDoorKey(routePalace?.mon?.internalName || routePalace?.mon?.name)] || 'đi nhịp gọn, làm đúng cửa trước rồi mới tăng lực.';
   const chiefRealityTail = REALITY_CHECK_BY_DOOR[chiefDoorKey] || 'đi nhịp thận trọng, gom thêm dữ kiện trước khi tăng cam kết.';
-  const realityLine = hourDoorKey
-    ? `Dòng chảy thực tế cho thấy Can giờ ${chart.gioPillar?.displayStemName || hourStem} đang ở ${hourDoorText}, ${hourDirText}; ${hourRealityTail}`
+  const realityLine = hourPalace
+    ? `Cung Giờ hiện nằm ở ${hourDirText} với ${hourDoorText}, sắc độ ${toneLabelFromKey(hourEnergyTone)}, thế ${hourEnergyVerdict}; ${hourRealityTail} Cung Trực Sử đang mở ở ${routeDirText} với ${routeDoorText}, sắc độ ${toneLabelFromKey(routeEnergyTone)}, thế ${routeEnergyVerdict}; ${routeRealityTail}`
     : `Dòng chảy thực tế cho thấy Trực Phù (${trucPhuDisplay}) đang ở ${chiefDirText} cùng ${chiefDoorText}; ${chiefRealityTail}`;
   const directiveVerb = bestTopic?.actionLabel === 'Chủ động'
     ? 'chủ động chốt một bước nhỏ nhưng dứt khoát'
@@ -526,11 +540,21 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   const briefingParagraph = [internalLine, realityLine, directiveLine]
     .map(line => escapeHTML(line))
     .join('<br><br>');
+  const hourLegendMarkup = `
+    <div class="hour-legend">
+      <p class="hour-legend-note">Màu nền giúp bạn nhìn nhanh tình trạng của cung:</p>
+      <p class="hour-legend-note">- Trắng = thuận, dễ hành động hơn</p>
+      <p class="hour-legend-note">- Xám rất nhạt = tương đối yên</p>
+      <p class="hour-legend-note">- Xám nhạt = có lực cản</p>
+      <p class="hour-legend-note">- Xám hơn = áp lực hoặc bế tắc mạnh hơn</p>
+      <p class="hour-legend-note">Cung Giờ cho biết khí hiện tại.</p>
+    </div>
+  `;
 
   const topicRows = topicEntries.map(res => `
     <tr data-topic="${res.topic}" data-direction="${res.usefulGodDir}" data-score="${res.score}">
       <td data-col="topic">${res.topic}</td>
-      <td data-col="direction">${res.usefulGodDir}</td>
+        <td data-col="direction">${palaceLabelFromNum(res.usefulGodPalace)}</td>
       <td>${res.usefulGodPalace}</td>
       <td>${res.verdict.label}</td>
       <td data-col="score">${formatScore(res.score)}</td>
@@ -559,9 +583,85 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   `).join('');
 
   const topicPayloadJSON = JSON.stringify(uiTopics).replace(/</g, '\\u003c');
-  const selectedDate = formatLocalDateInput(date);
+  const selectedDate = options.selectedDate || formatLocalDateInput(date);
   const selectedMinute = minute;
+  const selectedTimeText = `${String(hour).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`;
   const timeBasis = 'Theo giờ bạn nhập (floating time, không khóa timezone)';
+  const structureModeLabel = `${displayChart.sections.structure} ${chart.cucSo} ${displayChart.sections.structurePolarity}`;
+  const timeStripItems = [
+    { label: getSectionLabel('Giờ'), pillar: displayChart.gioPillar, markerPalace: hourPalaceNum, direction: hourDirText },
+    { label: getSectionLabel('Ngày'), pillar: displayChart.dayPillar, markerPalace: dayPalaceNum, direction: dayDirText },
+    { label: getSectionLabel('Tháng'), pillar: displayChart.monthPillar, markerPalace: displayChart.monthMarkerPalace || chart.monthMarkerPalace || null, direction: palaceLabelFromNum(displayChart.monthMarkerPalace || chart.monthMarkerPalace || 5) },
+    { label: getSectionLabel('Năm'), pillar: displayChart.yearPillar, markerPalace: null, direction: '' },
+  ];
+  const timeStripMarkup = `
+    <div class="board-time-strip">
+      ${timeStripItems.map(item => `
+        <div class="time-strip-item">
+          <div class="time-strip-label-row">
+            <span class="time-strip-label">${escapeHTML(item.label)}</span>
+          </div>
+          <div class="time-strip-pillar">
+            <span>${escapeHTML(item.pillar?.stem?.displayShort || item.pillar?.stemName || '—')}</span>
+            <span>${escapeHTML(item.pillar?.branch?.displayShort || item.pillar?.branchName || '—')}</span>
+          </div>
+          <div class="time-strip-meta">
+            ${item.markerPalace ? `P${escapeHTML(String(item.markerPalace))} · ${escapeHTML(item.direction || '')}` : '&nbsp;'}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  const palaceGridCards = getVisualPalaceEntries(palacesByNum).map(([slot, pal]) => {
+    const p = SLOT_TO_PALACE[slot];
+    const toneClass = `palace-tone-${pal?.backgroundTone || pal?.tone || 'neutral'}`;
+    const markerClass = Array.isArray(pal?.temporalBadgeLabels) && pal.temporalBadgeLabels.length ? 'palace-has-marker' : '';
+    const hourMarkerClass = displayChart.hourMarkerPalace === p ? 'hour-marker' : '';
+
+    if (slot === 'C') {
+      return `
+        <article class="palace-cell palace-cell-center ${toneClass}" data-slot="${slot}">
+          <div class="palace-header">
+            <span class="palace-dir">${renderLabel(pal.directionLabel, 'Trung')}</span>
+            <span class="palace-num">P5</span>
+          </div>
+          <div class="center-time" id="liveClockValue">${escapeHTML(selectedTimeText)}</div>
+          <div class="palace-line palace-line-center">
+            <span class="palace-item">${escapeHTML(displayChart.dayPillar?.stem?.displayShort || chart.dayPillar?.stemName || '—')} ${escapeHTML(displayChart.dayPillar?.branch?.displayShort || chart.dayPillar?.branchName || '—')}</span>
+          </div>
+          <div class="palace-line palace-line-center">
+            <span class="palace-item">${escapeHTML(structureModeLabel)}</span>
+          </div>
+          <div class="palace-line palace-line-center">
+            <span class="palace-item">#${pal?.phiTinhNum ?? '—'}</span>
+          </div>
+        </article>
+      `;
+    }
+
+    return `
+      <article class="palace-cell ${toneClass} ${markerClass} ${hourMarkerClass}" data-slot="${slot}">
+        <div class="palace-header">
+          <span class="palace-dir">${renderLabel(pal.directionLabel, slot)}</span>
+          <span class="palace-num">P${p}</span>
+        </div>
+        ${renderTemporalBadgeList(pal)}
+        ${renderFlagList(pal)}
+        <div class="palace-body">
+          <div class="palace-corner palace-corner-top-left">${renderEntity(pal.than)}</div>
+          <div class="palace-corner palace-corner-top-right">${renderEntity(pal.can)}</div>
+          <div class="palace-center-door">
+            ${renderEntity(pal.mon)}
+          </div>
+          <div class="palace-corner palace-corner-bottom-left">${renderLabel(pal.earthStemLabel)}</div>
+          <div class="palace-corner palace-corner-bottom-right">
+            ${renderEntity(pal.star)}
+            ${renderSecondaryEntity(pal.sentStar)}
+          </div>
+        </div>
+      </article>
+    `;
+  }).join('');
 
   return `<!DOCTYPE html>
 <html lang="vi">
@@ -597,10 +697,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       align-items: center;
       justify-content: center;
       transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+      animation: kymon-loader-dismiss 0.45s ease-out 2.4s forwards;
     }
     #initialLoader.fade-out {
       opacity: 0;
       visibility: hidden;
+      pointer-events: none;
     }
     .kymon-loader-logo-wrapper {
       position: relative;
@@ -664,6 +766,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-size: 1rem;
       color: #64748B;
       margin: 0;
+      min-height: 1.6em;
+      text-align: center;
+    }
+    @keyframes kymon-loader-dismiss {
+      to {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
     }
 
     * { box-sizing: border-box; }
@@ -721,6 +832,54 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       flex-direction: column;
       gap: 4px;
     }
+    .display-mode-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .mode-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #0369a1;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .debug-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .debug-toggle input {
+      width: 16px;
+      height: 16px;
+      accent-color: #6b7280;
+    }
+    body:not([data-show-internal-labels="true"]) .internal-label {
+      display: none;
+    }
+    .dual-label {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      min-width: 0;
+    }
+    .display-label {
+      min-width: 0;
+    }
+    .internal-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      line-height: 1.2;
+    }
     .controls input,
     .controls button,
     .controls .link-btn {
@@ -764,6 +923,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       z-index: 1;
     }
     .briefing {
+      order: 1;
       padding: 22px;
     }
     .energy-flow-card {
@@ -1194,73 +1354,270 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     /* 9-Palace Grid Styles */
     .palace-grid-section {
-      padding: 16px;
+      padding: 18px;
+      border-color: #d1d5db;
+    }
+    .palace-grid-overview {
+      order: -1;
+      margin-bottom: 0;
+    }
+    .palace-grid-board-section {
+      order: 0;
+      margin-top: 0;
     }
     .palace-grid-title {
       font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--muted);
+    }
+    .palace-grid-toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .board-time-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
       margin-bottom: 12px;
+    }
+    .time-strip-item {
+      display: grid;
+      grid-template-rows: auto auto auto;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #ffffff;
+    }
+    .time-strip-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .time-strip-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #6b7280;
+      font-weight: 700;
+    }
+    .time-strip-pillar {
+      display: grid;
+      grid-auto-flow: column;
+      justify-content: start;
+      gap: 6px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #111827;
+      align-items: baseline;
+    }
+    .time-strip-meta {
+      margin-top: 4px;
+      font-size: 0.72rem;
+      color: #6b7280;
     }
     .palace-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
+      gap: 1px;
+      background: #d1d5db;
+      border: 1px solid #d1d5db;
+      border-radius: 16px;
+      overflow: hidden;
     }
     .palace-cell {
-      background: #f8fafc;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-      min-height: 90px;
+      position: relative;
+      background: #ffffff;
+      border: 0;
+      border-radius: 0;
+      padding: 10px 12px 12px;
+      min-height: 156px;
       display: flex;
       flex-direction: column;
-      transition: box-shadow 0.15s;
     }
-    .palace-cell:hover {
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    .palace-cell.palace-has-marker {
+      box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.18);
     }
-    .palace-cell.verdict-good { border-left: 3px solid var(--cat); }
-    .palace-cell.verdict-warn { border-left: 3px solid #f59e0b; }
-    .palace-cell.verdict-bad { border-left: 3px solid var(--hung); }
-    .palace-cell.verdict-neutral { border-left: 3px solid #94a3b8; }
+    .palace-cell.hour-marker {
+      box-shadow: inset 0 0 0 2px rgba(31, 41, 55, 0.14);
+    }
+    .palace-cell.palace-tone-bright {
+      background: #ffffff;
+    }
+    .palace-cell.palace-tone-neutral {
+      background: #f7f7f7;
+    }
+    .palace-cell.palace-tone-softDark {
+      background: #f1f1f1;
+    }
+    .palace-cell.palace-tone-dark {
+      background: #e5e7eb;
+    }
+    .hour-legend {
+      margin: 10px 0 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+    }
+    .hour-legend-note {
+      margin: 0;
+      font-size: 0.78rem;
+      color: #6b7280;
+      line-height: 1.5;
+    }
     .palace-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 6px;
     }
+    .temporal-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: -2px 0 6px;
+    }
+    .temporal-badge {
+      display: inline-flex;
+    }
+    .temporal-badge .dual-label {
+      display: inline-flex;
+    }
+    .temporal-badge .display-label {
+      min-width: 34px;
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.68rem;
+      line-height: 1;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: #f7f7f7;
+      color: #374151;
+      border: 1px solid #d1d5db;
+      font-weight: 700;
+    }
+    .temporal-badge .internal-label {
+      display: none;
+    }
     .palace-dir {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: #334155;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #111827;
     }
     .palace-num {
       font-size: 0.65rem;
       color: var(--muted);
-      background: #e2e8f0;
+      background: #f7f7f7;
+      border: 1px solid #e5e7eb;
       padding: 2px 6px;
-      border-radius: 4px;
+      border-radius: 999px;
     }
-    .palace-elements {
+    .palace-body {
+      position: relative;
+      flex: 1;
+      min-height: 96px;
+    }
+    .palace-corner {
+      position: absolute;
+      max-width: 48%;
+      line-height: 1.15;
+      font-size: 0.78rem;
+    }
+    .palace-corner-top-left {
+      top: 0;
+      left: 0;
+      color: #1f2937;
+      font-weight: 600;
+    }
+    .palace-corner-top-right {
+      top: 0;
+      right: 0;
+      color: #dc2626;
+      font-weight: 700;
+      text-align: right;
+    }
+    .palace-corner-bottom-left {
+      left: 0;
+      bottom: 0;
+      color: #991b1b;
+      font-weight: 700;
+    }
+    .palace-corner-bottom-right {
+      right: 0;
+      bottom: 0;
+      color: #1f2937;
+      font-weight: 700;
+      text-align: right;
+    }
+    .palace-center-door {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      max-width: 72%;
+      text-align: center;
+      color: #111827;
+      font-weight: 800;
+    }
+    .palace-center-door .display-label {
+      font-size: 1.18rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .palace-center-door .internal-label {
+      display: none;
+    }
+    .palace-secondary {
+      display: block;
+      margin-top: 4px;
       font-size: 0.68rem;
       color: var(--muted);
-      margin-bottom: 6px;
     }
-    .palace-summary {
-      font-size: 0.75rem;
-      color: #475569;
-      line-height: 1.4;
-      flex-grow: 1;
+    .palace-empty {
+      color: var(--muted);
+    }
+    .palace-flag-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .flag-badge {
+      display: inline-flex;
+    }
+    .flag-badge .display-label {
+      font-size: 0.68rem;
+      line-height: 1;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #1f2937;
+      border: 1px solid #d1d5db;
+      font-weight: 700;
+    }
+    .flag-badge .internal-label {
+      display: none;
     }
     .palace-verdict {
       font-size: 0.7rem;
       margin-top: 4px;
     }
     .palace-cell-center {
-      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-      border: 1px solid #fbbf24;
+      background: #f1f1f1;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1268,21 +1625,48 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .palace-cell-center .palace-dir {
       font-size: 0.9rem;
-      color: #92400e;
+      color: #1f2937;
+    }
+    .center-time {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #991b1b;
+      text-align: center;
+      line-height: 1.1;
+      margin-bottom: 2px;
+    }
+    .palace-corner-top-right .display-label {
+      color: #dc2626;
+      font-weight: 700;
+    }
+    .palace-corner-bottom-left .display-label {
+      color: #991b1b;
+      font-weight: 700;
+    }
+    .palace-corner-bottom-right .display-label,
+    .palace-corner-top-left .display-label {
+      color: #1f2937;
     }
     @media (max-width: 600px) {
-      .palace-grid { gap: 6px; }
-      .palace-cell { padding: 8px; min-height: 80px; }
-      .palace-summary { font-size: 0.7rem; }
+      .board-time-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .palace-grid { gap: 1px; }
+      .palace-cell { padding: 8px 9px 10px; min-height: 128px; }
+      .palace-body { min-height: 78px; }
+      .palace-center-door { max-width: 84%; }
+      .palace-center-door .display-label { font-size: 1rem; }
+      .palace-corner { font-size: 0.72rem; max-width: 50%; }
     }
     /* ── Kimon Chat ────────────────────────────────────────── */
     .kimon-terminal-container {
+      order: -2;
       background: #ffffff;
       border: 1px solid #E2E8F0;
       border-radius: 24px;
       padding: 20px 24px;
       box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
-      margin-bottom: 24px;
+      margin: 0 0 18px;
     }
     .kimon-card {
       padding: 20px;
@@ -1652,18 +2036,18 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .kimon-topic-chips { display: none; }
   </style>
 </head>
-<body>
+<body data-display-mode="${DISPLAY_MODE_WEB1}" data-show-internal-labels="false">
   <div class="shell">
     <header class="card app-header">
       <div>
         <h1 class="app-title"><img src="/favicon.png" alt="" style="height:32px; vertical-align:middle; margin-right:8px;">Kymon</h1>
-        <p class="app-subtitle">Vô xem cho biết, quyết cho nhanh.</p>
+        <p class="app-subtitle">Vô xem cho biết, chốt cho nhanh</p>
       </div>
       <form method="GET" action="/" class="controls" id="timeForm">
-        <label>Ngày
+        <label>${getSectionLabel('Ngày')}
           <input id="dateInput" type="date" name="date" value="${selectedDate}">
         </label>
-        <label>Giờ
+        <label>${getSectionLabel('Giờ')}
           <input id="hourInput" type="number" name="hour" min="0" max="23" value="${hour}" style="width:80px;">
         </label>
         <label>Phút
@@ -1682,10 +2066,17 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             <img src="/favicon.png" alt="Loading Kymon">
           </div>
           <h1>Kỳ Môn Độn Giáp</h1>
-          <p>Kết nối trường năng lượng ... Sẵn sàng luận giải!</p>
+          <p id="initialLoaderSlogan">${escapeHTML(initialLoaderPhrase)}</p>
         </div>
 
-        <!-- KIMON AI TERMINAL -->
+        <section class="card palace-grid-section palace-grid-overview">
+          <div class="palace-grid-toolbar">
+            <div class="palace-grid-title">Trụ Cột Thời Gian</div>
+          </div>
+          ${timeStripMarkup}
+          ${hourLegendMarkup}
+        </section>
+
         <div class="kimon-terminal-container">
           <section class="kimon-terminal" id="kimonTerminal">
             <div class="kimon-terminal-header">
@@ -1693,25 +2084,40 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             <div class="kimon-status-dot"></div>
             <h2 class="kimon-terminal-title">Kymon nè</h2>
             <div class="kimon-meta-tags">
-              <span>${escapeHTML(chart.solarTerm?.name || '')} · Cục ${chart.cucSo} ${chart.isDuong ? 'Dương' : 'Âm'}</span>
+              <span>${escapeHTML(chart.solarTerm?.name || '')} · ${escapeHTML(structureModeLabel)}</span>
             </div>
           </div>
           <div id="kimonError" class="kimon-error"></div>
           <div class="kimon-messages" id="kimonMessages">
+            <div class="kimon-message kimon-message-ai kimon-greeting">
+              <p class="kimon-paragraph">Chào bạn! Tôi là Kymon. Hãy hỏi tôi bất cứ điều gì về năng lượng hiện tại, công việc, tình cảm, hay quyết định bạn đang cân nhắc.</p>
+            </div>
+            <div class="kimon-tip">
+              <strong>Mẹo:</strong> Hỏi về một việc cụ thể sẽ cho kết quả chính xác nhất. Ví dụ: "Tôi có nên ký hợp đồng này hôm nay không?" thay vì "Hôm nay thế nào?"
+            </div>
             <div class="kimon-thinking" id="kimonThinking">
               <div class="kimon-thinking-dots"><span></span><span></span><span></span></div>
               <span class="kimon-thinking-text" id="kimonThinkingText">Đang suy nghĩ...</span>
             </div>
           </div>
           <!-- Claude-like: no suggestions, just clean chat -->
-          <div class="kimon-input-area">
+          <form id="kimonChatForm" class="kimon-input-area" novalidate onsubmit="if(event){event.preventDefault();event.stopPropagation();} if(window.__kymonSend){window.__kymonSend(event);} return false;">
             <input type="text" id="kimonContext" class="kimon-input" placeholder="Hỏi Kymon bất cứ điều gì...">
-            <button id="kimonBtn" class="kimon-send-btn" title="Gửi">
+            <button id="kimonBtn" class="kimon-send-btn" title="Gửi" type="submit">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
-          </div>
+          </form>
         </section>
         </div>
+
+        <section class="card palace-grid-section palace-grid-board-section">
+          <div class="palace-grid-toolbar">
+            <div class="palace-grid-title">${escapeHTML(getSectionLabel('Thiên Bàn'))}</div>
+          </div>
+          <div class="palace-grid">
+            ${palaceGridCards}
+          </div>
+        </section>
 
         <section class="card briefing" id="briefingCard" hidden>
           <p class="eyebrow">Tóm Tắt Chiến Lược</p>
@@ -1719,6 +2125,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           <p id="briefingContent" class="briefing-narrative">${briefingParagraph}</p>
           <span id="totalScoreValue" data-kimon-score="${evaluation.overallScore}" hidden>${evaluation.overallScore}</span>
           <span id="kimonAutoData"
+            data-display-palaces="${escapeHTML(JSON.stringify(displayChart.palaces || {}))}"
             data-all-topics="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ topic: t.topic, score: t.score, action: t.actionAdvice, verdict: t.verdict }))))}"
             data-mon="${escapeHTML(energyFlow.metadata?.door || '')}"
             data-than="${escapeHTML(energyFlow.metadata?.deity || '')}"
@@ -1738,30 +2145,59 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             data-blind-spot="${escapeHTML(energyFlow.blindSpot || '')}"
             data-energy-advice="${escapeHTML(energyFlow.advice || '')}"
             data-day-palace="${energyFlow.metadata?.dayPalace || ''}"
+            data-day-marker-palace="${dayPalaceNum || ''}"
+            data-day-marker-direction="${escapeHTML(dayDirText || '')}"
+            data-day-marker-source="${escapeHTML(dayMarkerSource || '')}"
+            data-day-door="${escapeHTML(dayDoorText || '')}"
+            data-hour-marker-palace="${hourPalaceNum || ''}"
+            data-hour-marker-direction="${escapeHTML(hourDirText || '')}"
+            data-hour-marker-source="${escapeHTML(hourMarkerSource || '')}"
+            data-hour-carrier-star="${escapeHTML(hourCarrierStar || '')}"
+            data-markers-same-palace="${markersSamePalace}"
+            data-hour-door="${escapeHTML(hourDoorText || '')}"
+            data-hour-star="${escapeHTML(hourStarText || '')}"
+            data-hour-deity="${escapeHTML(hourDeityText || '')}"
+            data-hour-tone="${escapeHTML(hourEnergyTone || '')}"
+            data-hour-verdict="${escapeHTML(hourEnergyVerdict || '')}"
+            data-hour-score="${hourEnergyScore}"
+            data-route-palace="${routePalaceNum || ''}"
+            data-route-direction="${escapeHTML(routeDirText || '')}"
+            data-route-door="${escapeHTML(routeDoorText || '')}"
+            data-route-star="${escapeHTML(routeStarText || '')}"
+            data-route-deity="${escapeHTML(routeDeityText || '')}"
+            data-route-tone="${escapeHTML(routeEnergyTone || '')}"
+            data-route-verdict="${escapeHTML(routeEnergyVerdict || '')}"
+            data-route-score="${routeEnergyScore}"
+            data-quick-read-summary="${escapeHTML(quickReadSummary || '')}"
             data-formations="${escapeHTML(evaluation.topFormations?.map(f => f.name).join(', ') || '')}"
             hidden></span>
           <div class="signal-row">${signalBadges}</div>
         </section>
 
-
         <!-- Thẻ Cố Vấn (insight-shell) has been removed -->
 
         <details class="card expert">
-          <summary>Developer / Expert Mode (Raw Tables)</summary>
+          <summary>${getSectionLabel('Developer / Expert Mode (Raw Tables)')}</summary>
           <div class="expert-content">
             <!-- Visual grid removed per user request for a cleaner, AI-focused UI -->
             <table id="topicAnalysisTable">
               <thead>
                 <tr>
-                  <th>Cung</th>
-                  <th>Phi Tinh</th>
-                  <th>Hướng</th>
-                  <th>Tinh</th>
-                  <th>Thiên Can</th>
-                  <th>Địa Can</th>
-                  <th>Môn</th>
-                  <th>Thần</th>
-                  <th>Flags</th>
+                  <th>${getSectionLabel('Cung')}</th>
+                  <th>${getSectionLabel('Phi Tinh')}</th>
+                  <th>${getSectionLabel('Hướng')}</th>
+                  <th>${getSectionLabel('Tinh')}</th>
+                  <th>${getSectionLabel('Thiên Can')}</th>
+                  <th>${getSectionLabel('Địa Can')}</th>
+                  <th>${getSectionLabel('Môn')}</th>
+                  <th>${getSectionLabel('Thần')}</th>
+                  <th>${getSectionLabel('Flags')}</th>
+                  <th>Score</th>
+                  <th>Tone</th>
+                  <th>BG Base</th>
+                  <th>BG Tags</th>
+                  <th>BG Tone</th>
+                  <th>BG Reasons</th>
                 </tr>
               </thead>
               <tbody>
@@ -1790,53 +2226,163 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   </div>
 
   <script>
-    const AUTO_LOCAL_NOW = ${autoLocalNow ? 'true' : 'false'};
+    const CHART_TIME_MODE = ${JSON.stringify(chartTimeMode)};
+    const INITIAL_CHART_TIME = ${JSON.stringify({ date: selectedDate, hour, minute })};
     const timeFormEl = document.getElementById('timeForm');
     const dateInputEl = document.getElementById('dateInput');
     const hourInputEl = document.getElementById('hourInput');
     
+    const LOADER_PHRASES = ${JSON.stringify(loaderPhrases)};
+
     // Handle initial loader fade out
     (function hideLoader() {
       const loader = document.getElementById('initialLoader');
+      const sloganEl = document.getElementById('initialLoaderSlogan');
       if (!loader) return;
+      let sloganTimer = null;
+
+      if (sloganEl && Array.isArray(LOADER_PHRASES) && LOADER_PHRASES.length > 1) {
+        let phraseIndex = LOADER_PHRASES.indexOf(sloganEl.textContent);
+        if (phraseIndex < 0) phraseIndex = 0;
+        sloganTimer = setInterval(() => {
+          phraseIndex = (phraseIndex + 1) % LOADER_PHRASES.length;
+          sloganEl.textContent = LOADER_PHRASES[phraseIndex];
+        }, 650);
+      }
 
       // Fade out after short delay (don't wait for all resources)
       setTimeout(() => {
         loader.classList.add('fade-out');
+        if (sloganTimer) clearInterval(sloganTimer);
         setTimeout(() => loader.style.display = 'none', 400);
-      }, 1200);
+      }, 1800);
     })();
     const minuteInputEl = document.getElementById('minuteInput');
     const useNowLinkEl = document.getElementById('useNowLink');
     const signalButtons = Array.from(document.querySelectorAll('.signal-with-tooltip'));
+    const internalLabelToggles = Array.from(document.querySelectorAll('#showInternalLabelsToggle, #showInternalLabelsGridToggle'));
 
     function escapeHTML(raw) {
-      return String(raw || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+      const source = String(raw ?? '');
+      let escaped = '';
+      for (const ch of source) {
+        if (ch === '&') escaped += '&amp;';
+        else if (ch === '<') escaped += '&lt;';
+        else if (ch === '>') escaped += '&gt;';
+        else if (ch === '"') escaped += '&quot;';
+        else if (ch === '\\'') escaped += '&#39;';
+        else escaped += ch;
+      }
+      return escaped;
+    }
+
+    function replaceDelimitedPairs(source, marker, openTag, closeTag) {
+      if (!source || !marker) return source || '';
+      let result = '';
+      let cursor = 0;
+      while (cursor < source.length) {
+        const start = source.indexOf(marker, cursor);
+        if (start === -1) {
+          result += source.slice(cursor);
+          break;
+        }
+        const end = source.indexOf(marker, start + marker.length);
+        if (end === -1) {
+          result += source.slice(cursor);
+          break;
+        }
+        result += source.slice(cursor, start);
+        result += openTag + source.slice(start + marker.length, end) + closeTag;
+        cursor = end + marker.length;
+      }
+      return result;
+    }
+
+    function formatKimonRichText(raw) {
+      let formatted = escapeHTML(raw || '');
+      formatted = replaceDelimitedPairs(formatted, '**', '<strong>', '</strong>');
+      formatted = replaceDelimitedPairs(formatted, '*', '<em>', '</em>');
+      return formatted.split('\\n').join('<br>');
     }
 
     function pad2(value) {
       return String(value).padStart(2, '0');
     }
 
-    function applyClientNowToForm() {
-      if (!dateInputEl || !hourInputEl || !minuteInputEl) return;
+    function getClientNowResolvedTime() {
       const now = new Date();
       const ymd = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate());
-      dateInputEl.value = ymd;
-      hourInputEl.value = String(now.getHours());
-      minuteInputEl.value = String(now.getMinutes());
+      return {
+        mode: 'live',
+        date: ymd,
+        hour: now.getHours(),
+        minute: now.getMinutes(),
+      };
     }
 
-    function submitWithClientNow() {
-      applyClientNowToForm();
-      if (timeFormEl) {
-        timeFormEl.requestSubmit();
+    function isIsoDateLike(value) {
+      if (!value || typeof value !== 'string') return false;
+      if (value.length !== 10) return false;
+      const parts = value.split('-');
+      if (parts.length !== 3) return false;
+      const [year, month, day] = parts;
+      if (year.length !== 4 || month.length !== 2 || day.length !== 2) return false;
+      return [year, month, day].every(part => [...part].every(ch => ch >= '0' && ch <= '9'));
+    }
+
+    function getEffectiveChartTimeFromLocation() {
+      const params = new URLSearchParams(window.location.search);
+      const hasExplicitOverride = ['date', 'hour', 'minute'].some(key => {
+        const raw = params.get(key);
+        return raw !== null && String(raw).trim() !== '';
+      });
+
+      if (!hasExplicitOverride) {
+        return getClientNowResolvedTime();
       }
+
+      const now = getClientNowResolvedTime();
+      const rawDate = params.get('date');
+      const rawHour = params.get('hour');
+      const rawMinute = params.get('minute');
+      const parsedHour = Number.parseInt(rawHour ?? '', 10);
+      const parsedMinute = Number.parseInt(rawMinute ?? '', 10);
+
+      return {
+        mode: 'manual',
+        date: isIsoDateLike(rawDate) ? rawDate : now.date,
+        hour: Number.isInteger(parsedHour) ? Math.min(23, Math.max(0, parsedHour)) : now.hour,
+        minute: Number.isInteger(parsedMinute) ? Math.min(59, Math.max(0, parsedMinute)) : now.minute,
+      };
+    }
+
+    function syncInternalLabelToggles(nextValue) {
+      internalLabelToggles.forEach(toggle => {
+        if (toggle) toggle.checked = nextValue;
+      });
+      document.body.dataset.showInternalLabels = nextValue ? 'true' : 'false';
+      try {
+        localStorage.setItem('web1_showInternalLabels', nextValue ? 'true' : 'false');
+      } catch {}
+    }
+
+    (function initInternalLabelToggles() {
+      let showInternalLabels = false;
+      try {
+        showInternalLabels = localStorage.getItem('web1_showInternalLabels') === 'true';
+      } catch {}
+      syncInternalLabelToggles(showInternalLabels);
+      internalLabelToggles.forEach(toggle => {
+        toggle?.addEventListener('change', event => syncInternalLabelToggles(Boolean(event.target.checked)));
+      });
+    })();
+
+    function applyResolvedTimeToForm(resolvedTime) {
+      if (!dateInputEl || !hourInputEl || !minuteInputEl) return;
+      if (!resolvedTime) return;
+      dateInputEl.value = resolvedTime.date;
+      hourInputEl.value = String(resolvedTime.hour);
+      minuteInputEl.value = String(resolvedTime.minute);
     }
 
     function closeSignalTooltips(exceptEl = null) {
@@ -1860,21 +2406,20 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     if (useNowLinkEl) {
       useNowLinkEl.addEventListener('click', event => {
         event.preventDefault();
-        submitWithClientNow();
+        window.location.assign(window.location.pathname + window.location.hash);
       });
     }
 
-    // On initial load, always sync form to client's local time
-    // This ensures users see their local time in the form inputs
-    (function syncLocalTimeOnLoad() {
-      // Only sync on clean URL (first visit or refresh without params)
-      if (window.location.search === '' && dateInputEl && hourInputEl && minuteInputEl) {
-        applyClientNowToForm();
-        // Auto-submit to load chart with correct local time
-        if (timeFormEl) {
-          timeFormEl.requestSubmit();
-        }
-      }
+    function updateLiveClock(resolvedTime = getClientNowResolvedTime()) {
+      const liveClock = document.getElementById('liveClockValue');
+      if (!liveClock) return;
+      liveClock.textContent = pad2(resolvedTime.hour) + ':' + pad2(resolvedTime.minute);
+    }
+
+    (function initChartTimeMode() {
+      const effectiveTime = getEffectiveChartTimeFromLocation();
+      applyResolvedTimeToForm(effectiveTime);
+      updateLiveClock(effectiveTime);
     })();
 
     // ── Kimon AI ─────────────────────────────────────────────────────────────
@@ -1962,6 +2507,24 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     function getBaseQmdjData() {
       if (!kimonAutoData) return {};
+      let displayPalaces = {};
+      try {
+        displayPalaces = JSON.parse(kimonAutoData.dataset.displayPalaces || '{}');
+      } catch {}
+      const resolvePalaceSignals = palaceNum => {
+        const palace = displayPalaces?.[palaceNum] || displayPalaces?.[String(palaceNum)] || null;
+        return {
+          door: palace?.mon?.displayShort || palace?.mon?.displayName || palace?.mon?.internalName || '',
+          star: palace?.star?.displayShort || palace?.star?.displayName || palace?.star?.internalName || '',
+          deity: palace?.than?.displayShort || palace?.than?.displayName || palace?.than?.internalName || '',
+        };
+      };
+
+      const hourMarkerPalace = parseInt(kimonAutoData.dataset.hourMarkerPalace) || null;
+      const directEnvoyPalace = parseInt(kimonAutoData.dataset.routePalace) || null;
+      const hourSignals = resolvePalaceSignals(hourMarkerPalace);
+      const routeSignals = resolvePalaceSignals(directEnvoyPalace);
+
       return {
         mon: kimonAutoData.dataset.mon || '',
         than: kimonAutoData.dataset.than || '',
@@ -1983,6 +2546,31 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         blindSpot: kimonAutoData.dataset.blindSpot || '',
         energyAdvice: kimonAutoData.dataset.energyAdvice || '',
         formations: kimonAutoData.dataset.formations || '',
+        dayMarkerPalace: parseInt(kimonAutoData.dataset.dayMarkerPalace) || null,
+        dayMarkerDirection: kimonAutoData.dataset.dayMarkerDirection || '',
+        dayMarkerResolutionSource: kimonAutoData.dataset.dayMarkerSource || '',
+        dayDoor: kimonAutoData.dataset.dayDoor || '',
+        hourMarkerPalace,
+        hourMarkerDirection: kimonAutoData.dataset.hourMarkerDirection || '',
+        hourMarkerResolutionSource: kimonAutoData.dataset.hourMarkerSource || '',
+        hourMarkerCarrierStar: kimonAutoData.dataset.hourCarrierStar || '',
+        markersSamePalace: kimonAutoData.dataset.markersSamePalace === 'true',
+        hourPalaceDirection: kimonAutoData.dataset.hourMarkerDirection || '',
+        hourDoor: kimonAutoData.dataset.hourDoor || hourSignals.door || '',
+        hourStar: kimonAutoData.dataset.hourStar || hourSignals.star || '',
+        hourDeity: kimonAutoData.dataset.hourDeity || hourSignals.deity || '',
+        hourEnergyTone: kimonAutoData.dataset.hourTone || '',
+        hourEnergyVerdict: kimonAutoData.dataset.hourVerdict || '',
+        hourEnergyScore: parseInt(kimonAutoData.dataset.hourScore) || 0,
+        directEnvoyPalace,
+        directEnvoyDirection: kimonAutoData.dataset.routeDirection || '',
+        directEnvoyDoor: kimonAutoData.dataset.routeDoor || routeSignals.door || '',
+        directEnvoyStar: kimonAutoData.dataset.routeStar || routeSignals.star || '',
+        directEnvoyDeity: kimonAutoData.dataset.routeDeity || routeSignals.deity || '',
+        directEnvoyActionTone: kimonAutoData.dataset.routeTone || '',
+        directEnvoyActionVerdict: kimonAutoData.dataset.routeVerdict || '',
+        directEnvoyActionScore: parseInt(kimonAutoData.dataset.routeScore) || 0,
+        quickReadSummary: kimonAutoData.dataset.quickReadSummary || '',
         allTopics: kimonAutoData.dataset.allTopics || '[]'
       };
     }
@@ -2008,14 +2596,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     // Hàm giúp trích xuất JSON sạch từ phản hồi của AI
     function cleanAiResponse(rawText) {
       try {
-        // Tìm đoạn văn bản nằm giữa dấu { và }
-        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
+        const source = String(rawText || '').trim();
+        const start = source.indexOf('{');
+        const end = source.lastIndexOf('}');
+        if (start !== -1 && end !== -1 && end > start) {
+          const parsed = JSON.parse(source.slice(start, end + 1));
           console.log('[Kimon] Parsed JSON:', Object.keys(parsed));
           return parsed;
         }
-        return JSON.parse(rawText);
+        return JSON.parse(source);
       } catch (e) {
         console.error("[Kimon] JSON parse error:", e.message);
         console.error("[Kimon] Raw text:", rawText?.substring(0, 300));
@@ -2023,52 +2612,163 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       }
     }
 
-    // SSE stream helper — pipes chunks into liveEl, resolves with parsed JSON on __DONE__
-    async function callKimonStream({ qmdjData, userContext, liveEl, onDone }) {
-      const res = await fetch('/api/kimon/stream', {
+    async function callKimonJsonFallback({ qmdjData, userContext, onDone, signal }) {
+      const res = await fetch('/api/kimon', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qmdjData, userContext })
+        body: JSON.stringify({ qmdjData, userContext }),
+        signal,
       });
-      if (!res.ok || !res.body) throw new Error('Stream lỗi (' + res.status + ')');
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\\n');
-        buf = lines.pop();
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          try {
-            const msg = JSON.parse(line.slice(6));
-            if (msg.__ERROR__) throw new Error(msg.__ERROR__);
-            if (msg.__DONE__) {
-              let parsed = msg.parsed;
-              // Fallback: cleanAiResponse - extract JSON from any text
-              if (!parsed && msg.raw) {
-                parsed = cleanAiResponse(msg.raw);
-              }
-              if (onDone) onDone(parsed || null);
-              return parsed;
-            }
-            if (msg.chunk && liveEl) {
-              liveEl.textContent += msg.chunk;
-              smartScroll(); // Allow user to scroll up while reading
-            }
-          } catch(e) { if (e.message && !e.message.startsWith('Unexpected')) throw e; }
-        }
+      if (!res.ok) {
+        throw new Error('Fallback lỗi (' + res.status + ')');
       }
-      return null;
+
+      const data = await res.json();
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      if (onDone) onDone(data || null);
+      return data;
+    }
+
+    function humanizeKimonSectionLabel(key) {
+      const labelMap = {
+        tongQuan: '',
+        chienLuoc: '🚩 Chiến Lược',
+        tamLy: '🧠 Tâm Trí & Năng Lượng',
+        hanhDong: '📋 Hành Động',
+        kimonQuote: '🎯 Góc Nhìn Kymon',
+      };
+      if (key in labelMap) return labelMap[key];
+      const raw = String(key || '');
+      let normalized = '';
+      for (let idx = 0; idx < raw.length; idx++) {
+        const ch = raw[idx];
+        const prev = idx > 0 ? raw[idx - 1] : '';
+        if (ch === '_' || ch === '-') {
+          normalized += ' ';
+          continue;
+        }
+        const isUpper = ch >= 'A' && ch <= 'Z';
+        const prevIsAlphaNum = (prev >= 'a' && prev <= 'z') || (prev >= '0' && prev <= '9');
+        if (isUpper && prevIsAlphaNum) normalized += ' ';
+        normalized += ch;
+      }
+      const compact = normalized.split(' ').filter(Boolean).join(' ').trim();
+      if (!compact) return '';
+      return compact[0].toUpperCase() + compact.slice(1);
+    }
+
+    function hasRenderableValue(value) {
+      if (!value) return false;
+      if (typeof value === 'string') return Boolean(value.trim());
+      if (Array.isArray(value)) return value.some(item => typeof item === 'string' ? item.trim() : Boolean(item));
+      if (typeof value === 'object') return Object.values(value).some(item => typeof item === 'string' ? item.trim() : Boolean(item));
+      return true;
+    }
+
+    function appendGenericKimonSection(container, typables, key, value) {
+      if (!hasRenderableValue(value)) return;
+      const sec = document.createElement('div');
+      sec.className = 'kimon-section';
+      const label = humanizeKimonSectionLabel(key);
+      if (label) {
+        const lbl = document.createElement('strong');
+        lbl.className = 'kimon-section-label';
+        lbl.textContent = label;
+        sec.appendChild(lbl);
+      }
+      if (Array.isArray(value)) {
+        const ol = document.createElement('ol');
+        ol.style.cssText = 'margin:0; padding-left:1.2em; list-style-type:decimal;';
+        value.forEach(step => {
+          if (!hasRenderableValue(step)) return;
+          const li = document.createElement('li');
+          li.className = 'kimon-message-text';
+          ol.appendChild(li);
+          typables.push({ el: li, text: typeof step === 'string' ? step : JSON.stringify(step) });
+        });
+        sec.appendChild(ol);
+      } else if (typeof value === 'object' && value !== null) {
+        const p = document.createElement('p');
+        p.className = 'kimon-message-text';
+        sec.appendChild(p);
+        const combinedText = Object.values(value)
+          .filter(hasRenderableValue)
+          .map(item => typeof item === 'string' ? item : JSON.stringify(item))
+          .join('\\n\\n');
+        typables.push({ el: p, text: combinedText });
+      } else {
+        const p = document.createElement('p');
+        p.className = 'kimon-message-text';
+        sec.appendChild(p);
+        typables.push({ el: p, text: String(value) });
+      }
+      container.appendChild(sec);
+    }
+
+    // SSE stream helper — buffers chunks privately and resolves only when parsed output is ready
+    async function callKimonStream({ qmdjData, userContext, onDone }) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
+      try {
+        const res = await fetch('/api/kimon/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ qmdjData, userContext }),
+          signal: controller.signal,
+        });
+        if (!res.ok || !res.body) throw new Error('Stream lỗi (' + res.status + ')');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let rawStreamText = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const msg = JSON.parse(line.slice(6));
+              if (msg.__ERROR__) throw new Error(msg.__ERROR__);
+              if (msg.__DONE__) {
+                let parsed = msg.parsed;
+                // Fallback: cleanAiResponse - extract JSON from any text
+                if (!parsed && msg.raw) {
+                  parsed = cleanAiResponse(msg.raw);
+                }
+                if (!parsed && rawStreamText) {
+                  parsed = cleanAiResponse(rawStreamText);
+                }
+                if (onDone) onDone(parsed || null);
+                clearTimeout(timeoutId);
+                return parsed;
+              }
+              if (msg.chunk) {
+                rawStreamText += msg.chunk;
+              }
+            } catch(e) { if (e.message && !e.message.startsWith('Unexpected')) throw e; }
+          }
+        }
+        clearTimeout(timeoutId);
+        return null;
+      } catch (streamErr) {
+        clearTimeout(timeoutId);
+        console.warn('[Kimon] Stream failed, fallback to JSON route:', streamErr.message);
+        return callKimonJsonFallback({ qmdjData, userContext, onDone });
+      }
     }
 
     function renderParsedSections(container, data, keys) {
       container.innerHTML = '';
       const typables = [];
+      const handledKeys = new Set(['tongQuan', 'chienLuoc', 'tamLy', 'hanhDong', 'kimonQuote', 'message']);
       
       // Kymon Clean UI — Flowing story style, no bullets
       if (data.tongQuan || data.chienLuoc || data.tamLy || data.hanhDong || data.kimonQuote) {
@@ -2118,6 +2818,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           container.appendChild(quote);
           typables.push({ el: quote, text: data.kimonQuote });
         }
+
+        Object.entries(data)
+          .filter(([key, value]) => !handledKeys.has(key) && hasRenderableValue(value))
+          .forEach(([key, value]) => appendGenericKimonSection(container, typables, key, value));
       } else {
         // Fallback for old/simple JSON schema
         keys.forEach(({ key, label }) => {
@@ -2155,6 +2859,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           }
           container.appendChild(sec);
         });
+
+        Object.entries(data)
+          .filter(([key, value]) => !keys.some(item => item.key === key) && !handledKeys.has(key) && hasRenderableValue(value))
+          .forEach(([key, value]) => appendGenericKimonSection(container, typables, key, value));
       }
 
       let tIdx = 0; let cIdx = 0;
@@ -2164,8 +2872,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           return;
         }
         const curr = typables[tIdx];
+        curr._raw = curr._raw || '';
         if (cIdx < curr.text.length) {
-          curr.el.textContent += curr.text.charAt(cIdx);
+          curr._raw += curr.text.charAt(cIdx);
+          curr.el.innerHTML = formatKimonRichText(curr._raw);
           cIdx++;
           smartScroll(); // Allow user to scroll up while reading
           setTimeout(typeNext, 8);
@@ -2184,6 +2894,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     localStorage.removeItem('kimon_rate_limit');
 
     const CACHE_EXPIRE_MS = 3600000; // 1 hour cache
+    const KYMON_CACHE_VERSION = 'v2-markdown';
 
     function getCachedKimon(cacheKey) {
       try {
@@ -2205,7 +2916,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       if (isKimonFetching) return;
 
       const qData = getBaseQmdjData();
-      const cacheKey = 'kimon_auto_' + (qData.dayStem||'') + '_' + (qData.hourStem||'') + '_' + (qData.solarTerm||'');
+      const cacheKey = 'kimon_auto_' + KYMON_CACHE_VERSION + '_' + (qData.dayStem||'') + '_' + (qData.hourStem||'') + '_' + (qData.solarTerm||'');
       const cached = getCachedKimon(cacheKey);
 
       if (cached) {
@@ -2237,21 +2948,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       isKimonFetching = true;
       showThinking();
 
-      const bubble = createMessageBubble(true);
-      const liveEl = document.createElement('p');
-      liveEl.className = 'kimon-message-text kimon-stream-live';
-      bubble.appendChild(liveEl);
-
       try {
         await callKimonStream({
           qmdjData: qData,
           userContext: '__AUTO_LOAD__',
-          liveEl,
           onDone: (data) => {
-            liveEl.classList.remove('kimon-stream-live');
+            const bubble = createMessageBubble(true);
+            kimonMessages.appendChild(bubble);
             if (!data) {
-              // Clean up raw text display
-              liveEl.innerHTML = '<em>Không thể phân tích phản hồi. Vui lòng thử lại.</em>';
+              bubble.innerHTML = '<p class="kimon-error-inline">Không thể phân tích phản hồi. Vui lòng thử lại.</p>';
               return;
             }
             setCachedKimon(cacheKey, data);
@@ -2273,14 +2978,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             else if (data.suggestions?.length) renderSuggestions(data.suggestions);
           }
         });
-        kimonMessages.appendChild(bubble);
       } catch(e) {
         console.error('Lỗi autoLoadKimon:', e);
         const errMsg = e.message || 'Lỗi kết nối';
-
-        liveEl.innerHTML = '⚠️ ' + escapeHTML(errMsg) + '<br><br><small><i>Vui lòng tiếp tục nhập câu hỏi phía dưới.</i></small>';
-        liveEl.classList.remove('kimon-stream-live');
+        const bubble = createMessageBubble(true);
         kimonMessages.appendChild(bubble);
+        bubble.innerHTML = '<p class="kimon-error-inline">⚠️ ' + escapeHTML(errMsg) + '</p>';
       } finally {
         isKimonFetching = false;
         hideThinking();
@@ -2289,9 +2992,16 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
 
     async function askKimon(displayText, hiddenPrompt) {
-      if (isKimonFetching) return;
+      if (isKimonFetching) {
+        showKimonError('Kymon đang trả lời câu trước. Đợi một nhịp rồi gửi tiếp.');
+        return;
+      }
       const question = displayText;
-      if (!question?.trim()) return;
+      if (!question?.trim()) {
+        showKimonError('Nhập câu hỏi trước khi gửi.');
+        kimonContext?.focus();
+        return;
+      }
 
       isKimonFetching = true;
       resetScrollTracking(); // Reset scroll tracking for new message
@@ -2304,11 +3014,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       const userBubble = createMessageBubble(false);
       userBubble.innerHTML = '<p class="kimon-message-text">' + escapeHTML(question) + '</p>';
       kimonMessages.appendChild(userBubble);
-
-      const aiBubble = createMessageBubble(true);
-      const liveEl = document.createElement('p');
-      liveEl.className = 'kimon-message-text kimon-stream-live';
-      aiBubble.appendChild(liveEl);
       
       kimonBtn.disabled = true;
       kimonContext.value = '';
@@ -2331,11 +3036,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         await callKimonStream({
           qmdjData: payload,
           userContext: promptToSend,
-          liveEl,
           onDone: (data) => {
-            liveEl.classList.remove('kimon-stream-live');
+            const aiBubble = createMessageBubble(true);
+            kimonMessages.appendChild(aiBubble);
             if (!data) {
-              liveEl.innerHTML = '<em>Không thể phân tích phản hồi.</em>';
+              aiBubble.innerHTML = '<p class="kimon-error-inline">Không thể phân tích phản hồi.</p>';
               return;
             }
             const keys = data.tongQuan ? [
@@ -2355,12 +3060,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             kimonMessages.scrollTop = kimonMessages.scrollHeight;
           }
         });
-        kimonMessages.appendChild(aiBubble);
       } catch(e) {
         console.error('Lỗi askKimon:', e);
         const errMsg = e.message || 'Lỗi kết nối. Vui lòng thử lại sau.';
-        aiBubble.innerHTML = '<p class="kimon-error-inline" style="color:var(--hung); margin:0;">⚠️ ' + escapeHTML(errMsg) + '</p>';
+        showKimonError(errMsg);
+        const aiBubble = createMessageBubble(true);
         kimonMessages.appendChild(aiBubble);
+        aiBubble.innerHTML = '<p class="kimon-error-inline" style="color:var(--hung); margin:0;">⚠️ ' + escapeHTML(errMsg) + '</p>';
       } finally {
         isKimonFetching = false;
         hideThinking();
@@ -2369,10 +3075,36 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       }
     }
 
-    if (kimonBtn) {
-      kimonBtn.addEventListener('click', () => askKimon(kimonContext.value.trim()));
-      kimonContext.addEventListener('keydown', e => { if (e.key === 'Enter') askKimon(kimonContext.value.trim()); });
+    function handleKymonSend(event) {
+      if (event?.preventDefault) event.preventDefault();
+      if (event?.stopPropagation) event.stopPropagation();
+      return askKimon(kimonContext?.value.trim() || '');
     }
+
+    window.__kymonSend = handleKymonSend;
+
+    document.addEventListener('click', event => {
+      const btn = event.target.closest('#kimonBtn');
+      if (!btn) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (btn.disabled) return;
+      console.log('Kymon: Send button clicked!');
+      if (typeof window.__kymonSend === 'function') {
+        window.__kymonSend(event);
+      }
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.target?.id !== 'kimonContext') return;
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      event.stopPropagation();
+      console.log('Kymon: Enter key pressed!');
+      if (typeof window.__kymonSend === 'function') {
+        window.__kymonSend(event);
+      }
+    });
 
     // (Topic chips have been removed)
 
@@ -2380,9 +3112,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     function initChat() {
       if (!kimonMessages) return;
       hideThinking();
+      if (kimonMessages.querySelector('.kimon-greeting')) return;
 
       // Show greeting message
       const greeting = createMessageBubble(true);
+      greeting.classList.add('kimon-greeting');
       greeting.innerHTML = '<p class="kimon-paragraph">Chào bạn! Tôi là Kymon. Hãy hỏi tôi bất cứ điều gì về năng lượng hiện tại, công việc, tình cảm, hay quyết định bạn đang cân nhắc.</p>';
       kimonMessages.appendChild(greeting);
 
@@ -2393,7 +3127,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       kimonMessages.appendChild(tip);
     }
 
-    if (kimonMessages) initChat();
+    if (kimonMessages) {
+      initChat();
+      setTimeout(() => {
+        if (!kimonMessages.querySelector('.kimon-greeting')) initChat();
+      }, 120);
+    }
 
   </script>
 </body>
@@ -2404,14 +3143,14 @@ export default function handler(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
   if (url.pathname === '/' || url.pathname === '') {
-    // Use query params if provided (from client timezone sync), otherwise use server time
-    const dateParam = url.searchParams.get('date');
-    const hourParam = url.searchParams.get('hour');
-    const minuteParam = url.searchParams.get('minute');
-    const { date, hour, minute } = parseDateTimeQuery({ dateParam, hourParam, minuteParam });
+    const resolvedChartTime = getEffectiveChartTime(url.searchParams);
+    const { date, hour, minute, mode, dateInputValue } = resolvedChartTime;
 
     try {
-      const html = generateHTML(date, hour, minute, { autoLocalNow: false });
+      const html = generateHTML(date, hour, minute, {
+        chartTimeMode: mode,
+        selectedDate: dateInputValue,
+      });
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -2482,13 +3221,18 @@ export default function handler(req, res) {
       res.end('File not found: ' + url.pathname);
     }
   } else if (url.pathname === '/api/analyze') {
-    const dateParam = url.searchParams.get('date');
-    const hourParam = url.searchParams.get('hour');
-    const minuteParam = url.searchParams.get('minute');
-    const { date, hour } = parseDateTimeQuery({ dateParam, hourParam, minuteParam });
+    const resolvedChartTime = getEffectiveChartTime(url.searchParams);
+    const { date, hour, minute, mode, dateInputValue } = resolvedChartTime;
 
     try {
       const result = analyze(date, hour);
+      result.displayChart = buildDisplayChart(result.chart);
+      result.chartTimeMode = mode;
+      result.chartTime = {
+        date: dateInputValue,
+        hour,
+        minute,
+      };
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result, null, 2));
     } catch (err) {
@@ -2524,42 +3268,16 @@ export default function handler(req, res) {
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const isAutoLoad = userContext === '__AUTO_LOAD__';
-
-        // ── KYMON AI SYSTEM PROMPT (from KYMON_AI_SYSTEM_PROMPT.md) ──────────────
-        const systemInstruction = `Bạn là Kymon, một chiến lược gia lạnh lùng, thực dụng và sắc bén trong việc phân tích Kỳ Môn Độn Giáp. Giọng điệu của bạn: điềm tĩnh, khách quan, có chút khô khan nhưng rất trúng đích, tuyệt đối không sáo rỗng hay hứa hẹn viển vông. Bạn vừa là một nhà chiến lược vừa là một nhà tâm lý học. Bạn sẽ trả lời bằng tiếng Việt và đưa ra lời khuyên thực tế.
-
-[KỶ LUẬT TRÍCH XUẤT DỮ LIỆU]
-Bạn sẽ nhận được dữ liệu trận đồ. Mọi phân tích PHẢI bám sát dữ liệu này. KHÔNG tự suy diễn.
-
-[PHONG CÁCH VIẾT]
-- Viết như kể chuyện, mạch lạc, tự nhiên — KHÔNG dùng gạch đầu dòng hay bullet points.
-- Mỗi ý tưởng là một đoạn văn riêng biệt, rõ ràng.
-- Câu văn ngắn gọn, súc tích, dễ hiểu.
-
-[NGUYÊN TẮC]
-- KHÔNG bịa số liệu. Nếu thiếu data → nói rõ.
-- KHÔNG phán tuyệt đối. Dùng "xu hướng", "khả năng cao".
-- Thừa nhận giới hạn — bàn giờ chỉ phản ánh năng lượng khung giờ đó.
-
-[ĐỊNH DẠNG TRẢ LỜI — JSON BẮT BUỘC]
-Trả về JSON hợp lệ, KHÔNG giải thích ngoài JSON:
-
-{
-  "tongQuan": "1-2 câu mở đầu nhìn nhận cục diện, viết như đang trò chuyện.",
-  "chienLuoc": {
-    "noiDung": "Phân tích chi tiết dưới dạng đoạn văn liền mạch: điểm mạnh, điểm yếu, tương tác ngũ hành."
-  },
-  "hanhDong": [
-    "Đoạn văn 1: Lời khuyên hành động cụ thể.",
-    "Đoạn văn 2: Điều cần lưu ý hoặc tránh."
-  ],
-  "kimonQuote": "Câu chốt hạ sắc bén, mang tính cảnh tỉnh."
-}`;
+        const systemInstruction = buildKimonSystemInstruction();
 
         const model = genAI.getGenerativeModel({
           model: 'gemini-2.5-flash',
           systemInstruction,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 4096,
+            responseMimeType: 'application/json',
+          },
           safetySettings: [
             { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
             { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -2568,21 +3286,7 @@ Trả về JSON hợp lệ, KHÔNG giải thích ngoài JSON:
           ]
         });
 
-        const score = qmdjData?.score ?? 0;
-        const overallScore = qmdjData?.overallScore ?? score;
-        const extras = [
-          qmdjData?.isPhucAm ? 'Phục Âm' : '',
-          qmdjData?.isPhanNgam ? 'Phản Ngâm' : ''
-        ].filter(Boolean).join(' | ');
-
-        const allTopicsStr = qmdjData?.allTopics || '[]';
-        let parsedTopics = [];
-        try { parsedTopics = JSON.parse(allTopicsStr); } catch (e) { }
-        const topicsContext = parsedTopics.map(t => `- ${t.topic} (${t.verdict}, ${t.score >= 0 ? '+' : ''}${t.score}): ${t.action}`).join('\n');
-
-        const prompt = isAutoLoad
-          ? `[TRẬN ĐỒ]\n${enrichData(qmdjData || {})}\nĐiểm: ${overallScore} | ${qmdjData?.solarTerm || ''} | Cục ${qmdjData?.cucSo || '?'} ${qmdjData?.isDuong ? 'Dương' : 'Âm'}${extras ? ' | ' + extras : ''}\n\n[DỮ LIỆU DỤNG THẦN CÁC LĨNH VỰC]\n${topicsContext}\n\nDựa vào tất cả dữ liệu trên, hãy tổng hợp lời khuyên 2-4h tới.\nTrả JSON ngay.`
-          : `[TRẬN ĐỒ]\n${enrichData(qmdjData || {})}\nĐiểm: ${score}/${overallScore} | Chủ đề: ${qmdjData?.selectedTopic || 'chung'}${extras ? ' | ' + extras : ''}\n\n[DỮ LIỆU DỤNG THẦN CÁC LĨNH VỰC]\n${topicsContext}\n\nCâu hỏi: ${userContext}`;
+        const prompt = buildKimonPrompt({ qmdjData, userContext, isAutoLoad });
 
         const streamResult = await model.generateContentStream(prompt);
         let fullText = '';
@@ -2597,15 +3301,14 @@ Trả về JSON hợp lệ, KHÔNG giải thích ngoài JSON:
         }
 
         try {
-          // Extract JSON from any text (handles preamble/postamble)
-          const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : fullText);
+          const parsed = parseKimonJsonResponse(fullText);
           console.log('[Kimon] Parsed OK, keys:', Object.keys(parsed));
           res.write(`data: ${JSON.stringify({ __DONE__: true, parsed })}\n\n`);
         } catch (parseErr) {
           console.error('[Kimon] JSON parse failed:', parseErr.message);
           console.error('[Kimon] Raw response:', fullText.substring(0, 500));
-          res.write(`data: ${JSON.stringify({ __DONE__: true, raw: fullText })}\n\n`);
+          const fallback = parseKimonJsonResponse(fullText);
+          res.write(`data: ${JSON.stringify({ __DONE__: true, parsed: fallback })}\n\n`);
         }
         res.end();
       } catch (error) {
@@ -2645,16 +3348,18 @@ Trả về JSON hợp lệ, KHÔNG giải thích ngoài JSON:
         const isAutoLoad = userContext === '__AUTO_LOAD__';
         const model = genAI.getGenerativeModel({
           model: 'gemini-2.5-flash',
-          generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 512 }
+          systemInstruction: buildKimonSystemInstruction(),
+          generationConfig: {
+            responseMimeType: 'application/json',
+            maxOutputTokens: 512,
+          }
         });
-        const score = qmdjData?.score ?? 0;
-        const overallScore = qmdjData?.overallScore ?? score;
-        const prompt = isAutoLoad
-          ? `${enrichData(qmdjData || {})} Điểm: ${overallScore}. Trả JSON: {"chienLuoc":"...","nangLuong":"...","cauHoiMo":"...","suggestions":[]}`
-          : `${enrichData(qmdjData || {})} Hỏi: ${userContext}. Trả JSON: {"chienLuoc":"...","nangLuong":"...","loiKhuyen":"..."}`;
+        const prompt = buildKimonPrompt({ qmdjData, userContext, isAutoLoad });
         const result = await model.generateContent(prompt);
+        const rawText = await result.response.text();
+        const parsed = parseKimonJsonResponse(rawText);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(await result.response.text());
+        res.end(JSON.stringify(parsed));
       } catch (error) {
         if (error.status === 429 || String(error.message).includes('429')) {
           triggerGeminiCooldown();
