@@ -5,10 +5,10 @@ function stripMarkdownCodeFences(rawText = '') {
     .trim();
 }
 
-function extractFirstJsonObject(rawText = '') {
+function extractBalancedJsonObject(rawText = '') {
   const cleaned = stripMarkdownCodeFences(rawText);
   const start = cleaned.indexOf('{');
-  if (start === -1) return cleaned.trim();
+  if (start === -1) return '';
 
   let depth = 0;
   let inString = false;
@@ -43,6 +43,16 @@ function extractFirstJsonObject(rawText = '') {
     }
   }
 
+  return '';
+}
+
+function extractFirstJsonObject(rawText = '') {
+  const balanced = extractBalancedJsonObject(rawText);
+  if (balanced) return balanced;
+
+  const cleaned = stripMarkdownCodeFences(rawText);
+  const start = cleaned.indexOf('{');
+  if (start === -1) return cleaned.trim();
   return cleaned.slice(start).trim();
 }
 
@@ -350,4 +360,26 @@ export function parseKimonJsonResponse(rawText = '') {
 
 export function coerceKimonResponsePayload(payload, rawText = '') {
   return normalizeKimonPayload(payload, rawText);
+}
+
+export function toKimonResponseSchema(payload, rawText = '') {
+  if (rawText && !extractBalancedJsonObject(rawText)) {
+    const fallback = createFallbackPayload(rawText);
+    return {
+      mode: fallback.mode,
+      lead: fallback.lead,
+      timeHint: fallback.timeHint,
+      message: fallback.message,
+      closingLine: fallback.closingLine,
+    };
+  }
+
+  const normalized = normalizeKimonPayload(payload, rawText);
+  return {
+    mode: typeof normalized.mode === 'string' && normalized.mode.trim() ? normalized.mode.trim() : 'interpretation',
+    lead: typeof normalized.lead === 'string' ? normalized.lead.trim() : '',
+    timeHint: typeof normalized.timeHint === 'string' ? normalized.timeHint.trim() : '',
+    message: typeof normalized.message === 'string' ? normalized.message.trim() : '',
+    closingLine: typeof normalized.closingLine === 'string' ? normalized.closingLine.trim() : '',
+  };
 }

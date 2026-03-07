@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { parseKimonJsonResponse } from '../src/logic/kimon/jsonResponse.js';
+import { parseKimonJsonResponse, toKimonResponseSchema } from '../src/logic/kimon/jsonResponse.js';
 
 const clean = parseKimonJsonResponse('{"tongQuan":"Ổn","tamLy":{"trangThai":"A","dongChay":"B"},"chienLuoc":{"noiDung":"C"},"hanhDong":["D"],"kimonQuote":"E"}');
 assert.equal(clean.tongQuan, 'Ổn');
@@ -86,5 +86,36 @@ assert.doesNotMatch(structuredGarbageFallback.tongQuan, /"mode"/);
 assert.doesNotMatch(structuredGarbageFallback.traLoiTrucTiep, /"lead"/);
 assert.ok(structuredGarbageFallback.traLoiTrucTiep.length > 0);
 assert.equal(structuredGarbageFallback.summary, 'Đang xem...');
+
+const publicSchema = toKimonResponseSchema({
+  mode: 'decision',
+  lead: 'Chưa nên ký.',
+  timeHint: 'Sáng mai hợp hơn.',
+  message: 'Bề ngoài ổn, nhưng còn một lớp thông tin chưa lộ hết.',
+  closingLine: 'Đừng ký khi vẫn còn thấy mờ.',
+  traLoiTrucTiep: 'legacy',
+  tongQuan: 'legacy',
+  tamLy: { trangThai: 'legacy', dongChay: 'legacy' },
+  hanhDong: ['legacy'],
+});
+assert.deepEqual(publicSchema, {
+  mode: 'decision',
+  lead: 'Chưa nên ký.',
+  timeHint: 'Sáng mai hợp hơn.',
+  message: 'Bề ngoài ổn, nhưng còn một lớp thông tin chưa lộ hết.',
+  closingLine: 'Đừng ký khi vẫn còn thấy mờ.',
+});
+
+const strictFallbackSchema = toKimonResponseSchema(
+  parseKimonJsonResponse('{"mode":"decision","lead":"Đang xem..."\n{"mode":"decision"'),
+  '{"mode":"decision","lead":"Đang xem..."\n{"mode":"decision"'
+);
+assert.deepEqual(strictFallbackSchema, {
+  mode: 'interpretation',
+  lead: 'Kymon bị gián đoạn.',
+  timeHint: '',
+  message: 'Kymon bị gián đoạn giữa chừng, nên mình chưa muốn đưa cho bạn một kết luận nửa vời.',
+  closingLine: 'Bạn hỏi lại một lần nữa nhé.',
+});
 
 console.log('ASSERTIONS: OK');

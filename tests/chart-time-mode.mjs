@@ -4,6 +4,7 @@ import {
   getMillisecondsUntilNextMinute,
   getLocalTimeParts,
   hasExplicitTimeOverride,
+  isIsoDateInputValue,
   isSameResolvedMinute,
 } from '../src/ui/chartTime.js';
 
@@ -23,6 +24,11 @@ assert.equal(manualTime.dateInputValue, '2026-03-06', 'Manual mode phải giữ 
 assert.equal(manualTime.hour, 19, 'Manual mode phải giữ nguyên giờ từ URL');
 assert.equal(manualTime.minute, 20, 'Manual mode phải giữ nguyên phút từ URL');
 assert.equal(hasExplicitTimeOverride(new URLSearchParams('date=2026-03-06&hour=19&minute=20')), true, 'URL override phải được nhận diện');
+assert.equal(isIsoDateInputValue('2026-03-07'), true, 'Date picker/query phải dùng ISO YYYY-MM-DD');
+assert.equal(isIsoDateInputValue('07/03/2026'), false, 'Không được parse nhầm DD/MM/YYYY thành ngày hợp lệ');
+
+const invalidLocaleDate = getEffectiveChartTime(new URLSearchParams('date=07/03/2026&hour=19&minute=20'), NOW);
+assert.equal(invalidLocaleDate.dateInputValue, getLocalTimeParts(NOW).date, 'Ngày không đúng ISO phải fallback an toàn, không trượt Can Chi âm thầm');
 
 const liveLater = getEffectiveChartTime(new URLSearchParams(''), LATER);
 assert.equal(liveLater.mode, 'live', 'Live mode phải vẫn là live sau khi thời gian đổi');

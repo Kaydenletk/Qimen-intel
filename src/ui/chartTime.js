@@ -5,6 +5,17 @@ export function formatLocalDateInput(date) {
   return `${y}-${m}-${d}`;
 }
 
+export function isIsoDateInputValue(rawValue) {
+  if (rawValue === null || rawValue === undefined) return false;
+  const text = String(rawValue).trim();
+  if (text.length !== 10) return false;
+  const parts = text.split('-');
+  if (parts.length !== 3) return false;
+  const [year, month, day] = parts;
+  if (year.length !== 4 || month.length !== 2 || day.length !== 2) return false;
+  return [year, month, day].every(part => [...part].every(ch => ch >= '0' && ch <= '9'));
+}
+
 export function parseBoundedInt(rawValue, min, max) {
   if (rawValue === null || rawValue === undefined) return null;
   const text = String(rawValue).trim();
@@ -72,8 +83,7 @@ export function getEffectiveChartTime(searchParams, now = new Date()) {
     };
   }
 
-  const [yRaw, mRaw, dRaw] = String(dateParam).split('-').map(n => Number(n));
-  if (!Number.isFinite(yRaw) || !Number.isFinite(mRaw) || !Number.isFinite(dRaw)) {
+  if (!isIsoDateInputValue(dateParam)) {
     const fallbackDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
     return {
       mode,
@@ -85,6 +95,7 @@ export function getEffectiveChartTime(searchParams, now = new Date()) {
     };
   }
 
+  const [yRaw, mRaw, dRaw] = String(dateParam).split('-').map(n => Number(n));
   const date = new Date(yRaw, mRaw - 1, dRaw, hour, minute, 0, 0);
   return {
     mode,

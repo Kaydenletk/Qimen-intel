@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { analyze, buildDisplayChart } from '../src/index.js';
-import { getXunInfo } from '../src/core/flying.js';
+import { getTuanThu, getXunInfo } from '../src/core/flying.js';
 import { resolveHiddenStemForHourStem } from '../src/core/jiaHiddenStem.js';
 import { resolveHourPalace, buildHourDiagnosticRecord } from '../src/core/temporalMarkers.js';
 
@@ -18,6 +18,44 @@ const giapThan = getXunInfo('Giáp Thân');
 assert.equal(giapThan.tuanName, 'Giáp Thân');
 assert.equal(giapThan.leadStemName, 'Canh');
 assert.equal(giapThan.tuanBranchIdx, 8);
+
+const tanTyTuanThu = getTuanThu(7, 5); // Tân Tỵ with 0-based indices
+assert.equal(tanTyTuanThu.offset, 2);
+assert.equal(tanTyTuanThu.tuanName, 'Giáp Tuất');
+assert.equal(tanTyTuanThu.leadStemName, 'Kỷ');
+assert.equal(tanTyTuanThu.tuanBranchIdx, 10);
+
+const tanTyStringTuanThu = getTuanThu('Tân', 'Tỵ');
+assert.equal(tanTyStringTuanThu.offset, 2);
+assert.equal(tanTyStringTuanThu.tuanName, 'Giáp Tuất');
+assert.equal(tanTyStringTuanThu.leadStemName, 'Kỷ');
+assert.equal(tanTyStringTuanThu.tuanBranchIdx, 10);
+
+const tanTiAliasTuanThu = getTuanThu('Tân', 'Tị');
+assert.equal(tanTiAliasTuanThu.offset, 2);
+assert.equal(tanTiAliasTuanThu.tuanName, 'Giáp Tuất');
+assert.equal(tanTiAliasTuanThu.leadStemName, 'Kỷ');
+assert.equal(tanTiAliasTuanThu.tuanBranchIdx, 10);
+
+const tanTyNumericString = getTuanThu('7', '5');
+assert.equal(tanTyNumericString.offset, 2);
+assert.equal(tanTyNumericString.tuanName, 'Giáp Tuất');
+assert.equal(tanTyNumericString.leadStemName, 'Kỷ');
+assert.equal(tanTyNumericString.tuanBranchIdx, 10);
+
+const invalidTuanThu = getTuanThu('abc', '???');
+assert.equal(invalidTuanThu.leadStemName, 'Mậu');
+assert.equal(invalidTuanThu.invalidInput, true);
+
+const tanTiAlias = getXunInfo('Tân Tị');
+assert.equal(tanTiAlias.tuanName, 'Giáp Tuất');
+assert.equal(tanTiAlias.leadStemName, 'Kỷ');
+assert.equal(tanTiAlias.tuanBranchIdx, 10);
+
+const tanTiCompactAlias = getXunInfo('TânTị');
+assert.equal(tanTiCompactAlias.tuanName, 'Giáp Tuất');
+assert.equal(tanTiCompactAlias.leadStemName, 'Kỷ');
+assert.equal(tanTiCompactAlias.tuanBranchIdx, 10);
 
 const expectedHiddenStems = {
   Tý: 'Mậu',

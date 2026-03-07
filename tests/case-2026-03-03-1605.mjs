@@ -11,14 +11,14 @@ const SELFPLUS_DEITY_ALIAS = {
 };
 
 const EXPECTED = {
-  SE: { star: 'Xung', deity: 'Thái Âm' },
-  S: { star: 'Phụ', deity: 'Lục Hợp' },
-  SW: { star: 'Anh', deity: 'Câu Trận' },
-  E: { star: 'Nhâm', deity: 'Đằng Xà' },
-  W: { star: 'Nhuế', deity: 'Chu Tước' },
-  NE: { star: 'Bồng', deity: 'Trực Phù' },
-  N: { star: 'Tâm', deity: 'Cửu Thiên' },
-  NW: { star: 'Trụ', deity: 'Cửu Địa' },
+  SE: { star: 'Nhuế', deity: 'Thái Âm' },
+  S: { star: 'Trụ', deity: 'Lục Hợp' },
+  SW: { star: 'Tâm', deity: 'Câu Trận' },
+  E: { star: 'Anh', deity: 'Đằng Xà' },
+  W: { star: 'Bồng', deity: 'Chu Tước' },
+  NE: { star: 'Phụ', deity: 'Trực Phù' },
+  N: { star: 'Xung', deity: 'Cửu Thiên' },
+  NW: { star: 'Nhâm', deity: 'Cửu Địa' },
 };
 
 const { chart } = analyze(DATE, HOUR);

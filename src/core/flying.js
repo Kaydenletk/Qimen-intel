@@ -88,11 +88,29 @@ const XUN_LEAD_STEM = {
   'Giáp Dần': 'Quý',  // Lục Nghi 6 - Giáp Dần ẩn dưới Quý
 };
 
+const TUAN_THU_BY_OFFSET = {
+  0: 'Mậu',
+  2: 'Kỷ',
+  4: 'Canh',
+  6: 'Tân',
+  8: 'Nhâm',
+  10: 'Quý',
+};
+
 // Branch name to index mapping for door step calculation
+const STEM_NAME_TO_IDX = {};
+Object.entries(STEMS).forEach(([idx, stem]) => {
+  STEM_NAME_TO_IDX[stem.name] = parseInt(idx, 10);
+});
+
 const BRANCH_NAME_TO_IDX = {};
 Object.entries(BRANCHES).forEach(([idx, b]) => {
   BRANCH_NAME_TO_IDX[b.name] = parseInt(idx);
 });
+
+const BRANCH_NAME_ALIASES = {
+  Tị: 'Tỵ',
+};
 
 function normalizeCanChiText(rawValue) {
   const normalized = String(rawValue || '')
@@ -102,31 +120,95 @@ function normalizeCanChiText(rawValue) {
 
   for (const stem of Object.values(STEMS)) {
     if (normalized.startsWith(stem.name)) {
-      const branchPart = normalized.slice(stem.name.length).trim();
+      const rawBranchPart = normalized.slice(stem.name.length).trim();
+      const branchPart = BRANCH_NAME_ALIASES[rawBranchPart] || rawBranchPart;
       if (branchPart) return `${stem.name} ${branchPart}`;
       return stem.name;
     }
   }
 
-  return normalized;
+  return BRANCH_NAME_ALIASES[normalized] || normalized;
+}
+
+function parseCanChiComponents(rawValue) {
+  const normalized = normalizeCanChiText(rawValue);
+  if (!normalized) return null;
+
+  for (const [stemIdx, stem] of Object.entries(STEMS)) {
+    if (!normalized.startsWith(stem.name)) continue;
+
+    const branchName = normalized.slice(stem.name.length).trim();
+    const branchIdx = BRANCH_NAME_TO_IDX[branchName];
+    if (!Number.isInteger(branchIdx)) return null;
+
+    return {
+      normalized,
+      stemIdx: parseInt(stemIdx, 10),
+      stemName: stem.name,
+      branchIdx,
+      branchName,
+    };
+  }
+
+  return null;
+}
+
+function coerceStemIndex(rawValue) {
+  if (Number.isInteger(rawValue)) return rawValue;
+  const normalized = String(rawValue ?? '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+  if (/^\d+$/.test(normalized)) return Number(normalized);
+  return STEM_NAME_TO_IDX[normalized] ?? null;
+}
+
+function coerceBranchIndex(rawValue) {
+  if (Number.isInteger(rawValue)) return rawValue;
+  const normalized = String(rawValue ?? '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+  if (/^\d+$/.test(normalized)) return Number(normalized);
+  const aliased = BRANCH_NAME_ALIASES[normalized] || normalized;
+  return BRANCH_NAME_TO_IDX[aliased] ?? null;
+}
+
+export function getTuanThu(stemInput, branchInput) {
+  const stemIdx = coerceStemIndex(stemInput);
+  const branchIdx = coerceBranchIndex(branchInput);
+
+  if (!Number.isInteger(stemIdx) || !Number.isInteger(branchIdx)) {
+    return {
+      offset: 0,
+      tuanName: 'Giáp Tý',
+      tuanBranchIdx: 0,
+      leadStemName: 'Mậu',
+      invalidInput: true,
+      stemIdx,
+      branchIdx,
+    };
+  }
+
+  const offset = ((stemIdx - branchIdx) % 12 + 12) % 12;
+  const tuanBranchIdx = ((branchIdx - stemIdx) % 12 + 12) % 12;
+  const tuanBranchName = BRANCHES[tuanBranchIdx]?.name || 'Tý';
+  const tuanName = `Giáp ${tuanBranchName}`;
+  return {
+    offset,
+    tuanName,
+    tuanBranchIdx,
+    leadStemName: TUAN_THU_BY_OFFSET[offset] || XUN_LEAD_STEM[tuanName] || 'Mậu',
+  };
 }
 
 function resolveExplicitJiaXun(hourCanChi) {
-  const normalized = normalizeCanChiText(hourCanChi);
-  if (!normalized.startsWith('Giáp')) return null;
+  const parsed = parseCanChiComponents(hourCanChi);
+  if (!parsed || parsed.stemName !== 'Giáp') return null;
 
-  const branchName = normalized.replace(/^Giáp\s*/, '').trim();
-  const tuanName = `Giáp ${branchName}`.trim();
-  const leadStemName = XUN_LEAD_STEM[tuanName];
-  const tuanBranchIdx = BRANCH_NAME_TO_IDX[branchName];
-
-  if (!leadStemName || !Number.isInteger(tuanBranchIdx)) return null;
+  const tuanThu = getTuanThu(parsed.stemIdx, parsed.branchIdx);
 
   return {
-    tuanName,
-    leadStemName,
+    tuanName: tuanThu.tuanName,
+    leadStemName: tuanThu.leadStemName,
     posInTuan: 0,
-    tuanBranchIdx,
+    tuanBranchIdx: tuanThu.tuanBranchIdx,
   };
 }
 
@@ -141,23 +223,20 @@ export function getXunInfo(hourCanChi) {
   const explicitJiaXun = resolveExplicitJiaXun(hourCanChi);
   if (explicitJiaXun) return explicitJiaXun;
 
-  const normalizedHourCanChi = normalizeCanChiText(hourCanChi);
-  for (let tuanIdx = 0; tuanIdx < LUC_THAP_HOA_GIAP.length; tuanIdx++) {
-    const tuan = LUC_THAP_HOA_GIAP[tuanIdx];
-    const posInTuan = tuan.indexOf(normalizedHourCanChi);
-    if (posInTuan !== -1) {
-      const tuanName = tuan[0]; // "Giáp Tý", "Giáp Tuất", etc.
-      const leadStemName = XUN_LEAD_STEM[tuanName]; // ✅ Correct mapping
-
-      // Extract Tuần Branch for door step calculation
-      const tuanBranchName = tuanName.split(' ')[1]; // "Tý", "Tuất", etc.
-      const tuanBranchIdx = BRANCH_NAME_TO_IDX[tuanBranchName] ?? 0;
-
-      return { tuanName, leadStemName, posInTuan, tuanBranchIdx };
-    }
+  const parsed = parseCanChiComponents(hourCanChi);
+  if (!parsed) {
+    return { tuanName: 'Giáp Tý', leadStemName: 'Mậu', posInTuan: 0, tuanBranchIdx: 0 };
   }
-  // Fallback
-  return { tuanName: 'Giáp Tý', leadStemName: 'Mậu', posInTuan: 0, tuanBranchIdx: 0 };
+
+  const tuanThu = getTuanThu(parsed.stemIdx, parsed.branchIdx);
+  const posInTuan = ((parsed.branchIdx - tuanThu.tuanBranchIdx) % 12 + 12) % 12;
+
+  return {
+    tuanName: tuanThu.tuanName,
+    leadStemName: tuanThu.leadStemName,
+    posInTuan,
+    tuanBranchIdx: tuanThu.tuanBranchIdx,
+  };
 }
 
 // Stem name to CAN_SEQUENCE_9 index mapping (for Earth Plate lookup)
@@ -177,6 +256,8 @@ const BAT_MON_ARRAY = [
   { idx: 6, name: 'Sinh Môn', short: 'Sinh', element: 'Thổ', type: 'cat', origPalace: 8 },
   { idx: 7, name: 'Cảnh Môn', short: 'Cảnh', element: 'Hỏa', type: 'binh', origPalace: 9 },
 ];
+
+const BASE_DOOR_RING = PERIMETER.map((palace) => BAT_MON_ARRAY[palace]).filter(Boolean);
 
 // Dịch Mã calculation based on branch
 // Tam Hợp frames: Thân-Tý-Thìn → Dần, Dần-Ngọ-Tuất → Thân, Tỵ-Dậu-Sửu → Hợi, Hợi-Mão-Mùi → Tỵ
@@ -281,6 +362,28 @@ function moveOnNumberSequence(startPalace, steps, isDuong) {
   let destination = shifted + 1;
   if (destination === 5) destination = isDuong ? 2 : 8;
   return destination;
+}
+
+function distributeDoors(targetPalace, trucSuDoor, isDuong) {
+  const doorMap = { 5: null };
+  const startPalaceIndex = PERIMETER.indexOf(targetPalace);
+  const startDoorIndex = BASE_DOOR_RING.findIndex(door => door?.name === trucSuDoor?.name);
+  const direction = isDuong ? 1 : -1;
+
+  if (startPalaceIndex === -1 || startDoorIndex === -1) {
+    for (const palace of PERIMETER) {
+      doorMap[palace] = BAT_MON_ARRAY[palace] || null;
+    }
+    return doorMap;
+  }
+
+  for (let i = 0; i < 8; i++) {
+    const palaceIndex = ((startPalaceIndex + i * direction) % 8 + 8) % 8;
+    const doorIndex = ((startDoorIndex + i * direction) % 8 + 8) % 8;
+    doorMap[PERIMETER[palaceIndex]] = BASE_DOOR_RING[doorIndex];
+  }
+
+  return doorMap;
 }
 
 function calculateTrucSuPalace(tuanThuPalace, canTuanIndex, canGioIndex, isDuongDon) {
@@ -502,10 +605,7 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
   const leadStemPalace = findStemPalace(earthPlate, leadStemName);
   const tuanThuPalace = leadStemPalace; // Palace of Tuần Thủ
 
-  // Find Mậu's palace (always P1 in FIXED Earth Plate) - needed for rotation reference
-  const mauPalace = findStemPalace(earthPlate, 'Mậu');
   const effectiveLeadStemPalace = leadStemPalace === 5 ? 2 : leadStemPalace;
-  const effectiveMauPalace = mauPalace === 5 ? 2 : mauPalace;
 
   // The Star at the Lead Stem's palace becomes Trực Phù (Lead Star)
   // Star index = palace - 1 (except palace 5 → Thiên Cầm idx 4)
@@ -526,27 +626,23 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
   const doorSteps = countDoorSteps(tuanBranchIdx, hourBranchIdx, isDuong);
   const isJiaHourOffsetZero = originalHourStemName === 'Giáp' && doorSteps === 0;
 
-  // Lead Door normally starts from Mậu/Hưu on the fixed Earth Plate.
-  // For explicit Giáp hours with offset 0, web1 behaves as true Phục Ngâm:
-  // the initial Trực Sử comes from the hidden-stem palace itself.
-  const leadDoorOriginPalace = isJiaHourOffsetZero ? effectiveLeadStemPalace : effectiveMauPalace;
+  // Chuyển Bàn chuẩn lấy Trực Phù / Trực Sử khởi từ cung Tuần Thủ,
+  // không neo cứng vào Mậu cung.
+  const leadDoorOriginPalace = effectiveLeadStemPalace;
   const leadDoor = BAT_MON_ARRAY[leadDoorOriginPalace] || BAT_MON_ARRAY[1];
 
   // ════════════════════════════════════════════════════════════════════════════
   // STEP 5: STAR ROTATION (Chuyển Tinh) - Joey Yap / SELF PLUS method
   //
-  // With FIXED Earth Plate, the rotation reference is always Mậu (at Palace 1):
-  // 1. Mậu represents Giáp Tý (the first Xun's hidden general)
-  // 2. Stars rotate from Mậu's palace to Hour Stem's palace
-  // 3. All stars move by the same starShift on the 8-palace perimeter
-  // 4. Thiên Cầm (palace 5) follows Thiên Nhuế (palace 2)
+  // Trực Phù lấy sao đứng đầu từ cung Tuần Thủ rồi chuyển tới cung Can Giờ.
+  // Thiên Cầm (palace 5) vẫn đi theo Thiên Nhuế.
   // ════════════════════════════════════════════════════════════════════════════
 
   // Destination palace: where Hour Stem is on Earth Plate
-  const trucPhuDestPalace = isJiaHourOffsetZero ? effectiveLeadStemPalace : effectiveHourStemPalace;
+  const trucPhuDestPalace = effectiveHourStemPalace;
 
-  // Origin palace: normally Mậu/P1. For explicit Giáp-hour Phục Ngâm, use the hidden-stem palace itself.
-  const trucPhuOrigPalace = isJiaHourOffsetZero ? effectiveLeadStemPalace : effectiveMauPalace;
+  // Origin palace: the Tuần Thủ palace that defines the lead star.
+  const trucPhuOrigPalace = effectiveLeadStemPalace;
 
   // Calculate star shift on perimeter
   const srcPerimIdx = PERIM_INDEX[trucPhuOrigPalace];
@@ -639,30 +735,16 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
   // STEP 7: DOOR ROTATION (Chuyển Môn)
   //
   // Trực Sử is independent from Trực Phù:
-  // 1. Start from Mậu/Hưu at palace 1 on the fixed Earth Plate
+  // 1. Start from the Tuần Thủ palace on Earth Plate
   // 2. Count branch steps from the Xun head branch to the current hour branch
   // 3. Move Trực Sử on the numeric 1→9 sequence (Yang forward, Yin backward)
   // 4. Once Trực Sử lands, spread the 8-door ring on the perimeter
   // ════════════════════════════════════════════════════════════════════════════
 
-  const trucSuOrigPalace = isJiaHourOffsetZero ? effectiveLeadStemPalace : effectiveMauPalace;
+  const trucSuOrigPalace = effectiveLeadStemPalace;
   const trucSuDestPalace = moveOnNumberSequence(trucSuOrigPalace, doorSteps, isDuong);
   const trucSuDestPerimIdx = PERIM_INDEX[trucSuDestPalace];
-  const doorDirection = isDuong ? 1 : -1;
-  const doorPlacements = {};
-
-  if (isJiaHourOffsetZero) {
-    for (const palace of PERIMETER) {
-      doorPlacements[palace] = BAT_MON_ARRAY[palace] || null;
-    }
-  } else {
-    const doorSequence = PERIMETER.map((palace) => BAT_MON_ARRAY[palace]).filter(Boolean);
-    for (let i = 0; i < doorSequence.length; i++) {
-      const newIdx = ((trucSuDestPerimIdx + i * doorDirection) % 8 + 8) % 8;
-      const newPalace = PERIMETER[newIdx];
-      doorPlacements[newPalace] = doorSequence[i];
-    }
-  }
+  const doorPlacements = distributeDoors(trucSuDestPalace, leadDoor, isDuong);
 
   // Assign doors to palaces
   for (let p = 1; p <= 9; p++) {

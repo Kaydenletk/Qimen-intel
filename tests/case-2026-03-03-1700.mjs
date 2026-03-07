@@ -29,11 +29,22 @@ for (const slot of ORDER) {
 console.log('doorsBySlot', JSON.stringify(doorsBySlot));
 
 assert.equal(hourCanChi, 'Đinh Dậu', 'Hour Can-Chi must be Đinh Dậu at 2026-03-03 17:00');
+assert.deepEqual(doorsBySlot, {
+  SE: 'Hưu',
+  S: 'Sinh',
+  SW: 'Thương',
+  E: 'Khai',
+  W: 'Đỗ',
+  NE: 'Kinh',
+  N: 'Tử',
+  NW: 'Cảnh',
+}, 'Door ring must stay anchored to the Tuần Thủ palace');
 
 const ly = chart.palaces[SLOT_TO_PALACE.S];
-assert.equal(ly?.star?.short || '—', 'Trụ', 'Ly star must be Trụ');
+assert.equal(ly?.star?.short || '—', 'Nhâm', 'Ly star must be Thiên Nhậm');
 assert.equal(ly?.than?.name || '—', 'Cửu Địa', 'Ly deity must be Cửu Địa');
 assert.equal(chart.trucPhuPalace, 7, 'Trực Phù must remain at Tây / P7');
+assert.equal(chart.trucSuPalace, 7, 'Trực Sử must remain at Tây / P7');
 
 const center = chart.palaces[SLOT_TO_PALACE.C];
 assert.ok(center, 'Center palace missing');

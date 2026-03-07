@@ -76,7 +76,7 @@ function compareWeb1Fixture(referenceCase) {
   for (const [palace, expectedDoor] of Object.entries(referenceCase.expectedDoorByPalace)) {
     const actualDoor = chart.boardPalaces?.[palace]?.door || '';
     if (actualDoor !== expectedDoor) {
-      issues.push(`${referenceCase.id} | P${palace} | web1-door-mismatch actual=${actualDoor} expected=${expectedDoor}`);
+      issues.push(`${referenceCase.id} | P${palace} | reference-door-mismatch actual=${actualDoor} expected=${expectedDoor}`);
     }
   }
 
@@ -95,7 +95,7 @@ for (const entry of buildSweepTimestamps()) {
 }
 
 const allFixtureIssues = WEB1_REFERENCE_CASES.flatMap(compareWeb1Fixture);
-const trustedTypes = new Set(['web1-screenshot', 'user-reported-reference']);
+const trustedTypes = new Set(['user-image-reference', 'user-reported-reference']);
 const trustedFixtureIssues = WEB1_REFERENCE_CASES
   .filter(referenceCase => trustedTypes.has(referenceCase.referenceType))
   .flatMap(compareWeb1Fixture);
@@ -106,14 +106,14 @@ if (sweepIssues.length) {
   sweepIssues.slice(0, 50).forEach(issue => console.log(issue));
 }
 
-console.log(`WEB1_FIXTURE_CASES=${WEB1_REFERENCE_CASES.length}`);
-console.log(`WEB1_FIXTURE_ISSUES_ALL=${allFixtureIssues.length}`);
-console.log(`WEB1_FIXTURE_ISSUES_TRUSTED=${trustedFixtureIssues.length}`);
+console.log(`REFERENCE_FIXTURE_CASES=${WEB1_REFERENCE_CASES.length}`);
+console.log(`REFERENCE_FIXTURE_ISSUES_ALL=${allFixtureIssues.length}`);
+console.log(`REFERENCE_FIXTURE_ISSUES_TRUSTED=${trustedFixtureIssues.length}`);
 if (allFixtureIssues.length) {
   allFixtureIssues.forEach(issue => console.log(issue));
 }
 
 assert.equal(sweepIssues.length, 0, '30 timestamp sweep still has board/tone issues');
-assert.equal(trustedFixtureIssues.length, 0, 'Trusted Web1 fixture comparison still has mapping/rotation issues');
+assert.equal(trustedFixtureIssues.length, 0, 'Trusted reference fixture comparison still has mapping/rotation issues');
 
 console.log('ASSERTIONS: OK');

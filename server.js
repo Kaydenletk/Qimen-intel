@@ -15,7 +15,7 @@ import { analyze } from './src/index.js';
 import { generateDeterministicEnergyFlow } from './src/logic/dungThan/index.js';
 import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
 import { buildKimonPrompt, buildKimonSystemInstruction } from './src/logic/kimon/promptBuilder.js';
-import { parseKimonJsonResponse } from './src/logic/kimon/jsonResponse.js';
+import { parseKimonJsonResponse, toKimonResponseSchema } from './src/logic/kimon/jsonResponse.js';
 import {
   ORDER as SLOT_ORDER,
   SLOT_TO_PALACE,
@@ -37,8 +37,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = 3000;
-const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 2050;
-const KYMON_MAX_OUTPUT_TOKENS = 2200;
+const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 2200;
+const KYMON_MAX_OUTPUT_TOKENS = 3072;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SERVER-SIDE RATE LIMITING (prevents 429 from Gemini)
@@ -3106,77 +3106,17 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       return source.slice(start).trim();
     }
 
-    function extractLooseStringField(rawText, key) {
-      const source = String(rawText || '');
-      const marker = '"' + key + '"';
-      const markerIndex = source.indexOf(marker);
-      if (markerIndex === -1) return '';
-
-      const colonIndex = source.indexOf(':', markerIndex + marker.length);
-      if (colonIndex === -1) return '';
-
-      let quoteIndex = -1;
-      for (let index = colonIndex + 1; index < source.length; index++) {
-        const ch = source[index];
-        if (ch === '"') {
-          quoteIndex = index;
-          break;
-        }
-        if (!/\\s/.test(ch)) break;
-      }
-      if (quoteIndex === -1) return '';
-
-      let result = '';
-      let escapeNext = false;
-      for (let index = quoteIndex + 1; index < source.length; index++) {
-        const ch = source[index];
-
-        if (escapeNext) {
-          result += ch;
-          escapeNext = false;
-          continue;
-        }
-
-        if (ch === '\\\\') {
-          escapeNext = true;
-          continue;
-        }
-
-        if (ch === '"') {
-          return result.trim();
-        }
-
-        if ((ch === '\\n' || ch === '\\r') && /^\\s*(?:[}"{]|"(?:summary|analysis|action|mode|lead|timeHint|message|closingLine)")/.test(source.slice(index + 1))) {
-          break;
-        }
-
-        result += ch;
-      }
-
-      return result.trim();
-    }
-
     function createEmergencyKimonPayload(rawText) {
       const source = String(rawText || '').trim();
       const structured = /"(?:summary|analysis|action|mode|lead|timeHint|message|closingLine)"\\s*:/.test(source);
-      const summary = extractLooseStringField(source, 'summary') || extractLooseStringField(source, 'lead');
-      const analysis = extractLooseStringField(source, 'analysis') || extractLooseStringField(source, 'message');
-      const action = extractLooseStringField(source, 'action') || extractLooseStringField(source, 'closingLine');
-
-      if (summary || analysis || action) {
-        return {
-          summary: summary || 'Kymon đang ghép lại ý chính cho bạn.',
-          analysis: analysis || 'Câu trả lời vừa rồi bị gãy nhịp giữa chừng, nên mình không muốn để bạn đọc một kết luận nửa vời.',
-          action: action || 'Bạn hỏi lại ngắn hơn một lần nữa nhé.',
-        };
-      }
-
       return {
-        summary: structured ? 'Kymon bị gián đoạn.' : 'Kymon chưa chốt được câu trả lời.',
-        analysis: structured
-          ? 'Phản hồi vừa rồi bị cụt ở giữa, nên hệ thống đã chặn không cho hiện nội dung thô lên màn hình.'
+        mode: 'interpretation',
+        lead: 'Kymon bị gián đoạn.',
+        timeHint: '',
+        message: structured
+          ? 'Phản hồi vừa rồi bị cắt giữa chừng, nên hệ thống không hiển thị nội dung thô lên màn hình.'
           : 'Phản hồi từ hệ thống không đủ rõ để dựng câu trả lời an toàn.',
-        action: 'Bạn hỏi lại một lần nữa nhé.',
+        closingLine: 'Bạn hỏi lại một lần nữa nhé.',
       };
     }
 
@@ -3205,7 +3145,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     function normalizeKimonUiPayload(rawData) {
       if (!rawData || typeof rawData !== 'object' || Array.isArray(rawData)) {
-        throw new Error('Dữ liệu Kymon không hợp lệ');
+        return createEmergencyKimonPayload('');
       }
 
       const lead = typeof rawData.lead === 'string'
@@ -3221,16 +3161,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         ? rawData.closingLine.trim()
         : (typeof rawData.action === 'string' ? rawData.action.trim() : (typeof rawData.kimonQuote === 'string' ? rawData.kimonQuote.trim() : ''));
 
-      if (!message) {
-        const legacyMessage = [
-          typeof rawData.tongQuan === 'string' ? rawData.tongQuan.trim() : '',
-          typeof rawData?.tamLy?.trangThai === 'string' ? rawData.tamLy.trangThai.trim() : '',
-          typeof rawData?.tamLy?.dongChay === 'string' ? rawData.tamLy.dongChay.trim() : '',
-          typeof rawData?.chienLuoc?.noiDung === 'string' ? rawData.chienLuoc.noiDung.trim() : '',
-          ...(Array.isArray(rawData.hanhDong) ? rawData.hanhDong.map(item => String(item || '').trim()) : []),
-        ].filter(Boolean).join('\\n\\n');
-        message = legacyMessage;
-      }
+      if (!message && typeof rawData.analysis === 'string') message = rawData.analysis.trim();
 
       const normalized = {
         mode: typeof rawData.mode === 'string' && rawData.mode.trim() ? rawData.mode.trim() : 'interpretation',
@@ -3241,13 +3172,19 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       };
 
       if (!normalized.lead && !normalized.timeHint && !normalized.message && !normalized.closingLine) {
-        return {
-          mode: 'interpretation',
-          lead: 'Kymon bị gián đoạn.',
-          timeHint: '',
-          message: 'Phản hồi vừa rồi không đủ hoàn chỉnh để hiển thị an toàn.',
-          closingLine: 'Bạn hỏi lại một lần nữa nhé.',
-        };
+        return createEmergencyKimonPayload('');
+      }
+
+      if (!normalized.message) {
+        normalized.message = 'Phần phân tích vừa rồi chưa đủ hoàn chỉnh để hiển thị an toàn.';
+      }
+
+      if (!normalized.lead) {
+        normalized.lead = 'Kymon bị gián đoạn.';
+      }
+
+      if (!normalized.closingLine) {
+        normalized.closingLine = 'Bạn hỏi lại một lần nữa nhé.';
       }
 
       return normalized;
@@ -3267,6 +3204,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           signal,
         });
         const responseText = await res.text();
+        logKimonDebug('response received', {
+          status: res.status,
+          responseLength: responseText.length,
+        });
         const parsed = parseKimonResponseText(responseText);
 
         if (!res.ok) {
@@ -4077,13 +4018,13 @@ export default function handler(req, res) {
         logKimonModelMeta('/api/kimon/stream', finalResponse, fullText);
 
         try {
-          const parsed = parseKimonJsonResponse(fullText);
+          const parsed = toKimonResponseSchema(parseKimonJsonResponse(fullText), fullText);
           console.log('[Kimon] Parsed OK, keys:', Object.keys(parsed));
           res.write(`data: ${JSON.stringify({ __DONE__: true, parsed })}\n\n`);
         } catch (parseErr) {
           console.error('[Kimon] JSON parse failed:', parseErr.message);
           console.error('[Kimon] Raw response:', fullText.substring(0, 500));
-          const fallback = parseKimonJsonResponse(fullText);
+          const fallback = toKimonResponseSchema(parseKimonJsonResponse(fullText), fullText);
           res.write(`data: ${JSON.stringify({ __DONE__: true, parsed: fallback })}\n\n`);
         }
         res.end();
@@ -4134,7 +4075,7 @@ export default function handler(req, res) {
         const result = await model.generateContent(prompt);
         const rawText = await result.response.text();
         logKimonModelMeta('/api/kimon', result.response, rawText);
-        const parsed = parseKimonJsonResponse(rawText);
+        const parsed = toKimonResponseSchema(parseKimonJsonResponse(rawText), rawText);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(parsed));
       } catch (error) {
