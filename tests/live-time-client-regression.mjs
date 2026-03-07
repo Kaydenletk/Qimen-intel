@@ -6,10 +6,11 @@ const serverSource = readFileSync(new URL('../server.js', import.meta.url), 'utf
 assert.match(serverSource, /const CHART_TIME_MODE = /, 'Client script phải nhận mode live\\/manual từ server');
 assert.match(serverSource, /const INITIAL_CHART_TIME = /, 'Client script phải nhận initial chart time từ server');
 assert.match(serverSource, /function getEffectiveChartTimeFromLocation\(/, 'Client script phải có resolver thời gian thống nhất');
-assert.match(serverSource, /window\.location\.assign\(window\.location\.pathname \+ window\.location\.hash\)/, 'Nút Hiện Tại phải đưa về root path mà không ghi date\\/hour\\/minute vào URL');
-assert.doesNotMatch(serverSource, /window\.location\.replace\(window\.location\.pathname \+ window\.location\.hash\)/, 'Không được tự reload page theo live mode nữa');
-assert.doesNotMatch(serverSource, /setInterval\(tickClock,\s*1000\)/, 'Không được giữ timer cập nhật theo giây');
-assert.doesNotMatch(serverSource, /getMillisecondsUntilNextMinute\(/, 'Không được giữ logic minute rollover trong client');
-assert.doesNotMatch(serverSource, /const nextUrl = '\/\?date='/, 'Không được tiếp tục tự ghi query params stale trong live mode');
+assert.match(serverSource, /function buildLiveChartUrl\(/, 'Client script phải tự dựng URL live từ giờ browser');
+assert.match(serverSource, /window\.location\.replace\(targetUrl\)/, 'Live mode phải tự đồng bộ lại chart bằng full reload khi lệch phút\\/timezone');
+assert.match(serverSource, /window\.location\.assign\(targetUrl\)/, 'Nút Hiện Tại phải dùng cùng một đường live URL để tránh split-brain');
+assert.match(serverSource, /getMillisecondsUntilNextMinute\(/, 'Live mode phải tự rollover sang phút kế tiếp');
+assert.doesNotMatch(serverSource, /window\.location\.assign\(window\.location\.pathname \+ window\.location\.hash\)/, 'Không được quay về root trống rồi render sai theo giờ server');
+assert.doesNotMatch(serverSource, /setInterval\(tickClock,\s*1000\)/, 'Không cần timer cập nhật theo giây');
 
 console.log('ASSERTIONS: OK');

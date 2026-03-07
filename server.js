@@ -2768,15 +2768,27 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       return [year, month, day].every(part => [...part].every(ch => ch >= '0' && ch <= '9'));
     }
 
+    function isLiveModeFromLocation() {
+      const params = new URLSearchParams(window.location.search);
+      const value = params.get('live');
+      if (value === null) return false;
+      const normalized = String(value).trim().toLowerCase();
+      return normalized === '1' || normalized === 'true' || normalized === 'yes';
+    }
+
     function getEffectiveChartTimeFromLocation() {
       const params = new URLSearchParams(window.location.search);
+      const isLiveMode = isLiveModeFromLocation();
       const hasExplicitOverride = ['date', 'hour', 'minute'].some(key => {
         const raw = params.get(key);
         return raw !== null && String(raw).trim() !== '';
       });
 
       if (!hasExplicitOverride) {
-        return getClientNowResolvedTime();
+        return {
+          ...getClientNowResolvedTime(),
+          mode: 'live',
+        };
       }
 
       const now = getClientNowResolvedTime();
@@ -2787,11 +2799,42 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       const parsedMinute = Number.parseInt(rawMinute ?? '', 10);
 
       return {
-        mode: 'manual',
+        mode: isLiveMode ? 'live' : 'manual',
         date: isIsoDateLike(rawDate) ? rawDate : now.date,
         hour: Number.isInteger(parsedHour) ? Math.min(23, Math.max(0, parsedHour)) : now.hour,
         minute: Number.isInteger(parsedMinute) ? Math.min(59, Math.max(0, parsedMinute)) : now.minute,
       };
+    }
+
+    function isSameResolvedMinute(left, right) {
+      if (!left || !right) return false;
+      return String(left.date) === String(right.date)
+        && Number(left.hour) === Number(right.hour)
+        && Number(left.minute) === Number(right.minute);
+    }
+
+    function getMillisecondsUntilNextMinute(now = new Date()) {
+      return ((59 - now.getSeconds()) * 1000) + (1000 - now.getMilliseconds()) + 10;
+    }
+
+    function buildLiveChartUrl(resolvedTime) {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set('live', '1');
+      nextUrl.searchParams.set('date', resolvedTime.date);
+      nextUrl.searchParams.set('hour', String(resolvedTime.hour));
+      nextUrl.searchParams.set('minute', String(resolvedTime.minute));
+      return nextUrl.toString();
+    }
+
+    function redirectToLiveChart(resolvedTime, { replace = true } = {}) {
+      const targetUrl = buildLiveChartUrl(resolvedTime);
+      if (targetUrl === window.location.href) return false;
+      if (replace) {
+        window.location.replace(targetUrl);
+      } else {
+        window.location.assign(targetUrl);
+      }
+      return true;
     }
 
     function syncInternalLabelToggles(nextValue) {
@@ -2844,7 +2887,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     if (useNowLinkEl) {
       useNowLinkEl.addEventListener('click', event => {
         event.preventDefault();
-        window.location.assign(window.location.pathname + window.location.hash);
+        redirectToLiveChart(getClientNowResolvedTime(), { replace: false });
       });
     }
 
@@ -2857,6 +2900,31 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     (function initChartTimeMode() {
       const effectiveTime = getEffectiveChartTimeFromLocation();
       applyResolvedTimeToForm(effectiveTime);
+
+      if (CHART_TIME_MODE === 'live') {
+        const clientTime = getClientNowResolvedTime();
+        const needsLiveRedirect = !isLiveModeFromLocation() || !isSameResolvedMinute(INITIAL_CHART_TIME, clientTime);
+        if (needsLiveRedirect && redirectToLiveChart(clientTime)) {
+          return;
+        }
+
+        updateLiveClock(clientTime);
+
+        const scheduleRefresh = () => {
+          window.setTimeout(() => {
+            const nextClientTime = getClientNowResolvedTime();
+            if (redirectToLiveChart(nextClientTime)) {
+              return;
+            }
+            updateLiveClock(nextClientTime);
+            scheduleRefresh();
+          }, getMillisecondsUntilNextMinute());
+        };
+
+        scheduleRefresh();
+        return;
+      }
+
       updateLiveClock(effectiveTime);
     })();
 

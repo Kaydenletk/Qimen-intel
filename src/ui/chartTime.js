@@ -32,6 +32,13 @@ function readSearchParam(searchParams, key) {
   return value === undefined ? null : value;
 }
 
+export function isLiveTimeMode(searchParams) {
+  const value = readSearchParam(searchParams, 'live');
+  if (value === null || value === undefined) return false;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
+}
+
 export function hasExplicitTimeOverride(searchParams) {
   return ['date', 'hour', 'minute'].some(key => {
     const value = readSearchParam(searchParams, key);
@@ -49,10 +56,11 @@ export function getLocalTimeParts(now = new Date()) {
 }
 
 export function getEffectiveChartTime(searchParams, now = new Date()) {
-  const mode = hasExplicitTimeOverride(searchParams) ? 'manual' : 'live';
+  const hasExplicitOverride = hasExplicitTimeOverride(searchParams);
+  const mode = isLiveTimeMode(searchParams) || !hasExplicitOverride ? 'live' : 'manual';
   const nowParts = getLocalTimeParts(now);
 
-  if (mode === 'live') {
+  if (!hasExplicitOverride) {
     return {
       mode,
       date: nowParts.jsDate,
