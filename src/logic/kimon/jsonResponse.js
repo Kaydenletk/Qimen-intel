@@ -156,9 +156,9 @@ function salvageMalformedStructuredPayload(rawText = '') {
     action: extractLooseStringField(source, 'action') || extractLooseStringField(source, 'closingLine'),
     quickTake: '',
     timeHint: extractLooseStringField(source, 'timeHint'),
-    lead: '',
-    message: '',
-    closingLine: '',
+    lead: extractLooseStringField(source, 'lead'),
+    message: extractLooseStringField(source, 'message'),
+    closingLine: extractLooseStringField(source, 'closingLine'),
   };
 
   if (!salvaged.summary && !salvaged.analysis && !salvaged.action && !salvaged.timeHint) {
@@ -181,18 +181,18 @@ function salvageMalformedStructuredPayload(rawText = '') {
 function createFallbackPayload(rawText = '') {
   const source = String(rawText).trim();
   const message = looksLikeStructuredKimonOutput(source)
-    ? 'Kymon đang ghép lại câu trả lời, bạn hỏi lại ngắn hơn một lần nữa nhé.'
-    : source || 'Kymon chưa trả về nội dung rõ ràng.';
+    ? 'Kymon bị gián đoạn giữa chừng, nên mình chưa muốn đưa cho bạn một kết luận nửa vời.'
+    : 'Kymon chưa nhận được một phản hồi đủ rõ để hiển thị an toàn.';
   return {
     mode: 'interpretation',
-    summary: '',
-    analysis: '',
-    action: '',
-    quickTake: '',
+    summary: 'Kymon bị gián đoạn.',
+    analysis: message,
+    action: 'Bạn hỏi lại một lần nữa nhé.',
+    quickTake: 'Kymon bị gián đoạn.',
     timeHint: '',
-    lead: '',
+    lead: 'Kymon bị gián đoạn.',
     message,
-    closingLine: '',
+    closingLine: 'Bạn hỏi lại một lần nữa nhé.',
     traLoiTrucTiep: message,
     thoiDiemGoiY: '',
     tongQuan: message,
@@ -237,6 +237,12 @@ function normalizeKimonPayload(parsed, rawText = '') {
   if (!normalized.message) normalized.message = normalized.analysis;
   if (!normalized.closingLine) normalized.closingLine = normalized.action;
 
+  normalized.message = typeof normalized.message === 'string'
+    ? normalized.message.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+    : '';
+  normalized.lead = typeof normalized.lead === 'string' ? normalized.lead.trim() : '';
+  normalized.closingLine = typeof normalized.closingLine === 'string' ? normalized.closingLine.trim() : '';
+
   if (!normalized.message) {
     const compositeMessage = [normalized.lead, normalized.quickTake, normalized.timeHint, normalized.closingLine]
       .filter(Boolean)
@@ -278,10 +284,6 @@ function normalizeKimonPayload(parsed, rawText = '') {
 
   if (!normalized.action && normalized.closingLine) {
     normalized.action = normalized.closingLine;
-  }
-
-  if (!normalized.tongQuan && !normalized.traLoiTrucTiep && rawText) {
-    normalized.tongQuan = String(rawText).trim();
   }
 
   if (!normalized.tamLy || typeof normalized.tamLy !== 'object' || Array.isArray(normalized.tamLy)) {

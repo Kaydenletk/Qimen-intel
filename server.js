@@ -37,6 +37,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = 3000;
+const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 2050;
+const KYMON_MAX_OUTPUT_TOKENS = 2200;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SERVER-SIDE RATE LIMITING (prevents 429 from Gemini)
@@ -88,6 +90,22 @@ function escapeHTML(raw) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function getKimonResponseMeta(response) {
+  const candidate = response?.candidates?.[0] || null;
+  return {
+    finishReason: candidate?.finishReason || candidate?.finishMessage || 'unknown',
+    stopReason: candidate?.stopReason || response?.promptFeedback?.blockReason || 'n/a',
+    candidateCount: Array.isArray(response?.candidates) ? response.candidates.length : 0,
+  };
+}
+
+function logKimonModelMeta(route, response, rawText = '') {
+  const meta = getKimonResponseMeta(response);
+  console.log(
+    `[Kimon][${route}] maxOutputTokens old=${PREVIOUS_KYMON_MAX_OUTPUT_TOKENS} new=${KYMON_MAX_OUTPUT_TOKENS} rawLength=${String(rawText || '').length} finishReason=${meta.finishReason} stopReason=${meta.stopReason} candidates=${meta.candidateCount}`
+  );
 }
 
 function generateHTML(date, hour, minute = 0, options = {}) {
@@ -1762,7 +1780,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       line-height: 1.7;
     }
 
-    .kymon-layout-v3 {
+    .kymon-clean-layout {
       color: #334155;
     }
 
@@ -1776,10 +1794,34 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       line-height: 1.7;
     }
 
+    .kymon-lead {
+      margin: 0 0 14px;
+      color: #1e3a8a;
+      font-size: 1.02rem;
+      line-height: 1.75;
+      font-weight: 600;
+    }
+
+    .kymon-time-hint {
+      margin: 0 0 16px;
+      color: #475569;
+      font-size: 0.96rem;
+      line-height: 1.7;
+    }
+
     .kymon-analysis-flow {
-      color: #334155;
       line-height: 1.8;
+      letter-spacing: 0.02em;
+      font-size: 1.05rem;
+      color: #333;
+      text-align: justify;
       white-space: normal;
+    }
+
+    .kymon-analysis-flow br {
+      display: block;
+      content: "";
+      margin-top: 15px;
     }
 
     .kymon-action-footer {
@@ -1816,6 +1858,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-weight: 700;
       letter-spacing: 0.06em;
       text-transform: uppercase;
+    }
+
+    @media (max-width: 720px) {
+      .kymon-analysis-flow {
+        text-align: left;
+        font-size: 1rem;
+        line-height: 1.78;
+        letter-spacing: 0.01em;
+      }
     }
 
     /* Paragraphs - clean spacing for story flow */
@@ -1855,13 +1906,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       margin: 0;
     }
     
-    /* Real-time streaming cursor */
-    .kimon-stream-live::after {
-      content: '▋';
-      animation: kimon-blink 0.8s step-end infinite;
-      color: #6366f1;
-    }
-    @keyframes kimon-blink { 0%,100%{opacity:1} 50%{opacity:0} }
     .kimon-input-row {
       display: flex; gap: 8px;
     }
@@ -2048,11 +2092,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .kimon-message-text {
       font-size: 0.9375rem; line-height: 1.75; color: #334155; margin: 0;
     }
-    .kimon-message-text.typing-cursor::after {
-      content: '|'; animation: kimon-blink 0.6s infinite; color: #818CF8; font-weight: 300;
-    }
-    @keyframes kimon-blink { 0%,50% { opacity: 1; } 51%,100% { opacity: 0; } }
-
     /* Suggestions */
     .kimon-suggestions-dynamic {
       padding: 6px 0;
@@ -2207,7 +2246,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             </div>
           </div>
           <!-- Claude-like: no suggestions, just clean chat -->
-          <form id="kimonChatForm" class="kimon-input-area" novalidate autocomplete="off" onsubmit="if(event){event.preventDefault();event.stopPropagation();} if(window.__kymonSend){window.__kymonSend(event);} return false;">
+          <form id="kimonChatForm" class="kimon-input-area" novalidate autocomplete="off">
             <input type="text" id="kimonContext" name="kimon_context_input" class="kimon-input" placeholder="Hỏi Kymon bất cứ điều gì..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" data-lpignore="true" enterkeyhint="send">
             <button id="kimonBtn" class="kimon-send-btn" title="Gửi" type="submit">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -2534,6 +2573,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     // ── Kimon AI ─────────────────────────────────────────────────────────────
     const kimonBtn = document.getElementById('kimonBtn');
     const kimonContext = document.getElementById('kimonContext');
+    const kimonForm = document.getElementById('kimonChatForm');
     const kimonMessages = document.getElementById('kimonMessages');
     const kimonSuggestions = null; // Removed: Claude-like clean UI
     const kimonError = document.getElementById('kimonError');
@@ -2541,54 +2581,71 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const kimonThinking = document.getElementById('kimonThinking');
     const kimonThinkingText = document.getElementById('kimonThinkingText');
     let currentTopic = null; // set by renderTopic
-    let thinkingInterval = null;
+    let thinkingMessageTimeout = null;
+    let kimonErrorTimeout = null;
+    let isKimonFetching = false;
+    let activeKimonAbortController = null;
+    let activeKimonRequestId = 0;
+    let activeKimonRequestSource = '';
+    let activeKimonTypingSession = null;
+    const KYMON_REQUEST_TIMEOUT_MS = 30000;
+    const TYPEWRITER_CHUNK_SIZE = 3;
+    const TYPEWRITER_TICK_MS = 18;
+    const TYPEWRITER_SECTION_PAUSE_MS = 110;
+    const TYPEWRITER_SCROLL_EVERY_TICKS = 4;
 
-    // ── Thinking Animation ───────────────────────────────────────────────
-    const THINKING_MESSAGES = [
-      'Hmm, để Kymon nghĩ chút...',
-      'Đang đọc dòng năng lượng...',
-      'Đang phân tích Cửu Cung...',
-      'Bạn đợi tí nhé, đang tính toán...',
-      'Đang suy nghĩ chiến lược cho bạn...',
-      'Đang xem Môn - Tinh - Thần...',
-      'Chờ chút, Kymon đang xử lý...',
-      'Đang tính toán năng lượng...',
-      'Để Kymon đọc bàn cho kỹ nhé...',
-      'Đang tổng hợp góc nhìn...',
-    ];
+    function logKimonDebug(stage, details) {
+      if (typeof console === 'undefined' || typeof console.debug !== 'function') return;
+      if (details === undefined) {
+        console.debug('[Kymon]', stage);
+        return;
+      }
+      console.debug('[Kymon]', stage, details);
+    }
 
-    function showThinking() {
+    function setKimonInteractiveState({ pending = false, source = '' } = {}) {
+      const lockManualSubmit = pending && source === 'manual';
+      if (kimonBtn) kimonBtn.disabled = lockManualSubmit;
+      if (kimonContext) {
+        kimonContext.readOnly = lockManualSubmit;
+        kimonContext.setAttribute('aria-busy', pending ? 'true' : 'false');
+      }
+    }
+
+    function showThinking(source = 'manual') {
       if (!kimonThinking || !kimonMessages) return;
-      // Move thinking to end of messages (after all content)
+      if (thinkingMessageTimeout) {
+        clearTimeout(thinkingMessageTimeout);
+        thinkingMessageTimeout = null;
+      }
       kimonMessages.appendChild(kimonThinking);
       kimonThinking.classList.add('is-visible');
-      let msgIdx = 0;
       if (kimonThinkingText) {
-        kimonThinkingText.textContent = THINKING_MESSAGES[0];
-        kimonThinkingText.classList.remove('fade-out');
-        kimonThinkingText.classList.add('fade-in');
+        kimonThinkingText.textContent = source === 'auto'
+          ? 'Kymon đang đọc bàn...'
+          : 'Kymon đang luận...';
       }
-      if (thinkingInterval) clearInterval(thinkingInterval);
-      thinkingInterval = setInterval(() => {
-        if (!kimonThinkingText) return;
-        kimonThinkingText.classList.remove('fade-in');
-        kimonThinkingText.classList.add('fade-out');
-        setTimeout(() => {
-          msgIdx = (msgIdx + 1) % THINKING_MESSAGES.length;
-          kimonThinkingText.textContent = THINKING_MESSAGES[msgIdx];
-          kimonThinkingText.classList.remove('fade-out');
-          kimonThinkingText.classList.add('fade-in');
-        }, 300);
-      }, 2500);
-      kimonMessages.scrollTop = kimonMessages.scrollHeight;
+      thinkingMessageTimeout = setTimeout(() => {
+        if (!kimonThinking?.classList.contains('is-visible') || !kimonThinkingText) return;
+        kimonThinkingText.textContent = source === 'auto'
+          ? 'Đang nối các tín hiệu quan trọng...'
+          : 'Đang đi sâu vào ý chính...';
+      }, 6000);
+      smartScroll();
     }
 
     function hideThinking() {
-      if (thinkingInterval) { clearInterval(thinkingInterval); thinkingInterval = null; }
+      if (thinkingMessageTimeout) {
+        clearTimeout(thinkingMessageTimeout);
+        thinkingMessageTimeout = null;
+      }
+      if (kimonThinkingText) {
+        kimonThinkingText.textContent = 'Đang suy nghĩ...';
+      }
       if (kimonThinking) kimonThinking.classList.remove('is-visible');
     }
 
-    // Smart scroll: only auto-scroll if user is near bottom (allows reading while streaming)
+    // Smart scroll: only auto-scroll if user is already near bottom.
     let userScrolledUp = false;
 
     function smartScroll() {
@@ -2697,92 +2754,243 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     function showKimonError(msg) {
       if (!kimonError) return;
+      if (kimonErrorTimeout) {
+        clearTimeout(kimonErrorTimeout);
+        kimonErrorTimeout = null;
+      }
       kimonError.textContent = msg;
       kimonError.style.display = 'block';
-      setTimeout(() => { kimonError.style.display = 'none'; }, 8000);
+      kimonErrorTimeout = setTimeout(() => {
+        kimonError.style.display = 'none';
+        kimonErrorTimeout = null;
+      }, 8000);
     }
 
-    async function callKimonJsonFallback({ qmdjData, userContext, onDone, signal }) {
-      function extractFirstJsonBlockText(rawText) {
-        const source = String(rawText || '').trim();
-        const start = source.indexOf('{');
-        if (start === -1) return source;
+    function extractFirstJsonBlockText(rawText) {
+      const source = String(rawText || '').trim();
+      const start = source.indexOf('{');
+      if (start === -1) return source;
 
-        let depth = 0;
-        let inString = false;
-        let escapeNext = false;
+      let depth = 0;
+      let inString = false;
+      let escapeNext = false;
 
-        for (let index = start; index < source.length; index++) {
-          const ch = source[index];
+      for (let index = start; index < source.length; index++) {
+        const ch = source[index];
 
-          if (escapeNext) {
-            escapeNext = false;
-            continue;
-          }
-
-          if (ch === '\\\\') {
-            escapeNext = true;
-            continue;
-          }
-
-          if (ch === '"') {
-            inString = !inString;
-            continue;
-          }
-
-          if (inString) continue;
-
-          if (ch === '{') depth++;
-          if (ch === '}') {
-            depth--;
-            if (depth === 0) {
-              return source.slice(start, index + 1).trim();
-            }
-          }
+        if (escapeNext) {
+          escapeNext = false;
+          continue;
         }
 
-        return source.slice(start).trim();
-      }
+        if (ch === '\\\\') {
+          escapeNext = true;
+          continue;
+        }
 
-      function parseKimonResponseText(rawText) {
-        const source = String(rawText || '').trim();
-        if (!source) return null;
-        try {
-          return JSON.parse(source);
-        } catch {}
+        if (ch === '"') {
+          inString = !inString;
+          continue;
+        }
 
-        const firstJsonBlock = extractFirstJsonBlockText(source);
-        if (!firstJsonBlock) return null;
+        if (inString) continue;
 
-        try {
-          return JSON.parse(firstJsonBlock);
-        } catch {
-          return null;
+        if (ch === '{') depth++;
+        if (ch === '}') {
+          depth--;
+          if (depth === 0) {
+            return source.slice(start, index + 1).trim();
+          }
         }
       }
 
-      const res = await fetch('/api/kimon', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qmdjData, userContext }),
-        signal,
+      return source.slice(start).trim();
+    }
+
+    function extractLooseStringField(rawText, key) {
+      const source = String(rawText || '');
+      const marker = '"' + key + '"';
+      const markerIndex = source.indexOf(marker);
+      if (markerIndex === -1) return '';
+
+      const colonIndex = source.indexOf(':', markerIndex + marker.length);
+      if (colonIndex === -1) return '';
+
+      let quoteIndex = -1;
+      for (let index = colonIndex + 1; index < source.length; index++) {
+        const ch = source[index];
+        if (ch === '"') {
+          quoteIndex = index;
+          break;
+        }
+        if (!/\\s/.test(ch)) break;
+      }
+      if (quoteIndex === -1) return '';
+
+      let result = '';
+      let escapeNext = false;
+      for (let index = quoteIndex + 1; index < source.length; index++) {
+        const ch = source[index];
+
+        if (escapeNext) {
+          result += ch;
+          escapeNext = false;
+          continue;
+        }
+
+        if (ch === '\\\\') {
+          escapeNext = true;
+          continue;
+        }
+
+        if (ch === '"') {
+          return result.trim();
+        }
+
+        if ((ch === '\\n' || ch === '\\r') && /^\\s*(?:[}"{]|"(?:summary|analysis|action|mode|lead|timeHint|message|closingLine)")/.test(source.slice(index + 1))) {
+          break;
+        }
+
+        result += ch;
+      }
+
+      return result.trim();
+    }
+
+    function createEmergencyKimonPayload(rawText) {
+      const source = String(rawText || '').trim();
+      const structured = /"(?:summary|analysis|action|mode|lead|timeHint|message|closingLine)"\\s*:/.test(source);
+      const summary = extractLooseStringField(source, 'summary') || extractLooseStringField(source, 'lead');
+      const analysis = extractLooseStringField(source, 'analysis') || extractLooseStringField(source, 'message');
+      const action = extractLooseStringField(source, 'action') || extractLooseStringField(source, 'closingLine');
+
+      if (summary || analysis || action) {
+        return {
+          summary: summary || 'Kymon đang ghép lại ý chính cho bạn.',
+          analysis: analysis || 'Câu trả lời vừa rồi bị gãy nhịp giữa chừng, nên mình không muốn để bạn đọc một kết luận nửa vời.',
+          action: action || 'Bạn hỏi lại ngắn hơn một lần nữa nhé.',
+        };
+      }
+
+      return {
+        summary: structured ? 'Kymon bị gián đoạn.' : 'Kymon chưa chốt được câu trả lời.',
+        analysis: structured
+          ? 'Phản hồi vừa rồi bị cụt ở giữa, nên hệ thống đã chặn không cho hiện nội dung thô lên màn hình.'
+          : 'Phản hồi từ hệ thống không đủ rõ để dựng câu trả lời an toàn.',
+        action: 'Bạn hỏi lại một lần nữa nhé.',
+      };
+    }
+
+    function parseKimonResponseText(rawText) {
+      const source = String(rawText || '').trim();
+      if (!source) return createEmergencyKimonPayload('');
+      try {
+        return JSON.parse(source);
+      } catch (error) {
+        console.warn('[Kymon] Frontend parse direct failed:', error?.message || 'unknown error');
+      }
+
+      const firstJsonBlock = extractFirstJsonBlockText(source);
+      if (!firstJsonBlock) {
+        console.warn('[Kymon] Frontend parse fallback: no balanced JSON block found');
+        return createEmergencyKimonPayload(source);
+      }
+
+      try {
+        return JSON.parse(firstJsonBlock);
+      } catch (error) {
+        console.warn('[Kymon] Frontend parse fallback failed:', error?.message || 'unknown error');
+        return createEmergencyKimonPayload(source);
+      }
+    }
+
+    function normalizeKimonUiPayload(rawData) {
+      if (!rawData || typeof rawData !== 'object' || Array.isArray(rawData)) {
+        throw new Error('Dữ liệu Kymon không hợp lệ');
+      }
+
+      const lead = typeof rawData.lead === 'string'
+        ? rawData.lead.trim()
+        : (typeof rawData.summary === 'string' ? rawData.summary.trim() : '');
+      const timeHint = typeof rawData.timeHint === 'string'
+        ? rawData.timeHint.trim()
+        : (typeof rawData.thoiDiemGoiY === 'string' ? rawData.thoiDiemGoiY.trim() : '');
+      let message = typeof rawData.message === 'string'
+        ? rawData.message.trim()
+        : (typeof rawData.analysis === 'string' ? rawData.analysis.trim() : '');
+      const closingLine = typeof rawData.closingLine === 'string'
+        ? rawData.closingLine.trim()
+        : (typeof rawData.action === 'string' ? rawData.action.trim() : (typeof rawData.kimonQuote === 'string' ? rawData.kimonQuote.trim() : ''));
+
+      if (!message) {
+        const legacyMessage = [
+          typeof rawData.tongQuan === 'string' ? rawData.tongQuan.trim() : '',
+          typeof rawData?.tamLy?.trangThai === 'string' ? rawData.tamLy.trangThai.trim() : '',
+          typeof rawData?.tamLy?.dongChay === 'string' ? rawData.tamLy.dongChay.trim() : '',
+          typeof rawData?.chienLuoc?.noiDung === 'string' ? rawData.chienLuoc.noiDung.trim() : '',
+          ...(Array.isArray(rawData.hanhDong) ? rawData.hanhDong.map(item => String(item || '').trim()) : []),
+        ].filter(Boolean).join('\\n\\n');
+        message = legacyMessage;
+      }
+
+      const normalized = {
+        mode: typeof rawData.mode === 'string' && rawData.mode.trim() ? rawData.mode.trim() : 'interpretation',
+        lead,
+        timeHint,
+        message,
+        closingLine,
+      };
+
+      if (!normalized.lead && !normalized.timeHint && !normalized.message && !normalized.closingLine) {
+        return {
+          mode: 'interpretation',
+          lead: 'Kymon bị gián đoạn.',
+          timeHint: '',
+          message: 'Phản hồi vừa rồi không đủ hoàn chỉnh để hiển thị an toàn.',
+          closingLine: 'Bạn hỏi lại một lần nữa nhé.',
+        };
+      }
+
+      return normalized;
+    }
+
+    async function sendKymonRequest({ qmdjData, userContext, signal }) {
+      logKimonDebug('request dispatch', {
+        endpoint: '/api/kimon',
+        userContextPreview: String(userContext || '').slice(0, 80),
       });
 
-      const responseText = await res.text();
-      const data = parseKimonResponseText(responseText);
+      try {
+        const res = await fetch('/api/kimon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ qmdjData, userContext }),
+          signal,
+        });
+        const responseText = await res.text();
+        const parsed = parseKimonResponseText(responseText);
 
-      if (!res.ok) {
-        throw new Error((data && data.error) || ('Fallback lỗi (' + res.status + ')'));
-      }
+        if (!res.ok) {
+          throw new Error((parsed && parsed.error) || ('Kymon phản hồi lỗi (' + res.status + ')'));
+        }
 
-      if (data?.error) {
-        throw new Error(data.error);
+        if (parsed?.error) {
+          throw new Error(parsed.error);
+        }
+
+        const normalized = normalizeKimonUiPayload(parsed);
+        logKimonDebug('parse success', {
+          mode: normalized.mode,
+          leadLength: normalized.lead.length,
+          messageLength: normalized.message.length,
+          hasTimeHint: Boolean(normalized.timeHint),
+          hasClosingLine: Boolean(normalized.closingLine),
+        });
+        return normalized;
+      } catch (error) {
+        logKimonDebug('parse fail', { message: error?.message || 'unknown error' });
+        throw error;
       }
-      if (!data || typeof data !== 'object') {
-        throw new Error('Dữ liệu không hợp lệ');
-      }
-      if (onDone) onDone(data || null);
-      return data;
     }
 
     function humanizeKimonSectionLabel(key) {
@@ -2878,41 +3086,262 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       container.appendChild(sec);
     }
 
-    function renderParsedSections(container, data) {
-      container.innerHTML = '';
-      container.className = 'kymon-layout-v3';
+    function buildTypewriterRichTextFragment(rawText) {
+      const template = document.createElement('template');
+      template.innerHTML = formatKimonRichText(rawText);
+      const units = [];
 
-      const summaryText = data?.summary || data?.quickTake || data?.lead || '';
-      const analysisText = data?.analysis || data?.message || [
-        data?.timeHint ? 'Thời điểm: ' + data.timeHint : '',
-      ].filter(hasRenderableValue).join('\\n\\n');
-      const actionText = data?.action || data?.closingLine || '';
+      function cloneNodeForTyping(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const target = document.createTextNode('');
+          units.push({
+            fullText: node.nodeValue || '',
+            currentLength: 0,
+            target,
+          });
+          return target;
+        }
 
-      if (summaryText) {
-        const summaryBox = document.createElement('div');
-        summaryBox.className = 'kymon-summary-box';
-        summaryBox.innerHTML = '<strong>💡 Kết luận:</strong> ' + formatKimonRichText(summaryText);
-        container.appendChild(summaryBox);
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const clone = node.cloneNode(false);
+          node.childNodes.forEach(child => clone.appendChild(cloneNodeForTyping(child)));
+          return clone;
+        }
+
+        return document.createTextNode('');
       }
 
-      if (analysisText) {
-        const analysisBox = document.createElement('div');
-        analysisBox.className = 'kymon-analysis-flow';
-        analysisBox.innerHTML = formatKimonRichText(analysisText);
-        container.appendChild(analysisBox);
-      }
+      const fragment = document.createDocumentFragment();
+      template.content.childNodes.forEach(child => {
+        fragment.appendChild(cloneNodeForTyping(child));
+      });
 
-      if (actionText) {
-        const actionBox = document.createElement('div');
-        actionBox.className = 'kymon-action-footer';
-        actionBox.innerHTML = '<strong>🎯 Hành động:</strong> ' + formatKimonRichText(actionText);
-        container.appendChild(actionBox);
-      }
-
-      smartScroll();
+      return { fragment, units };
     }
 
-    let isKimonFetching = false;
+    function createTypewriterSectionEntry(className, rawText, options = {}) {
+      const text = String(rawText || '');
+      if (!text) return null;
+
+      const entryEl = document.createElement('div');
+      entryEl.className = className;
+      entryEl.hidden = true;
+
+      if (options.labelText) {
+        const labelEl = document.createElement('strong');
+        labelEl.textContent = options.labelText;
+        entryEl.appendChild(labelEl);
+        entryEl.appendChild(document.createTextNode(' '));
+      }
+
+      const prepared = buildTypewriterRichTextFragment(text);
+      entryEl.appendChild(prepared.fragment);
+
+      return {
+        element: entryEl,
+        units: prepared.units,
+        unitIndex: 0,
+      };
+    }
+
+    function fillTypewriterSectionInstant(section) {
+      if (section?.element) section.element.hidden = false;
+      if (!section?.units?.length) return;
+      section.units.forEach(unit => {
+        unit.currentLength = unit.fullText.length;
+        unit.target.nodeValue = unit.fullText;
+      });
+      section.unitIndex = section.units.length;
+    }
+
+    function revealTypewriterSectionChunk(section, chunkSize = TYPEWRITER_CHUNK_SIZE) {
+      if (section?.element) section.element.hidden = false;
+      if (!section?.units?.length) return true;
+
+      let remaining = chunkSize;
+      while (remaining > 0 && section.unitIndex < section.units.length) {
+        const unit = section.units[section.unitIndex];
+        const pending = unit.fullText.length - unit.currentLength;
+
+        if (pending <= 0) {
+          section.unitIndex += 1;
+          continue;
+        }
+
+        const take = Math.min(remaining, pending);
+        unit.currentLength += take;
+        unit.target.nodeValue = unit.fullText.slice(0, unit.currentLength);
+        remaining -= take;
+
+        if (unit.currentLength >= unit.fullText.length) {
+          section.unitIndex += 1;
+        }
+      }
+
+      return section.unitIndex >= section.units.length;
+    }
+
+    function cancelActiveKimonTypingSession({ finalize = true, reason = 'superseded' } = {}) {
+      if (!activeKimonTypingSession) return;
+      const session = activeKimonTypingSession;
+      activeKimonTypingSession = null;
+      if (typeof session.cancel === 'function') {
+        session.cancel({ finalize, reason });
+      }
+    }
+
+    function startKimonTypewriterSession(container, sections) {
+      const session = {
+        container,
+        sections,
+        timerId: null,
+        cancelled: false,
+        sectionIndex: 0,
+        tickCount: 0,
+      };
+
+      function clearSessionTimer() {
+        if (session.timerId) {
+          clearTimeout(session.timerId);
+          session.timerId = null;
+        }
+      }
+
+      function finalizeSectionsInstant() {
+        sections.forEach(fillTypewriterSectionInstant);
+      }
+
+      function finishSession() {
+        clearSessionTimer();
+        session.cancelled = true;
+        if (activeKimonTypingSession === session) {
+          activeKimonTypingSession = null;
+        }
+        smartScroll();
+        logKimonDebug('typewriter end', {
+          sections: sections.length,
+          containerClass: container?.className || '',
+        });
+      }
+
+      function scheduleNextTick(delayMs) {
+        clearSessionTimer();
+        if (session.cancelled) return;
+        session.timerId = window.setTimeout(runTick, delayMs);
+      }
+
+      function runTick() {
+        if (session.cancelled) return;
+
+        const currentSection = sections[session.sectionIndex];
+        if (!currentSection) {
+          finishSession();
+          return;
+        }
+
+        const completed = revealTypewriterSectionChunk(currentSection, TYPEWRITER_CHUNK_SIZE);
+        session.tickCount += 1;
+
+        if (session.tickCount % TYPEWRITER_SCROLL_EVERY_TICKS === 0) {
+          smartScroll();
+        }
+
+        if (completed) {
+          smartScroll();
+          session.sectionIndex += 1;
+          if (session.sectionIndex >= sections.length) {
+            finishSession();
+            return;
+          }
+          scheduleNextTick(TYPEWRITER_SECTION_PAUSE_MS);
+          return;
+        }
+
+        scheduleNextTick(TYPEWRITER_TICK_MS);
+      }
+
+      session.cancel = ({ finalize = true, reason = 'superseded' } = {}) => {
+        if (session.cancelled) return;
+        logKimonDebug('typewriter cancel', {
+          reason,
+          sectionIndex: session.sectionIndex,
+        });
+        clearSessionTimer();
+        session.cancelled = true;
+        if (finalize) {
+          finalizeSectionsInstant();
+          smartScroll();
+        }
+        if (activeKimonTypingSession === session) {
+          activeKimonTypingSession = null;
+        }
+      };
+
+      logKimonDebug('typewriter start', {
+        sections: sections.length,
+        chunkSize: TYPEWRITER_CHUNK_SIZE,
+        intervalMs: TYPEWRITER_TICK_MS,
+      });
+      scheduleNextTick(TYPEWRITER_TICK_MS);
+      return session;
+    }
+
+    function renderParsedSections(container, data) {
+      cancelActiveKimonTypingSession({ finalize: true, reason: 'new render' });
+      container.className = 'kymon-clean-layout';
+      const fragment = document.createDocumentFragment();
+      const typewriterSections = [];
+
+      const leadText = data?.lead || data?.summary || data?.quickTake || '';
+      const timeHintText = data?.timeHint || '';
+      const messageText = data?.message || data?.analysis || '';
+      const closingText = data?.closingLine || data?.action || '';
+
+      if (leadText) {
+        const leadEntry = createTypewriterSectionEntry('kymon-lead', leadText);
+        if (leadEntry) {
+          fragment.appendChild(leadEntry.element);
+          typewriterSections.push(leadEntry);
+        }
+      }
+
+      if (timeHintText) {
+        const timeHintEntry = createTypewriterSectionEntry('kymon-time-hint', timeHintText, { labelText: 'Thời điểm:' });
+        if (timeHintEntry) {
+          fragment.appendChild(timeHintEntry.element);
+          typewriterSections.push(timeHintEntry);
+        }
+      }
+
+      if (messageText) {
+        const analysisEntry = createTypewriterSectionEntry('kymon-analysis-flow', messageText);
+        if (analysisEntry) {
+          fragment.appendChild(analysisEntry.element);
+          typewriterSections.push(analysisEntry);
+        }
+      }
+
+      if (closingText) {
+        const closingEntry = createTypewriterSectionEntry('kymon-action-footer', closingText);
+        if (closingEntry) {
+          fragment.appendChild(closingEntry.element);
+          typewriterSections.push(closingEntry);
+        }
+      }
+
+      container.replaceChildren(fragment);
+      smartScroll();
+
+      if (!typewriterSections.length) return;
+
+      try {
+        activeKimonTypingSession = startKimonTypewriterSession(container, typewriterSections);
+      } catch (error) {
+        logKimonDebug('typewriter fallback', { message: error?.message || 'unknown' });
+        typewriterSections.forEach(fillTypewriterSectionInstant);
+        smartScroll();
+      }
+    }
 
     // Clear stale rate limit state on page load (server handles rate limiting now)
     localStorage.removeItem('kimon_rate_limit');
@@ -2936,6 +3365,90 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       }));
     }
 
+    function appendKimonResponseBubble(data) {
+      const bubble = createMessageBubble(true);
+      kimonMessages?.appendChild(bubble);
+      logKimonDebug('render start', {
+        mode: data?.mode || 'unknown',
+        leadLength: data?.lead?.length || 0,
+        messageLength: data?.message?.length || 0,
+      });
+      renderParsedSections(bubble, data);
+      logKimonDebug('render end');
+      return bubble;
+    }
+
+    function appendKimonErrorBubble(message) {
+      const bubble = createMessageBubble(true);
+      bubble.innerHTML = '<p class="kimon-error-inline">⚠️ ' + escapeHTML(message) + '</p>';
+      kimonMessages?.appendChild(bubble);
+      smartScroll();
+      return bubble;
+    }
+
+    function isSameActiveKimonRequest(ctx) {
+      return Boolean(ctx) && activeKimonRequestId === ctx.requestId;
+    }
+
+    function abortActiveKimonRequest(reason = 'superseded') {
+      if (!activeKimonAbortController) return;
+      logKimonDebug('request abort', {
+        requestId: activeKimonRequestId,
+        source: activeKimonRequestSource,
+        reason,
+      });
+      activeKimonAbortController.abort();
+    }
+
+    function beginKimonRequest(source) {
+      cancelActiveKimonTypingSession({ finalize: true, reason: 'new request: ' + source });
+      const requestId = activeKimonRequestId + 1;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        if (!isSameActiveKimonRequest({ requestId })) return;
+        logKimonDebug('request timeout', {
+          requestId,
+          source,
+          timeoutMs: KYMON_REQUEST_TIMEOUT_MS,
+        });
+        controller.abort();
+      }, KYMON_REQUEST_TIMEOUT_MS);
+
+      activeKimonRequestId = requestId;
+      activeKimonAbortController = controller;
+      activeKimonRequestSource = source;
+      isKimonFetching = true;
+      setKimonInteractiveState({ pending: true, source });
+      showThinking(source);
+      logKimonDebug('submit start', { requestId, source });
+
+      return {
+        requestId,
+        source,
+        controller,
+        timeoutId,
+      };
+    }
+
+    function finalizeKimonRequest(ctx) {
+      if (ctx?.timeoutId) clearTimeout(ctx.timeoutId);
+      logKimonDebug('finally cleanup hit', {
+        requestId: ctx?.requestId,
+        source: ctx?.source,
+        stillActive: isSameActiveKimonRequest(ctx),
+      });
+      if (!isSameActiveKimonRequest(ctx)) return;
+      activeKimonAbortController = null;
+      activeKimonRequestSource = '';
+      isKimonFetching = false;
+      hideThinking();
+      setKimonInteractiveState({ pending: false, source: ctx.source });
+    }
+
+    function isAbortErrorLike(error) {
+      return error?.name === 'AbortError' || /abort|nghẽn nhịp|quá nhiều thời gian/i.test(String(error?.message || ''));
+    }
+
     async function autoLoadKimon() {
       if (isKimonFetching) return;
 
@@ -2945,58 +3458,62 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
       if (cached) {
         try {
-          const bubble = createMessageBubble(true);
-          renderParsedSections(bubble, cached);
-          kimonMessages.appendChild(bubble);
+          appendKimonResponseBubble(normalizeKimonUiPayload(cached));
           hideThinking();
-          kimonMessages.scrollTop = kimonMessages.scrollHeight;
           return;
-        } catch(e) {}
+        } catch (error) {
+          logKimonDebug('cache miss due to invalid payload', { message: error?.message || 'invalid cache' });
+        }
       }
 
-      isKimonFetching = true;
-      showThinking();
+      const requestContext = beginKimonRequest('auto');
 
       try {
-        const data = await callKimonJsonFallback({
+        const data = await sendKymonRequest({
           qmdjData: qData,
           userContext: '__AUTO_LOAD__',
+          signal: requestContext.controller.signal,
         });
-        const bubble = createMessageBubble(true);
-        kimonMessages.appendChild(bubble);
-        if (!data) {
-          bubble.innerHTML = '<p class="kimon-error-inline">Không thể phân tích phản hồi. Vui lòng thử lại.</p>';
+        if (!isSameActiveKimonRequest(requestContext)) {
+          logKimonDebug('stale autoLoad result ignored', { requestId: requestContext.requestId });
           return;
         }
         setCachedKimon(cacheKey, data);
-        renderParsedSections(bubble, data);
-      } catch(e) {
-        console.error('Lỗi autoLoadKimon:', e);
-        const errMsg = e.message || 'Lỗi kết nối';
-        const bubble = createMessageBubble(true);
-        kimonMessages.appendChild(bubble);
-        bubble.innerHTML = '<p class="kimon-error-inline">⚠️ ' + escapeHTML(errMsg) + '</p>';
+        appendKimonResponseBubble(data);
+      } catch (error) {
+        if (!isSameActiveKimonRequest(requestContext)) {
+          logKimonDebug('stale autoLoad error ignored', { requestId: requestContext.requestId });
+          return;
+        }
+        if (isAbortErrorLike(error)) {
+          logKimonDebug('autoLoad aborted', { requestId: requestContext.requestId });
+          return;
+        }
+        console.error('Lỗi autoLoadKimon:', error);
+        const errMsg = error.message || 'Lỗi kết nối';
+        appendKimonErrorBubble(errMsg);
       } finally {
-        isKimonFetching = false;
-        hideThinking();
-        kimonMessages.scrollTop = kimonMessages.scrollHeight;
+        finalizeKimonRequest(requestContext);
       }
     }
 
     async function askKimon(displayText, hiddenPrompt) {
-      if (isKimonFetching) {
-        showKimonError('Kymon đang trả lời câu trước. Đợi một nhịp rồi gửi tiếp.');
-        return;
-      }
-      const question = displayText;
-      if (!question?.trim()) {
+      const question = String(displayText || '').trim();
+      if (!question) {
         showKimonError('Nhập câu hỏi trước khi gửi.');
         kimonContext?.focus();
         return;
       }
+      if (isKimonFetching && activeKimonRequestSource === 'manual') {
+        logKimonDebug('submit blocked', { source: 'manual' });
+        showKimonError('Kymon đang trả lời câu trước. Đợi một nhịp rồi gửi tiếp.');
+        return;
+      }
+      if (isKimonFetching && activeKimonRequestSource === 'auto') {
+        abortActiveKimonRequest('manual superseded autoload');
+      }
 
-      isKimonFetching = true;
-      resetScrollTracking(); // Reset scroll tracking for new message
+      resetScrollTracking();
       if (kimonSuggestions) kimonSuggestions.style.display = 'none';
 
       // Remove tip if exists (only show on first load)
@@ -3006,13 +3523,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       const userBubble = createMessageBubble(false);
       userBubble.innerHTML = '<p class="kimon-message-text">' + escapeHTML(question) + '</p>';
       kimonMessages.appendChild(userBubble);
-      
-      kimonBtn.disabled = true;
+      smartScroll();
+
       kimonContext.value = '';
-      showThinking();
 
       // Use hiddenPrompt (rich context) if provided, otherwise displayText
       const promptToSend = hiddenPrompt || question;
+      const requestContext = beginKimonRequest('manual');
 
       try {
         const base = getBaseQmdjData();
@@ -3025,30 +3542,32 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           selectedTopic: currentTopic.chipLabel || 'chung'
         } : base;
 
-        const data = await callKimonJsonFallback({
+        const data = await sendKymonRequest({
           qmdjData: payload,
           userContext: promptToSend,
+          signal: requestContext.controller.signal,
         });
-        const aiBubble = createMessageBubble(true);
-        kimonMessages.appendChild(aiBubble);
-        if (!data) {
-          aiBubble.innerHTML = '<p class="kimon-error-inline">Không thể phân tích phản hồi.</p>';
+        if (!isSameActiveKimonRequest(requestContext)) {
+          logKimonDebug('stale manual result ignored', { requestId: requestContext.requestId });
           return;
         }
-        renderParsedSections(aiBubble, data);
-        kimonMessages.scrollTop = kimonMessages.scrollHeight;
-      } catch(e) {
-        console.error('Lỗi askKimon:', e);
-        const errMsg = e.message || 'Lỗi kết nối. Vui lòng thử lại sau.';
+        appendKimonResponseBubble(data);
+      } catch (error) {
+        if (!isSameActiveKimonRequest(requestContext)) {
+          logKimonDebug('stale manual error ignored', { requestId: requestContext.requestId });
+          return;
+        }
+        console.error('Lỗi askKimon:', error);
+        const errMsg = isAbortErrorLike(error)
+          ? 'Kymon đang mất quá nhiều thời gian để trả lời. Bạn thử gửi lại nhé.'
+          : (error.message || 'Lỗi kết nối. Vui lòng thử lại sau.');
         showKimonError(errMsg);
-        const aiBubble = createMessageBubble(true);
-        kimonMessages.appendChild(aiBubble);
-        aiBubble.innerHTML = '<p class="kimon-error-inline" style="color:var(--hung); margin:0;">⚠️ ' + escapeHTML(errMsg) + '</p>';
+        appendKimonErrorBubble(errMsg);
+        if (kimonContext && !kimonContext.value) {
+          kimonContext.value = question;
+        }
       } finally {
-        isKimonFetching = false;
-        hideThinking();
-        kimonBtn.disabled = false;
-        kimonMessages.scrollTop = kimonMessages.scrollHeight;
+        finalizeKimonRequest(requestContext);
       }
     }
 
@@ -3058,30 +3577,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       return askKimon(kimonContext?.value.trim() || '');
     }
 
-    window.__kymonSend = handleKymonSend;
-
-    document.addEventListener('click', event => {
-      const btn = event.target.closest('#kimonBtn');
-      if (!btn) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (btn.disabled) return;
-      console.log('Kymon: Send button clicked!');
-      if (typeof window.__kymonSend === 'function') {
-        window.__kymonSend(event);
-      }
-    });
-
-    document.addEventListener('keydown', event => {
-      if (event.target?.id !== 'kimonContext') return;
-      if (event.key !== 'Enter') return;
-      event.preventDefault();
-      event.stopPropagation();
-      console.log('Kymon: Enter key pressed!');
-      if (typeof window.__kymonSend === 'function') {
-        window.__kymonSend(event);
-      }
-    });
+    if (kimonForm) {
+      kimonForm.addEventListener('submit', handleKymonSend);
+    }
 
     // (Topic chips have been removed)
 
@@ -3252,7 +3750,7 @@ export default function handler(req, res) {
           systemInstruction,
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 2048,
+            maxOutputTokens: KYMON_MAX_OUTPUT_TOKENS,
             responseMimeType: 'application/json',
           },
           safetySettings: [
@@ -3276,6 +3774,8 @@ export default function handler(req, res) {
             res.write(`data: ${JSON.stringify({ chunk: txt })}\n\n`);
           }
         }
+        const finalResponse = await streamResult.response;
+        logKimonModelMeta('/api/kimon/stream', finalResponse, fullText);
 
         try {
           const parsed = parseKimonJsonResponse(fullText);
@@ -3328,12 +3828,13 @@ export default function handler(req, res) {
           systemInstruction: buildKimonSystemInstruction(),
           generationConfig: {
             responseMimeType: 'application/json',
-            maxOutputTokens: 2048,
+            maxOutputTokens: KYMON_MAX_OUTPUT_TOKENS,
           }
         });
         const prompt = buildKimonPrompt({ qmdjData, userContext, isAutoLoad });
         const result = await model.generateContent(prompt);
         const rawText = await result.response.text();
+        logKimonModelMeta('/api/kimon', result.response, rawText);
         const parsed = parseKimonJsonResponse(rawText);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(parsed));

@@ -39,9 +39,15 @@ assert.equal(extended.thoiDiem, 'Đợi thêm một nhịp');
 assert.deepEqual(extended.ruiRo, ['Nói quá tay']);
 assert.deepEqual(extended.doiPhuong, { tamThe: 'Đang dò xét' });
 
+const surrounded = parseKimonJsonResponse('rác đầu dòng\n{"mode":"decision","lead":"Đừng ký vội.","timeHint":"","message":"Bạn vẫn còn một chi tiết chưa nhìn ra.","closingLine":"Đừng ký khi còn thấy mờ."}\nrác cuối dòng');
+assert.equal(surrounded.lead, 'Đừng ký vội.');
+assert.equal(surrounded.message, 'Bạn vẫn còn một chi tiết chưa nhìn ra.');
+assert.equal(surrounded.closingLine, 'Đừng ký khi còn thấy mờ.');
+
 const plain = parseKimonJsonResponse('Đèn đỏ. Nên chậm lại và quan sát thêm.');
-assert.equal(plain.tongQuan, 'Đèn đỏ. Nên chậm lại và quan sát thêm.');
-assert.equal(plain.traLoiTrucTiep, 'Đèn đỏ. Nên chậm lại và quan sát thêm.');
+assert.equal(plain.summary, 'Kymon bị gián đoạn.');
+assert.equal(plain.tongQuan, 'Kymon chưa nhận được một phản hồi đủ rõ để hiển thị an toàn.');
+assert.equal(plain.traLoiTrucTiep, 'Kymon chưa nhận được một phản hồi đủ rõ để hiển thị an toàn.');
 assert.deepEqual(plain.hanhDong, []);
 assert.equal(plain.kimonQuote, '');
 
@@ -79,5 +85,6 @@ const structuredGarbageFallback = parseKimonJsonResponse('{"mode":"decision","le
 assert.doesNotMatch(structuredGarbageFallback.tongQuan, /"mode"/);
 assert.doesNotMatch(structuredGarbageFallback.traLoiTrucTiep, /"lead"/);
 assert.ok(structuredGarbageFallback.traLoiTrucTiep.length > 0);
+assert.equal(structuredGarbageFallback.summary, 'Đang xem...');
 
 console.log('ASSERTIONS: OK');
