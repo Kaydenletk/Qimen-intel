@@ -2918,18 +2918,16 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
         updateLiveClock(clientTime);
 
-        const scheduleRefresh = () => {
+        // Update clock display every minute (without refreshing the page)
+        const scheduleClockUpdate = () => {
           window.setTimeout(() => {
             const nextClientTime = getClientNowResolvedTime();
-            if (redirectToLiveChart(nextClientTime)) {
-              return;
-            }
             updateLiveClock(nextClientTime);
-            scheduleRefresh();
+            scheduleClockUpdate();
           }, getMillisecondsUntilNextMinute());
         };
 
-        scheduleRefresh();
+        scheduleClockUpdate();
         return;
       }
 
