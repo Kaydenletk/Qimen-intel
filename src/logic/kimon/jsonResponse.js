@@ -5,15 +5,196 @@ function stripMarkdownCodeFences(rawText = '') {
     .trim();
 }
 
-function extractJsonCandidate(rawText = '') {
+function extractFirstJsonObject(rawText = '') {
   const cleaned = stripMarkdownCodeFences(rawText);
-  const match = cleaned.match(/\{[\s\S]*\}/);
-  return (match ? match[0] : cleaned).trim();
+  const start = cleaned.indexOf('{');
+  if (start === -1) return cleaned.trim();
+
+  let depth = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (let index = start; index < cleaned.length; index++) {
+    const ch = cleaned[index];
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (ch === '\\') {
+      escapeNext = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (ch === '{') depth++;
+    if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        return cleaned.slice(start, index + 1).trim();
+      }
+    }
+  }
+
+  return cleaned.slice(start).trim();
+}
+
+function extractJsonCandidate(rawText = '') {
+  return extractFirstJsonObject(rawText);
+}
+
+function repairJsonLikeString(rawText = '') {
+  const source = extractJsonCandidate(rawText);
+  if (!source) return '';
+
+  let result = '';
+  let inString = false;
+  let escapeNext = false;
+
+  for (let index = 0; index < source.length; index++) {
+    const ch = source[index];
+
+    if (escapeNext) {
+      result += ch;
+      escapeNext = false;
+      continue;
+    }
+
+    if (ch === '\\') {
+      result += ch;
+      escapeNext = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = !inString;
+      result += ch;
+      continue;
+    }
+
+    if (inString && (ch === '\n' || ch === '\r')) {
+      result += '\\n';
+      continue;
+    }
+
+    result += ch;
+  }
+
+  return result.replace(/,\s*([}\]])/g, '$1').trim();
+}
+
+function looksLikeStructuredKimonOutput(rawText = '') {
+  return /"(?:mode|lead|timeHint|message|closingLine|summary|analysis|action)"\s*:/.test(String(rawText || ''));
+}
+
+function extractLooseStringField(rawText = '', key = '') {
+  if (!key) return '';
+  const source = String(rawText || '');
+  const marker = `"${key}"`;
+  const markerIndex = source.indexOf(marker);
+  if (markerIndex === -1) return '';
+
+  const colonIndex = source.indexOf(':', markerIndex + marker.length);
+  if (colonIndex === -1) return '';
+
+  let quoteIndex = -1;
+  for (let index = colonIndex + 1; index < source.length; index++) {
+    const ch = source[index];
+    if (ch === '"') {
+      quoteIndex = index;
+      break;
+    }
+    if (!/\s/.test(ch)) break;
+  }
+  if (quoteIndex === -1) return '';
+
+  let result = '';
+  let escapeNext = false;
+  for (let index = quoteIndex + 1; index < source.length; index++) {
+    const ch = source[index];
+
+    if (escapeNext) {
+      result += ch;
+      escapeNext = false;
+      continue;
+    }
+
+    if (ch === '\\') {
+      escapeNext = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      return result.trim();
+    }
+
+    if ((ch === '\n' || ch === '\r') && /^\s*(?:[}"{]|"(?:mode|lead|timeHint|message|closingLine|summary|analysis|action)")/.test(source.slice(index + 1))) {
+      break;
+    }
+
+    result += ch;
+  }
+
+  return result.trim();
+}
+
+function salvageMalformedStructuredPayload(rawText = '') {
+  const source = String(rawText || '').trim();
+  if (!source || !looksLikeStructuredKimonOutput(source)) return null;
+
+  const salvaged = {
+    mode: extractLooseStringField(source, 'mode') || 'interpretation',
+    summary: extractLooseStringField(source, 'summary') || extractLooseStringField(source, 'lead'),
+    analysis: extractLooseStringField(source, 'analysis') || extractLooseStringField(source, 'message'),
+    action: extractLooseStringField(source, 'action') || extractLooseStringField(source, 'closingLine'),
+    quickTake: '',
+    timeHint: extractLooseStringField(source, 'timeHint'),
+    lead: '',
+    message: '',
+    closingLine: '',
+  };
+
+  if (!salvaged.summary && !salvaged.analysis && !salvaged.action && !salvaged.timeHint) {
+    return {
+      mode: 'interpretation',
+      summary: 'Kymon đang ghép lại câu trả lời cho bạn.',
+      analysis: 'Câu trả lời vừa rồi bị gãy nhịp ở phía hệ thống, nên mình chưa muốn kết luận theo kiểu nửa vời.',
+      action: 'Bạn hỏi lại ngắn hơn một lần nữa nhé.',
+      quickTake: '',
+      timeHint: '',
+      lead: '',
+      message: '',
+      closingLine: '',
+    };
+  }
+
+  return salvaged;
 }
 
 function createFallbackPayload(rawText = '') {
-  const message = String(rawText).trim() || 'Kymon chưa trả về nội dung rõ ràng.';
+  const source = String(rawText).trim();
+  const message = looksLikeStructuredKimonOutput(source)
+    ? 'Kymon đang ghép lại câu trả lời, bạn hỏi lại ngắn hơn một lần nữa nhé.'
+    : source || 'Kymon chưa trả về nội dung rõ ràng.';
   return {
+    mode: 'interpretation',
+    summary: '',
+    analysis: '',
+    action: '',
+    quickTake: '',
+    timeHint: '',
+    lead: '',
+    message,
+    closingLine: '',
+    traLoiTrucTiep: message,
+    thoiDiemGoiY: '',
     tongQuan: message,
     tamLy: {
       trangThai: '',
@@ -34,11 +215,72 @@ function normalizeKimonPayload(parsed, rawText = '') {
 
   const normalized = { ...parsed };
 
-  if (typeof normalized.message === 'string' && !normalized.tongQuan) {
+  normalized.mode = typeof normalized.mode === 'string' ? normalized.mode : 'interpretation';
+  normalized.summary = typeof normalized.summary === 'string' ? normalized.summary : '';
+  normalized.analysis = typeof normalized.analysis === 'string' ? normalized.analysis : '';
+  normalized.action = typeof normalized.action === 'string' ? normalized.action : '';
+  normalized.lead = typeof normalized.lead === 'string' ? normalized.lead : '';
+  normalized.quickTake = typeof normalized.quickTake === 'string' ? normalized.quickTake : '';
+  normalized.timeHint = typeof normalized.timeHint === 'string' ? normalized.timeHint : '';
+  normalized.message = typeof normalized.message === 'string' ? normalized.message : '';
+  normalized.closingLine = typeof normalized.closingLine === 'string' ? normalized.closingLine : '';
+
+  if (!normalized.summary) normalized.summary = normalized.quickTake || normalized.lead || '';
+  if (!normalized.analysis) {
+    normalized.analysis = normalized.message || '';
+    if (!normalized.analysis && normalized.timeHint) normalized.analysis = `Thời điểm: ${normalized.timeHint}`;
+  }
+  if (!normalized.action) normalized.action = normalized.closingLine || '';
+
+  if (!normalized.lead) normalized.lead = normalized.summary;
+  if (!normalized.quickTake) normalized.quickTake = normalized.summary;
+  if (!normalized.message) normalized.message = normalized.analysis;
+  if (!normalized.closingLine) normalized.closingLine = normalized.action;
+
+  if (!normalized.message) {
+    const compositeMessage = [normalized.lead, normalized.quickTake, normalized.timeHint, normalized.closingLine]
+      .filter(Boolean)
+      .join('\n\n');
+    if (compositeMessage) normalized.message = compositeMessage;
+  }
+
+  if (typeof normalized.traLoiTrucTiep !== 'string') {
+    normalized.traLoiTrucTiep = normalized.message || normalized.lead || normalized.quickTake || '';
+  }
+
+  if (typeof normalized.thoiDiemGoiY !== 'string') {
+    normalized.thoiDiemGoiY = normalized.timeHint || '';
+  }
+
+  if (normalized.message && !normalized.traLoiTrucTiep) {
+    normalized.traLoiTrucTiep = normalized.message;
+  }
+
+  if (normalized.message && !normalized.tongQuan) {
     normalized.tongQuan = normalized.message;
   }
 
-  if (!normalized.tongQuan && rawText) {
+  if (normalized.timeHint && !normalized.thoiDiemGoiY) {
+    normalized.thoiDiemGoiY = normalized.timeHint;
+  }
+
+  if (normalized.lead && !normalized.quickTake) {
+    normalized.quickTake = normalized.lead;
+  }
+
+  if (!normalized.summary && normalized.quickTake) {
+    normalized.summary = normalized.quickTake;
+  }
+
+  if (!normalized.analysis && normalized.message) {
+    normalized.analysis = normalized.message;
+  }
+
+  if (!normalized.action && normalized.closingLine) {
+    normalized.action = normalized.closingLine;
+  }
+
+  if (!normalized.tongQuan && !normalized.traLoiTrucTiep && rawText) {
     normalized.tongQuan = String(rawText).trim();
   }
 
@@ -89,6 +331,17 @@ export function parseKimonJsonResponse(rawText = '') {
     const parsed = JSON.parse(candidate);
     return normalizeKimonPayload(parsed, rawText);
   } catch {
+    const repaired = repairJsonLikeString(rawText);
+    if (repaired) {
+      try {
+        const reparsed = JSON.parse(repaired);
+        return normalizeKimonPayload(reparsed, rawText);
+      } catch {}
+    }
+    const salvaged = salvageMalformedStructuredPayload(rawText);
+    if (salvaged) {
+      return normalizeKimonPayload(salvaged, rawText);
+    }
     return createFallbackPayload(stripMarkdownCodeFences(rawText));
   }
 }

@@ -1706,6 +1706,19 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       display: block; font-size: 0.8rem; font-weight: 600;
       color: #475569; margin-bottom: 6px;
     }
+    .kimon-section-title {
+      display: block;
+      margin: 0 0 8px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    .kimon-time-note {
+      color: #475569;
+      font-style: italic;
+    }
     .kimon-message-text { margin: 0; white-space: pre-wrap; transition: opacity 0.3s ease; }
     
     /* ══════════════════════════════════════════════════════════════════
@@ -1713,10 +1726,96 @@ function generateHTML(date, hour, minute = 0, options = {}) {
        ══════════════════════════════════════════════════════════════════ */
 
     /* Response container */
-    .kimon-response {
+    .kimon-response,
+    .kimon-response-container {
       font-size: 1rem;
       line-height: 1.8;
       color: #334155;
+    }
+
+    .kimon-quick-take {
+      margin: 0 0 14px 0;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e3a8a;
+      line-height: 1.6;
+    }
+
+    .kimon-time-hint {
+      margin: 0 0 16px 0;
+      color: #475569;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .kimon-message-flow {
+      color: #334155;
+      line-height: 1.8;
+    }
+
+    .kimon-closing-line {
+      margin-top: 18px;
+      color: #475569;
+      font-weight: 600;
+      line-height: 1.7;
+    }
+
+    .kymon-layout-v3 {
+      color: #334155;
+    }
+
+    .kymon-summary-box {
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e3a8a;
+      line-height: 1.7;
+    }
+
+    .kymon-analysis-flow {
+      color: #334155;
+      line-height: 1.8;
+      white-space: normal;
+    }
+
+    .kymon-action-footer {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      color: #475569;
+      font-weight: 600;
+      line-height: 1.75;
+    }
+
+    .kymon-footer-action {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .kymon-footer-action p {
+      margin: 8px 0 0;
+      color: #475569;
+      font-weight: 600;
+      line-height: 1.7;
+    }
+
+    .action-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
     /* Paragraphs - clean spacing for story flow */
@@ -1882,6 +1981,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       line-height: 1.5;
       border-top: 1px solid #e2e8f0;
       margin-top: 8px;
+    }
+    .kimon-tip-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 6px;
+      font-size: 0.95rem;
     }
     .kimon-tip strong { color: #64748b; }
     .kimon-thinking-dots {
@@ -2093,7 +2199,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
               <p class="kimon-paragraph">Chào bạn! Tôi là Kymon. Hãy hỏi tôi bất cứ điều gì về năng lượng hiện tại, công việc, tình cảm, hay quyết định bạn đang cân nhắc.</p>
             </div>
             <div class="kimon-tip">
-              <strong>Mẹo:</strong> Hỏi về một việc cụ thể sẽ cho kết quả chính xác nhất. Ví dụ: "Tôi có nên ký hợp đồng này hôm nay không?" thay vì "Hôm nay thế nào?"
+              <span class="kimon-tip-icon" aria-hidden="true">💡</span><strong>Mẹo:</strong> Hãy nghĩ tới đúng vấn đề bạn đang vướng, rồi hỏi thật rõ. Càng cụ thể, Kymon càng luận sát. Ví dụ: "Tôi có nên ký hợp đồng này hôm nay không?" sẽ tốt hơn "Hôm nay thế nào?"
             </div>
             <div class="kimon-thinking" id="kimonThinking">
               <div class="kimon-thinking-dots"><span></span><span></span><span></span></div>
@@ -2101,8 +2207,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             </div>
           </div>
           <!-- Claude-like: no suggestions, just clean chat -->
-          <form id="kimonChatForm" class="kimon-input-area" novalidate onsubmit="if(event){event.preventDefault();event.stopPropagation();} if(window.__kymonSend){window.__kymonSend(event);} return false;">
-            <input type="text" id="kimonContext" class="kimon-input" placeholder="Hỏi Kymon bất cứ điều gì...">
+          <form id="kimonChatForm" class="kimon-input-area" novalidate autocomplete="off" onsubmit="if(event){event.preventDefault();event.stopPropagation();} if(window.__kymonSend){window.__kymonSend(event);} return false;">
+            <input type="text" id="kimonContext" name="kimon_context_input" class="kimon-input" placeholder="Hỏi Kymon bất cứ điều gì..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" data-lpignore="true" enterkeyhint="send">
             <button id="kimonBtn" class="kimon-send-btn" title="Gửi" type="submit">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
@@ -2299,7 +2405,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
 
     function formatKimonRichText(raw) {
-      let formatted = escapeHTML(raw || '');
+      let normalized = String(raw || '');
+      normalized = normalized.split('\\\\r\\\\n').join('\\n');
+      normalized = normalized.split('\\\\n').join('\\n');
+      let formatted = escapeHTML(normalized);
       formatted = replaceDelimitedPairs(formatted, '**', '<strong>', '</strong>');
       formatted = replaceDelimitedPairs(formatted, '*', '<em>', '</em>');
       return formatted.split('\\n').join('<br>');
@@ -2593,26 +2702,65 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       setTimeout(() => { kimonError.style.display = 'none'; }, 8000);
     }
 
-    // Hàm giúp trích xuất JSON sạch từ phản hồi của AI
-    function cleanAiResponse(rawText) {
-      try {
+    async function callKimonJsonFallback({ qmdjData, userContext, onDone, signal }) {
+      function extractFirstJsonBlockText(rawText) {
         const source = String(rawText || '').trim();
         const start = source.indexOf('{');
-        const end = source.lastIndexOf('}');
-        if (start !== -1 && end !== -1 && end > start) {
-          const parsed = JSON.parse(source.slice(start, end + 1));
-          console.log('[Kimon] Parsed JSON:', Object.keys(parsed));
-          return parsed;
-        }
-        return JSON.parse(source);
-      } catch (e) {
-        console.error("[Kimon] JSON parse error:", e.message);
-        console.error("[Kimon] Raw text:", rawText?.substring(0, 300));
-        return null;
-      }
-    }
+        if (start === -1) return source;
 
-    async function callKimonJsonFallback({ qmdjData, userContext, onDone, signal }) {
+        let depth = 0;
+        let inString = false;
+        let escapeNext = false;
+
+        for (let index = start; index < source.length; index++) {
+          const ch = source[index];
+
+          if (escapeNext) {
+            escapeNext = false;
+            continue;
+          }
+
+          if (ch === '\\\\') {
+            escapeNext = true;
+            continue;
+          }
+
+          if (ch === '"') {
+            inString = !inString;
+            continue;
+          }
+
+          if (inString) continue;
+
+          if (ch === '{') depth++;
+          if (ch === '}') {
+            depth--;
+            if (depth === 0) {
+              return source.slice(start, index + 1).trim();
+            }
+          }
+        }
+
+        return source.slice(start).trim();
+      }
+
+      function parseKimonResponseText(rawText) {
+        const source = String(rawText || '').trim();
+        if (!source) return null;
+        try {
+          return JSON.parse(source);
+        } catch {}
+
+        const firstJsonBlock = extractFirstJsonBlockText(source);
+        if (!firstJsonBlock) return null;
+
+        try {
+          return JSON.parse(firstJsonBlock);
+        } catch {
+          return null;
+        }
+      }
+
       const res = await fetch('/api/kimon', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2620,13 +2768,18 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         signal,
       });
 
+      const responseText = await res.text();
+      const data = parseKimonResponseText(responseText);
+
       if (!res.ok) {
-        throw new Error('Fallback lỗi (' + res.status + ')');
+        throw new Error((data && data.error) || ('Fallback lỗi (' + res.status + ')'));
       }
 
-      const data = await res.json();
       if (data?.error) {
         throw new Error(data.error);
+      }
+      if (!data || typeof data !== 'object') {
+        throw new Error('Dữ liệu không hợp lệ');
       }
       if (onDone) onDone(data || null);
       return data;
@@ -2662,9 +2815,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     function hasRenderableValue(value) {
       if (!value) return false;
-      if (typeof value === 'string') return Boolean(value.trim());
-      if (Array.isArray(value)) return value.some(item => typeof item === 'string' ? item.trim() : Boolean(item));
-      if (typeof value === 'object') return Object.values(value).some(item => typeof item === 'string' ? item.trim() : Boolean(item));
+      if (typeof value === 'string') return value.trim().length > 0;
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'object') return Object.values(value).some(hasRenderableValue);
       return true;
     }
 
@@ -2708,184 +2861,55 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       container.appendChild(sec);
     }
 
-    // SSE stream helper — buffers chunks privately and resolves only when parsed output is ready
-    async function callKimonStream({ qmdjData, userContext, onDone }) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000);
-      try {
-        const res = await fetch('/api/kimon/stream', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ qmdjData, userContext }),
-          signal: controller.signal,
-        });
-        if (!res.ok || !res.body) throw new Error('Stream lỗi (' + res.status + ')');
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = '';
-        let rawStreamText = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split('\\n');
-          buf = lines.pop();
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            try {
-              const msg = JSON.parse(line.slice(6));
-              if (msg.__ERROR__) throw new Error(msg.__ERROR__);
-              if (msg.__DONE__) {
-                let parsed = msg.parsed;
-                // Fallback: cleanAiResponse - extract JSON from any text
-                if (!parsed && msg.raw) {
-                  parsed = cleanAiResponse(msg.raw);
-                }
-                if (!parsed && rawStreamText) {
-                  parsed = cleanAiResponse(rawStreamText);
-                }
-                if (onDone) onDone(parsed || null);
-                clearTimeout(timeoutId);
-                return parsed;
-              }
-              if (msg.chunk) {
-                rawStreamText += msg.chunk;
-              }
-            } catch(e) { if (e.message && !e.message.startsWith('Unexpected')) throw e; }
-          }
-        }
-        clearTimeout(timeoutId);
-        return null;
-      } catch (streamErr) {
-        clearTimeout(timeoutId);
-        console.warn('[Kimon] Stream failed, fallback to JSON route:', streamErr.message);
-        return callKimonJsonFallback({ qmdjData, userContext, onDone });
+    function appendNarrativeSection(container, typables, label, text, className = 'kimon-paragraph') {
+      if (!hasRenderableValue(text)) return;
+      const sec = document.createElement('div');
+      sec.className = 'kimon-section';
+      if (label) {
+        const lbl = document.createElement('strong');
+        lbl.className = 'kimon-section-title';
+        lbl.textContent = label;
+        sec.appendChild(lbl);
       }
+      const p = document.createElement('p');
+      p.className = className;
+      sec.appendChild(p);
+      typables.push({ el: p, text: String(text) });
+      container.appendChild(sec);
     }
 
-    function renderParsedSections(container, data, keys) {
+    function renderParsedSections(container, data) {
       container.innerHTML = '';
-      const typables = [];
-      const handledKeys = new Set(['tongQuan', 'chienLuoc', 'tamLy', 'hanhDong', 'kimonQuote', 'message']);
-      
-      // Kymon Clean UI — Flowing story style, no bullets
-      if (data.tongQuan || data.chienLuoc || data.tamLy || data.hanhDong || data.kimonQuote) {
-        container.className = 'kimon-response';
+      container.className = 'kymon-layout-v3';
 
-        // 1. Opening paragraph (tongQuan)
-        if (data.tongQuan) {
-          const p = document.createElement('p');
-          p.className = 'kimon-paragraph';
-          container.appendChild(p);
-          typables.push({ el: p, text: data.tongQuan });
-        }
+      const summaryText = data?.summary || data?.quickTake || data?.lead || '';
+      const analysisText = data?.analysis || data?.message || [
+        data?.timeHint ? 'Thời điểm: ' + data.timeHint : '',
+      ].filter(hasRenderableValue).join('\\n\\n');
+      const actionText = data?.action || data?.closingLine || '';
 
-        // 2. Strategy content as paragraph
-        if (data.chienLuoc?.noiDung) {
-          const p = document.createElement('p');
-          p.className = 'kimon-paragraph';
-          container.appendChild(p);
-          typables.push({ el: p, text: data.chienLuoc.noiDung });
-        }
-
-        // 3. TamLy as flowing paragraph (combine all items)
-        if (data.tamLy && (data.tamLy.trangThai || data.tamLy.dongChay || data.tamLy.loiKhuyen)) {
-          const items = [data.tamLy.trangThai, data.tamLy.dongChay, data.tamLy.loiKhuyen].filter(Boolean);
-          if (items.length > 0) {
-            const p = document.createElement('p');
-            p.className = 'kimon-paragraph';
-            container.appendChild(p);
-            typables.push({ el: p, text: items.join(' ') });
-          }
-        }
-
-        // 4. Actions as separate paragraphs (no bullets)
-        if (data.hanhDong && Array.isArray(data.hanhDong) && data.hanhDong.length > 0) {
-          data.hanhDong.forEach(action => {
-            const p = document.createElement('p');
-            p.className = 'kimon-paragraph';
-            container.appendChild(p);
-            typables.push({ el: p, text: action });
-          });
-        }
-
-        // 5. Closing quote
-        if (data.kimonQuote) {
-          const quote = document.createElement('div');
-          quote.className = 'kimon-quote';
-          container.appendChild(quote);
-          typables.push({ el: quote, text: data.kimonQuote });
-        }
-
-        Object.entries(data)
-          .filter(([key, value]) => !handledKeys.has(key) && hasRenderableValue(value))
-          .forEach(([key, value]) => appendGenericKimonSection(container, typables, key, value));
-      } else {
-        // Fallback for old/simple JSON schema
-        keys.forEach(({ key, label }) => {
-          const val = data[key];
-          if (!val) return;
-          const sec = document.createElement('div');
-          sec.className = 'kimon-section';
-          if (label) {
-            const lbl = document.createElement('strong');
-            lbl.className = 'kimon-section-label';
-            lbl.textContent = label;
-            sec.appendChild(lbl);
-          }
-          if (Array.isArray(val)) {
-            const ol = document.createElement('ol');
-            ol.style.cssText = 'margin:0; padding-left:1.2em; list-style-type:decimal;';
-            val.forEach(step => {
-              const li = document.createElement('li');
-              li.className = 'kimon-message-text';
-              ol.appendChild(li);
-              typables.push({ el: li, text: step });
-            });
-            sec.appendChild(ol);
-          } else if (typeof val === 'object' && val !== null) {
-            const p = document.createElement('p');
-            p.className = 'kimon-message-text';
-            sec.appendChild(p);
-            const combinedText = Object.values(val).filter(Boolean).join('\\n\\n');
-            typables.push({ el: p, text: combinedText });
-          } else {
-            const p = document.createElement('p');
-            p.className = 'kimon-message-text';
-            sec.appendChild(p);
-            typables.push({ el: p, text: val });
-          }
-          container.appendChild(sec);
-        });
-
-        Object.entries(data)
-          .filter(([key, value]) => !keys.some(item => item.key === key) && !handledKeys.has(key) && hasRenderableValue(value))
-          .forEach(([key, value]) => appendGenericKimonSection(container, typables, key, value));
+      if (summaryText) {
+        const summaryBox = document.createElement('div');
+        summaryBox.className = 'kymon-summary-box';
+        summaryBox.innerHTML = '<strong>💡 Kết luận:</strong> ' + formatKimonRichText(summaryText);
+        container.appendChild(summaryBox);
       }
 
-      let tIdx = 0; let cIdx = 0;
-      function typeNext() {
-        if (tIdx >= typables.length) {
-          smartScroll(); // Final scroll when done
-          return;
-        }
-        const curr = typables[tIdx];
-        curr._raw = curr._raw || '';
-        if (cIdx < curr.text.length) {
-          curr._raw += curr.text.charAt(cIdx);
-          curr.el.innerHTML = formatKimonRichText(curr._raw);
-          cIdx++;
-          smartScroll(); // Allow user to scroll up while reading
-          setTimeout(typeNext, 8);
-        } else {
-          tIdx++;
-          cIdx = 0;
-          setTimeout(typeNext, 50);
-        }
+      if (analysisText) {
+        const analysisBox = document.createElement('div');
+        analysisBox.className = 'kymon-analysis-flow';
+        analysisBox.innerHTML = formatKimonRichText(analysisText);
+        container.appendChild(analysisBox);
       }
-      typeNext();
+
+      if (actionText) {
+        const actionBox = document.createElement('div');
+        actionBox.className = 'kymon-action-footer';
+        actionBox.innerHTML = '<strong>🎯 Hành động:</strong> ' + formatKimonRichText(actionText);
+        container.appendChild(actionBox);
+      }
+
+      smartScroll();
     }
 
     let isKimonFetching = false;
@@ -2894,7 +2918,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     localStorage.removeItem('kimon_rate_limit');
 
     const CACHE_EXPIRE_MS = 3600000; // 1 hour cache
-    const KYMON_CACHE_VERSION = 'v2-markdown';
+    const KYMON_CACHE_VERSION = 'v3-json-final';
 
     function getCachedKimon(cacheKey) {
       try {
@@ -2922,22 +2946,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       if (cached) {
         try {
           const bubble = createMessageBubble(true);
-            const keys = cached.tongQuan ? [
-              { key: 'tongQuan', label: '' },
-              { key: 'chienLuoc', label: '🚩 Chiến Lược' },
-              { key: 'tamLy', label: '🧠 Tâm Trí & Năng Lượng' },
-              { key: 'hanhDong', label: '📋 Hành Động' },
-              { key: 'kimonQuote', label: '🎯 Góc Nhìn Kymon' },
-            ] : [
-              { key: 'chienLuoc', label: '' },
-              { key: 'kyThuat', label: '🔍 Phân Tích' },
-              { key: 'nangLuong', label: '' },
-              { key: 'loiKhuyen', label: '📋 Hành Động' },
-              { key: 'gocNhinKymon', label: '🎯 Góc Nhìn Kymon' },
-            ];
-            renderParsedSections(bubble, cached, keys);
-          if (cached.suggestedQuestions?.length) renderSuggestions(cached.suggestedQuestions);
-          else if (cached.suggestions?.length) renderSuggestions(cached.suggestions);
+          renderParsedSections(bubble, cached);
           kimonMessages.appendChild(bubble);
           hideThinking();
           kimonMessages.scrollTop = kimonMessages.scrollHeight;
@@ -2949,35 +2958,18 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       showThinking();
 
       try {
-        await callKimonStream({
+        const data = await callKimonJsonFallback({
           qmdjData: qData,
           userContext: '__AUTO_LOAD__',
-          onDone: (data) => {
-            const bubble = createMessageBubble(true);
-            kimonMessages.appendChild(bubble);
-            if (!data) {
-              bubble.innerHTML = '<p class="kimon-error-inline">Không thể phân tích phản hồi. Vui lòng thử lại.</p>';
-              return;
-            }
-            setCachedKimon(cacheKey, data);
-            const keys = data.tongQuan ? [
-              { key: 'tongQuan', label: '' },
-              { key: 'chienLuoc', label: '🚩 Chiến Lược' },
-              { key: 'tamLy', label: '🧠 Tâm Trí & Năng Lượng' },
-              { key: 'hanhDong', label: '📋 Hành Động' },
-              { key: 'kimonQuote', label: '🎯 Góc Nhìn Kymon' },
-            ] : [
-              { key: 'chienLuoc', label: '' },
-              { key: 'kyThuat', label: '🔍 Phân Tích' },
-              { key: 'nangLuong', label: '' },
-              { key: 'loiKhuyen', label: '📋 Hành Động' },
-              { key: 'gocNhinKymon', label: '🎯 Góc Nhìn Kymon' },
-            ];
-            renderParsedSections(bubble, data, keys);
-            if (data.suggestedQuestions?.length) renderSuggestions(data.suggestedQuestions);
-            else if (data.suggestions?.length) renderSuggestions(data.suggestions);
-          }
         });
+        const bubble = createMessageBubble(true);
+        kimonMessages.appendChild(bubble);
+        if (!data) {
+          bubble.innerHTML = '<p class="kimon-error-inline">Không thể phân tích phản hồi. Vui lòng thử lại.</p>';
+          return;
+        }
+        setCachedKimon(cacheKey, data);
+        renderParsedSections(bubble, data);
       } catch(e) {
         console.error('Lỗi autoLoadKimon:', e);
         const errMsg = e.message || 'Lỗi kết nối';
@@ -3033,33 +3025,18 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           selectedTopic: currentTopic.chipLabel || 'chung'
         } : base;
 
-        await callKimonStream({
+        const data = await callKimonJsonFallback({
           qmdjData: payload,
           userContext: promptToSend,
-          onDone: (data) => {
-            const aiBubble = createMessageBubble(true);
-            kimonMessages.appendChild(aiBubble);
-            if (!data) {
-              aiBubble.innerHTML = '<p class="kimon-error-inline">Không thể phân tích phản hồi.</p>';
-              return;
-            }
-            const keys = data.tongQuan ? [
-              { key: 'tongQuan', label: '' },
-              { key: 'chienLuoc', label: '🚩 Chiến Lược' },
-              { key: 'tamLy', label: '🧠 Tâm Trí & Năng Lượng' },
-              { key: 'hanhDong', label: '📋 Hành Động' },
-              { key: 'kimonQuote', label: '🎯 Góc Nhìn Kymon' },
-            ] : [
-              { key: 'chienLuoc', label: '' },
-              { key: 'kyThuat', label: '🔍 Phân Tích' },
-              { key: 'nangLuong', label: '' },
-              { key: 'loiKhuyen', label: '📋 Hành Động' },
-              { key: 'gocNhinKymon', label: '🎯 Góc Nhìn Kymon' },
-            ];
-            renderParsedSections(aiBubble, data, keys);
-            kimonMessages.scrollTop = kimonMessages.scrollHeight;
-          }
         });
+        const aiBubble = createMessageBubble(true);
+        kimonMessages.appendChild(aiBubble);
+        if (!data) {
+          aiBubble.innerHTML = '<p class="kimon-error-inline">Không thể phân tích phản hồi.</p>';
+          return;
+        }
+        renderParsedSections(aiBubble, data);
+        kimonMessages.scrollTop = kimonMessages.scrollHeight;
       } catch(e) {
         console.error('Lỗi askKimon:', e);
         const errMsg = e.message || 'Lỗi kết nối. Vui lòng thử lại sau.';
@@ -3123,7 +3100,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       // Add tip about how to ask questions
       const tip = document.createElement('div');
       tip.className = 'kimon-tip';
-      tip.innerHTML = '<strong>Mẹo:</strong> Hỏi về một việc cụ thể sẽ cho kết quả chính xác nhất. Ví dụ: "Tôi có nên ký hợp đồng này hôm nay không?" thay vì "Hôm nay thế nào?"';
+      tip.innerHTML = '<span class="kimon-tip-icon" aria-hidden="true">💡</span><strong>Mẹo:</strong> Hãy nghĩ tới đúng vấn đề bạn đang vướng, rồi hỏi thật rõ. Càng cụ thể, Kymon càng luận sát. Ví dụ: "Tôi có nên ký hợp đồng này hôm nay không?" sẽ tốt hơn "Hôm nay thế nào?"';
       kimonMessages.appendChild(tip);
     }
 
@@ -3275,7 +3252,7 @@ export default function handler(req, res) {
           systemInstruction,
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 4096,
+            maxOutputTokens: 2048,
             responseMimeType: 'application/json',
           },
           safetySettings: [
@@ -3351,7 +3328,7 @@ export default function handler(req, res) {
           systemInstruction: buildKimonSystemInstruction(),
           generationConfig: {
             responseMimeType: 'application/json',
-            maxOutputTokens: 512,
+            maxOutputTokens: 2048,
           }
         });
         const prompt = buildKimonPrompt({ qmdjData, userContext, isAutoLoad });
