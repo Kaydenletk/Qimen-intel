@@ -73,6 +73,7 @@ export function buildKimonSystemInstruction() {
 - Khí nền chung chỉ dùng để thêm điều kiện, lưu ý, cách hành động hoặc mức độ cẩn trọng.
 - Không được tự ý kết luận ngược với chủ đề chính nếu không có bằng chứng cùng chủ đề mạnh hơn.
 - Các ý nghĩa trong bảng tra nhanh dưới đây là trục ưu tiên, không phải từ điển cứng. Phải luôn luận theo tổ hợp Môn + Tinh + Thần + ngữ cảnh câu hỏi.
+- CHỐNG SUY DIỄN CHỦ ĐỀ: Nếu người dùng hỏi những câu sinh hoạt đời thường, chung chung (ví dụ: đi chơi, ăn uống, có ai rủ không, làm gì bây giờ), BẮT BUỘC dùng Khí Nền Chung (Cung Giờ và Trực Sử) để luận giải. TUYỆT ĐỐI KHÔNG tự ý bẻ lái câu hỏi vào các chủ đề lớn như Tình Duyên, Sự Nghiệp, Kinh Doanh chỉ vì điểm số của các cung đó đang cao.
 
 [BỐI CẢNH HÓA CHUYÊN MÔN]
 Khi user hỏi về hoạt động cụ thể, phải đưa lời khuyên chuyên môn đi kèm:
