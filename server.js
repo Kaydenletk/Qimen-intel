@@ -687,6 +687,22 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kymon · QMDJ Engine</title>
+  <script>
+    (() => {
+      const THEME_STORAGE_KEY = 'kymon_theme';
+      const hour = new Date().getHours();
+      const autoTheme = (hour >= 19 || hour < 7) ? 'dark' : 'light';
+      let theme = autoTheme;
+      try {
+        const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+          theme = savedTheme;
+        }
+      } catch {}
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+    })();
+  </script>
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -696,19 +712,182 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       --bg: #F8FAFC;
       --card: #FFFFFF;
       --border: #E2E8F0;
+      --border-strong: #D1D5DB;
       --text: #1E293B;
+      --text-soft: #334155;
       --muted: #64748B;
       --cat: #10B981;
       --hung: #F43F5E;
       --info: #3B82F6;
       --code-bg: #F1F5F9;
       --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+      --shadow-soft: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+      --surface-soft: #F7F7F7;
+      --surface-softer: #F1F5F9;
+      --surface-muted: #E5E7EB;
+      --surface-highlight: #EFF6FF;
+      --surface-highlight-border: #BFDBFE;
+      --surface-highlight-text: #1E3A8A;
+      --loader-bg: #F8FAFC;
+      --loader-title: #0F172A;
+      --loader-text: #64748B;
+      --control-bg: #FFFFFF;
+      --control-border: #E2E8F0;
+      --control-text: #1E293B;
+      --input-bg: #F1F5F9;
+      --input-border: transparent;
+      --input-focus-bg: #FFFFFF;
+      --input-focus-border: #CBD5E1;
+      --input-text: #1E293B;
+      --input-placeholder: #94A3B8;
+      --tooltip-bg: #0F172A;
+      --tooltip-text: #F8FAFC;
+      --tooltip-border: rgba(148, 163, 184, 0.3);
+      --tooltip-shadow: 0 12px 24px rgba(15, 23, 42, 0.25);
+      --energy-card-bg: linear-gradient(135deg, #FEFCE8 0%, #FEF9C3 100%);
+      --energy-card-border: #FCD34D;
+      --energy-card-title: #92400E;
+      --energy-sentence-bg: rgba(255, 255, 255, 0.7);
+      --energy-sentence-border: rgba(251, 191, 36, 0.3);
+      --energy-label-text: #92400E;
+      --energy-paragraph-text: #451A03;
+      --energy-tag-bg: rgba(255, 255, 255, 0.8);
+      --energy-tag-border: rgba(251, 191, 36, 0.4);
+      --energy-tag-text: #78350F;
+      --topic-chip-bg: #FFFFFF;
+      --topic-chip-hover-border: #BFDBFE;
+      --insight-card-bg: #FFFFFF;
+      --score-track-bg: #E2E8F0;
+      --table-head-bg: #F8FAFC;
+      --table-row-border: #EEF2F7;
+      --time-strip-bg: #FFFFFF;
+      --time-strip-border: #D1D5DB;
+      --palace-board-border: #D1D5DB;
+      --palace-bright: #FFFFFF;
+      --palace-neutral: #F7F7F7;
+      --palace-soft-dark: #F1F1F1;
+      --palace-dark: #E5E7EB;
+      --palace-chip-bg: #F7F7F7;
+      --palace-chip-border: #D1D5DB;
+      --palace-chip-text: #374151;
+      --palace-num-border: #E5E7EB;
+      --palace-text: #1F2937;
+      --palace-hot-text: #DC2626;
+      --palace-earth-text: #991B1B;
+      --palace-center-time: #991B1B;
+      --badge-bg: #FFFFFF;
+      --badge-border: #D1D5DB;
+      --badge-text: #1F2937;
+      --kimon-container-bg: #FFFFFF;
+      --kimon-container-border: #E2E8F0;
+      --kimon-container-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+      --kimon-ai-text: #1E293B;
+      --kimon-user-bubble-bg: #1E293B;
+      --kimon-user-bubble-border: #1E293B;
+      --kimon-user-bubble-text: #FFFFFF;
+      --kimon-meta-text: #94A3B8;
+      --kimon-tip-border: #E2E8F0;
+      --scrollbar-thumb: #CBD5E1;
+      --scrollbar-thumb-hover: #94A3B8;
+      --error-bg: #FEF2F2;
+      --error-border: #FECACA;
+      --error-text: #DC2626;
+      --theme-toggle-bg: #FFFFFF;
+      --theme-toggle-border: #D1D5DB;
+      --theme-toggle-icon: #334155;
+      --theme-toggle-ring: rgba(59, 130, 246, 0.18);
+    }
+    html[data-theme="dark"] {
+      --bg: #0B1220;
+      --card: #111827;
+      --border: #243041;
+      --border-strong: #334155;
+      --text: #E5EEF8;
+      --text-soft: #CBD5E1;
+      --muted: #94A3B8;
+      --code-bg: #131C2D;
+      --shadow: 0 16px 40px rgba(2, 6, 23, 0.42);
+      --shadow-soft: 0 14px 42px rgba(2, 6, 23, 0.46);
+      --surface-soft: #162032;
+      --surface-softer: #1B2537;
+      --surface-muted: #223046;
+      --surface-highlight: #13233D;
+      --surface-highlight-border: #2E4F78;
+      --surface-highlight-text: #DBEAFE;
+      --loader-bg: #08111F;
+      --loader-title: #F8FAFC;
+      --loader-text: #94A3B8;
+      --control-bg: #0F172A;
+      --control-border: #334155;
+      --control-text: #E5EEF8;
+      --input-bg: #0F172A;
+      --input-border: #243041;
+      --input-focus-bg: #111C2F;
+      --input-focus-border: #3B82F6;
+      --input-text: #E5EEF8;
+      --input-placeholder: #64748B;
+      --tooltip-bg: #020817;
+      --tooltip-text: #E2E8F0;
+      --tooltip-border: rgba(148, 163, 184, 0.22);
+      --tooltip-shadow: 0 16px 30px rgba(2, 6, 23, 0.45);
+      --energy-card-bg: linear-gradient(135deg, rgba(120, 53, 15, 0.28) 0%, rgba(113, 63, 18, 0.2) 100%);
+      --energy-card-border: #A16207;
+      --energy-card-title: #FCD34D;
+      --energy-sentence-bg: rgba(15, 23, 42, 0.38);
+      --energy-sentence-border: rgba(245, 158, 11, 0.22);
+      --energy-label-text: #FBBF24;
+      --energy-paragraph-text: #FDE68A;
+      --energy-tag-bg: rgba(15, 23, 42, 0.42);
+      --energy-tag-border: rgba(245, 158, 11, 0.22);
+      --energy-tag-text: #FCD34D;
+      --topic-chip-bg: #111827;
+      --topic-chip-hover-border: #334155;
+      --insight-card-bg: #111827;
+      --score-track-bg: #233145;
+      --table-head-bg: #162032;
+      --table-row-border: #243041;
+      --time-strip-bg: #111827;
+      --time-strip-border: #334155;
+      --palace-board-border: #334155;
+      --palace-bright: #16283F;
+      --palace-neutral: #132237;
+      --palace-soft-dark: #101C2D;
+      --palace-dark: #0D1626;
+      --palace-chip-bg: #182235;
+      --palace-chip-border: #334155;
+      --palace-chip-text: #DBE5F2;
+      --palace-num-border: #334155;
+      --palace-text: #E5EEF8;
+      --palace-hot-text: #FCA5A5;
+      --palace-earth-text: #FECACA;
+      --palace-center-time: #FCA5A5;
+      --badge-bg: #182235;
+      --badge-border: #334155;
+      --badge-text: #DBE5F2;
+      --kimon-container-bg: #111827;
+      --kimon-container-border: #243041;
+      --kimon-container-shadow: 0 14px 42px rgba(2, 6, 23, 0.46);
+      --kimon-ai-text: #E5EEF8;
+      --kimon-user-bubble-bg: #1D2A46;
+      --kimon-user-bubble-border: #31446B;
+      --kimon-user-bubble-text: #F8FBFF;
+      --kimon-meta-text: #94A3B8;
+      --kimon-tip-border: #243041;
+      --scrollbar-thumb: #334155;
+      --scrollbar-thumb-hover: #475569;
+      --error-bg: rgba(127, 29, 29, 0.35);
+      --error-border: rgba(252, 165, 165, 0.24);
+      --error-text: #FCA5A5;
+      --theme-toggle-bg: #111827;
+      --theme-toggle-border: #334155;
+      --theme-toggle-icon: #F8FAFC;
+      --theme-toggle-ring: rgba(96, 165, 250, 0.24);
     }
     /* === INITIAL LOADER === */
     #initialLoader {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: #F8FAFC;
+      background: var(--loader-bg);
       z-index: 9999;
       display: flex;
       flex-direction: column;
@@ -776,13 +955,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     #initialLoader h1 {
       font-size: 1.75rem;
       font-weight: 600;
-      color: #0F172A;
+      color: var(--loader-title);
       margin: 0 0 8px 0;
       letter-spacing: -0.02em;
     }
     #initialLoader p {
       font-size: 1rem;
-      color: #64748B;
+      color: var(--loader-text);
       margin: 0;
       min-height: 1.6em;
       text-align: center;
@@ -826,6 +1005,14 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       align-items: flex-start;
       flex-wrap: wrap;
     }
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-left: auto;
+    }
     .app-title {
       margin: 0;
       font-size: 1.5rem;
@@ -838,6 +1025,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-size: 1rem;
     }
     .controls {
+      order: 1;
       display: flex;
       gap: 8px;
       align-items: center;
@@ -863,8 +1051,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       align-items: center;
       padding: 4px 10px;
       border-radius: 999px;
-      background: #e0f2fe;
-      color: #0369a1;
+      background: var(--surface-highlight);
+      color: var(--surface-highlight-text);
       font-weight: 700;
       letter-spacing: 0.02em;
     }
@@ -903,9 +1091,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .controls .link-btn {
       height: 40px;
       border-radius: 10px;
-      border: 1px solid var(--border);
-      background: #fff;
-      color: var(--text);
+      border: 1px solid var(--control-border);
+      background: var(--control-bg);
+      color: var(--control-text);
       padding: 0 14px;
       font-size: 0.9375rem;
       font-family: inherit;
@@ -927,6 +1115,60 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       color: var(--info);
       font-weight: 600;
     }
+    .theme-toggle {
+      order: 2;
+      width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border-radius: 999px;
+      border: 1px solid var(--theme-toggle-border);
+      background: var(--theme-toggle-bg);
+      color: var(--theme-toggle-icon);
+      cursor: pointer;
+      padding: 0;
+      box-shadow: var(--shadow);
+      transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    }
+    .theme-toggle:hover {
+      transform: translateY(-1px);
+    }
+    .theme-toggle:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px var(--theme-toggle-ring);
+    }
+    .theme-toggle svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+    .theme-toggle-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .theme-toggle .theme-icon-sun {
+      display: none;
+    }
+    html[data-theme="dark"] .theme-toggle .theme-icon-sun {
+      display: inline-flex;
+    }
+    html[data-theme="dark"] .theme-toggle .theme-icon-moon {
+      display: none;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
     .workspace {
       display: block;
     }
@@ -946,15 +1188,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .energy-flow-card {
       padding: 22px;
-      background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
-      border-color: #fcd34d;
+      background: var(--energy-card-bg);
+      border-color: var(--energy-card-border);
     }
     .energy-flow-card h2 {
       margin: 8px 0 16px;
       font-size: 1.35rem;
       letter-spacing: -0.02em;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      color: #92400e;
+      color: var(--energy-card-title);
     }
     .energy-flow-content {
       display: grid;
@@ -963,22 +1205,22 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .energy-sentence {
       padding: 12px 14px;
       border-radius: 12px;
-      background: rgba(255, 255, 255, 0.7);
-      border: 1px solid rgba(251, 191, 36, 0.3);
+      background: var(--energy-sentence-bg);
+      border: 1px solid var(--energy-sentence-border);
     }
     .energy-sentence .energy-label {
       display: block;
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #92400e;
+      color: var(--energy-label-text);
       font-weight: 700;
       margin-bottom: 4px;
     }
     .energy-sentence p {
       margin: 0;
       font-size: 1rem;
-      color: #451a03;
+      color: var(--energy-paragraph-text);
       line-height: 1.6;
     }
     .energy-mental {
@@ -1005,9 +1247,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       border-radius: 999px;
       font-size: 0.75rem;
       font-weight: 600;
-      background: rgba(255, 255, 255, 0.8);
-      color: #78350f;
-      border: 1px solid rgba(251, 191, 36, 0.4);
+      background: var(--energy-tag-bg);
+      color: var(--energy-tag-text);
+      border: 1px solid var(--energy-tag-border);
     }
     .energy-tag.energy-warning {
       background: rgba(251, 146, 60, 0.2);
@@ -1035,7 +1277,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .briefing p {
       margin: 0;
-      color: #334155;
+      color: var(--text-soft);
       font-size: 1.0625rem;
       line-height: 1.7;
       max-width: 70ch;
@@ -1075,10 +1317,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       max-width: min(360px, 85vw);
       padding: 10px 12px;
       border-radius: 10px;
-      background: #0f172a;
-      color: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.25);
+      background: var(--tooltip-bg);
+      color: var(--tooltip-text);
+      border: 1px solid var(--tooltip-border);
+      box-shadow: var(--tooltip-shadow);
       font-size: 0.78rem;
       font-weight: 500;
       line-height: 1.45;
@@ -1111,7 +1353,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .topic-chip {
       border: 1px solid var(--border);
-      background: #fff;
+      background: var(--topic-chip-bg);
       color: var(--text);
       border-radius: 999px;
       padding: 8px 13px;
@@ -1121,7 +1363,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       transition: all 0.2s ease;
     }
     .topic-chip:hover {
-      border-color: #bfdbfe;
+      border-color: var(--topic-chip-hover-border);
       color: var(--info);
     }
     .topic-chip.is-active {
@@ -1134,7 +1376,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       border: 1px solid var(--border);
       border-radius: 14px;
       padding: 16px;
-      background: #fff;
+      background: var(--insight-card-bg);
     }
     .insight-top {
       display: flex;
@@ -1184,7 +1426,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .score-track {
       height: 12px;
       border-radius: 999px;
-      background: #e2e8f0;
+      background: var(--score-track-bg);
       overflow: hidden;
     }
     .score-fill {
@@ -1199,7 +1441,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       margin-top: 14px;
       font-size: 1rem;
       line-height: 1.65;
-      color: #334155;
+      color: var(--text-soft);
     }
     .tactics-grid {
       margin-top: 12px;
@@ -1211,7 +1453,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 10px;
-      background: #fff;
+      background: var(--card);
     }
     .tactics-box.do {
       background: rgba(16, 185, 129, 0.08);
@@ -1234,12 +1476,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       display: grid;
       gap: 4px;
       font-size: 0.82rem;
-      color: #334155;
+      color: var(--text-soft);
     }
     .topic-disclaimer {
       margin-top: 10px;
       font-size: 0.8rem;
-      color: #64748B;
+      color: var(--muted);
     }
     .evidence-title {
       margin-top: 16px;
@@ -1256,7 +1498,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       padding: 12px;
       font-size: 0.82rem;
       line-height: 1.45;
-      color: #0f172a;
+      color: var(--text);
       font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
       white-space: pre-wrap;
     }
@@ -1287,7 +1529,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       justify-content: space-between;
       gap: 8px;
       font-size: 0.9rem;
-      border-bottom: 1px dashed #e2e8f0;
+      border-bottom: 1px dashed var(--border);
       padding-bottom: 7px;
     }
     .snapshot-item:last-child {
@@ -1313,7 +1555,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .expert summary {
       cursor: pointer;
       font-weight: 700;
-      color: #334155;
+      color: var(--text-soft);
       list-style: none;
     }
     .expert summary::-webkit-details-marker { display: none; }
@@ -1332,20 +1574,20 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.84rem;
-      background: #fff;
+      background: var(--card);
       border: 1px solid var(--border);
       border-radius: 12px;
       overflow: hidden;
     }
     .expert th,
     .expert td {
-      border-bottom: 1px solid #eef2f7;
+      border-bottom: 1px solid var(--table-row-border);
       padding: 8px 9px;
       text-align: left;
     }
     .expert th {
-      background: #f8fafc;
-      color: #334155;
+      background: var(--table-head-bg);
+      color: var(--text-soft);
       font-weight: 700;
     }
     .expert tr:last-child td { border-bottom: none; }
@@ -1358,6 +1600,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       .workspace { grid-template-columns: 1fr; }
       .side-column { order: -1; }
       .main-column::before { inset: 2px; }
+      .header-actions { width: 100%; }
+      .theme-toggle {
+        order: -1;
+        margin-left: auto;
+      }
       .controls { width: 100%; }
       .tactics-grid { grid-template-columns: 1fr; }
       .signal-tooltip {
@@ -1373,7 +1620,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     /* 9-Palace Grid Styles */
     .palace-grid-section {
       padding: 18px;
-      border-color: #d1d5db;
+      border-color: var(--border-strong);
     }
     .palace-grid-overview {
       order: -1;
@@ -1406,10 +1653,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .time-strip-item {
       display: grid;
       grid-template-rows: auto auto auto;
-      border: 1px solid #d1d5db;
+      border: 1px solid var(--time-strip-border);
       border-radius: 12px;
       padding: 10px 12px;
-      background: #ffffff;
+      background: var(--time-strip-bg);
     }
     .time-strip-label-row {
       display: flex;
@@ -1422,7 +1669,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-size: 0.72rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #6b7280;
+      color: var(--muted);
       font-weight: 700;
     }
     .time-strip-pillar {
@@ -1432,26 +1679,26 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       gap: 6px;
       font-size: 1rem;
       font-weight: 700;
-      color: #111827;
+      color: var(--text);
       align-items: baseline;
     }
     .time-strip-meta {
       margin-top: 4px;
       font-size: 0.72rem;
-      color: #6b7280;
+      color: var(--muted);
     }
     .palace-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 1px;
-      background: #d1d5db;
-      border: 1px solid #d1d5db;
+      background: var(--palace-board-border);
+      border: 1px solid var(--palace-board-border);
       border-radius: 16px;
       overflow: hidden;
     }
     .palace-cell {
       position: relative;
-      background: #ffffff;
+      background: var(--palace-bright);
       border: 0;
       border-radius: 0;
       padding: 10px 12px 12px;
@@ -1466,28 +1713,28 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       box-shadow: inset 0 0 0 2px rgba(31, 41, 55, 0.14);
     }
     .palace-cell.palace-tone-bright {
-      background: #ffffff;
+      background: var(--palace-bright);
     }
     .palace-cell.palace-tone-neutral {
-      background: #f7f7f7;
+      background: var(--palace-neutral);
     }
     .palace-cell.palace-tone-softDark {
-      background: #f1f1f1;
+      background: var(--palace-soft-dark);
     }
     .palace-cell.palace-tone-dark {
-      background: #e5e7eb;
+      background: var(--palace-dark);
     }
     .hour-legend {
       margin: 10px 0 14px;
       padding: 10px 12px;
       border: 1px solid var(--border);
       border-radius: 10px;
-      background: #fff;
+      background: var(--card);
     }
     .hour-legend-note {
       margin: 0;
       font-size: 0.78rem;
-      color: #6b7280;
+      color: var(--muted);
       line-height: 1.5;
     }
     .palace-header {
@@ -1518,9 +1765,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       line-height: 1;
       padding: 0 10px;
       border-radius: 999px;
-      background: #f7f7f7;
-      color: #374151;
-      border: 1px solid #d1d5db;
+      background: var(--palace-chip-bg);
+      color: var(--palace-chip-text);
+      border: 1px solid var(--palace-chip-border);
       font-weight: 700;
     }
     .temporal-badge .internal-label {
@@ -1529,13 +1776,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .palace-dir {
       font-size: 0.78rem;
       font-weight: 700;
-      color: #111827;
+      color: var(--text);
     }
     .palace-num {
       font-size: 0.65rem;
       color: var(--muted);
-      background: #f7f7f7;
-      border: 1px solid #e5e7eb;
+      background: var(--palace-chip-bg);
+      border: 1px solid var(--palace-num-border);
       padding: 2px 6px;
       border-radius: 999px;
     }
@@ -1553,26 +1800,26 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .palace-corner-top-left {
       top: 0;
       left: 0;
-      color: #1f2937;
+      color: var(--palace-text);
       font-weight: 600;
     }
     .palace-corner-top-right {
       top: 0;
       right: 0;
-      color: #dc2626;
+      color: var(--palace-hot-text);
       font-weight: 700;
       text-align: right;
     }
     .palace-corner-bottom-left {
       left: 0;
       bottom: 0;
-      color: #991b1b;
+      color: var(--palace-earth-text);
       font-weight: 700;
     }
     .palace-corner-bottom-right {
       right: 0;
       bottom: 0;
-      color: #1f2937;
+      color: var(--palace-text);
       font-weight: 700;
       text-align: right;
     }
@@ -1588,7 +1835,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       gap: 4px;
       max-width: 72%;
       text-align: center;
-      color: #111827;
+      color: var(--text);
       font-weight: 800;
     }
     .palace-center-door .display-label {
@@ -1622,9 +1869,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       line-height: 1;
       padding: 3px 8px;
       border-radius: 999px;
-      background: #ffffff;
-      color: #1f2937;
-      border: 1px solid #d1d5db;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      border: 1px solid var(--badge-border);
       font-weight: 700;
     }
     .flag-badge .internal-label {
@@ -1635,7 +1882,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       margin-top: 4px;
     }
     .palace-cell-center {
-      background: #f1f1f1;
+      background: var(--surface-soft);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1643,27 +1890,27 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .palace-cell-center .palace-dir {
       font-size: 0.9rem;
-      color: #1f2937;
+      color: var(--palace-text);
     }
     .center-time {
       font-size: 1.4rem;
       font-weight: 700;
-      color: #991b1b;
+      color: var(--palace-center-time);
       text-align: center;
       line-height: 1.1;
       margin-bottom: 2px;
     }
     .palace-corner-top-right .display-label {
-      color: #dc2626;
+      color: var(--palace-hot-text);
       font-weight: 700;
     }
     .palace-corner-bottom-left .display-label {
-      color: #991b1b;
+      color: var(--palace-earth-text);
       font-weight: 700;
     }
     .palace-corner-bottom-right .display-label,
     .palace-corner-top-left .display-label {
-      color: #1f2937;
+      color: var(--palace-text);
     }
     @media (max-width: 600px) {
       .board-time-strip {
@@ -1679,18 +1926,18 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     /* ── Kimon Chat ────────────────────────────────────────── */
     .kimon-terminal-container {
       order: -2;
-      background: #ffffff;
-      border: 1px solid #E2E8F0;
+      background: var(--kimon-container-bg);
+      border: 1px solid var(--kimon-container-border);
       border-radius: 24px;
       padding: 20px 24px;
-      box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+      box-shadow: var(--kimon-container-shadow);
       margin: 0 0 18px;
     }
     .kimon-card {
       padding: 20px;
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      border-color: #334155;
-      color: #e2e8f0;
+      border-color: var(--border-strong);
+      color: var(--text);
       margin-top: 18px;
     }
     .kimon-header {
@@ -1703,8 +1950,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       display: flex; align-items: center; justify-content: center;
       font-size: 1.1rem; flex-shrink: 0;
     }
-    .kimon-name { font-weight: 600; font-size: 1.0625rem; color: #a5b4fc; }
-    .kimon-tagline { font-size: 0.875rem; color: #64748b; }
+    .kimon-name { font-weight: 600; font-size: 1.0625rem; color: var(--surface-highlight-text); }
+    .kimon-tagline { font-size: 0.875rem; color: var(--muted); }
     .kimon-messages {
       min-height: 80px; max-height: 340px; overflow-y: auto;
       display: flex; flex-direction: column; gap: 12px;
@@ -1712,17 +1959,17 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .kimon-message { padding: 12px 14px; border-radius: 12px; font-size: 0.9375rem; line-height: 1.65; }
     .kimon-message-ai {
-      background: transparent; border: none; color: #1e293b;
+      background: transparent; border: none; color: var(--kimon-ai-text);
     }
     .kimon-message-user {
-      background: #312e81; border: 1px solid #4338ca; color: #e0e7ff;
+      background: var(--kimon-user-bubble-bg); border: 1px solid var(--kimon-user-bubble-border); color: var(--kimon-user-bubble-text);
       align-self: flex-end; border-bottom-right-radius: 4px;
     }
     .kimon-section { margin-top: 8px; }
     .kimon-section:first-child { margin-top: 0; }
     .kimon-section-label {
       display: block; font-size: 0.8rem; font-weight: 600;
-      color: #475569; margin-bottom: 6px;
+      color: var(--muted); margin-bottom: 6px;
     }
     .kimon-section-title {
       display: block;
@@ -1731,10 +1978,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: #64748b;
+      color: var(--muted);
     }
     .kimon-time-note {
-      color: #475569;
+      color: var(--muted);
       font-style: italic;
     }
     .kimon-message-text { margin: 0; white-space: pre-wrap; transition: opacity 0.3s ease; }
@@ -1748,55 +1995,55 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .kimon-response-container {
       font-size: 1rem;
       line-height: 1.8;
-      color: #334155;
+      color: var(--text-soft);
     }
 
     .kimon-quick-take {
       margin: 0 0 14px 0;
       padding: 12px 14px;
       border-radius: 14px;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      color: #1e3a8a;
+      background: var(--surface-highlight);
+      border: 1px solid var(--surface-highlight-border);
+      color: var(--surface-highlight-text);
       line-height: 1.6;
     }
 
     .kimon-time-hint {
       margin: 0 0 16px 0;
-      color: #475569;
+      color: var(--muted);
       font-size: 0.95rem;
       line-height: 1.6;
     }
 
     .kimon-message-flow {
-      color: #334155;
+      color: var(--text-soft);
       line-height: 1.8;
     }
 
     .kimon-closing-line {
       margin-top: 18px;
-      color: #475569;
+      color: var(--muted);
       font-weight: 600;
       line-height: 1.7;
     }
 
     .kymon-clean-layout {
-      color: #334155;
+      color: var(--text-soft);
     }
 
     .kymon-summary-box {
       margin: 0 0 16px;
       padding: 12px 14px;
       border-radius: 14px;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      color: #1e3a8a;
+      background: var(--surface-highlight);
+      border: 1px solid var(--surface-highlight-border);
+      color: var(--surface-highlight-text);
       line-height: 1.7;
     }
 
     .kymon-lead {
       margin: 0 0 14px;
-      color: #1e3a8a;
+      color: var(--surface-highlight-text);
       font-size: 1.02rem;
       line-height: 1.75;
       font-weight: 600;
@@ -1804,7 +2051,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     .kymon-time-hint {
       margin: 0 0 16px;
-      color: #475569;
+      color: var(--muted);
       font-size: 0.96rem;
       line-height: 1.7;
     }
@@ -1813,7 +2060,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       line-height: 1.8;
       letter-spacing: 0.02em;
       font-size: 1.05rem;
-      color: #333;
+      color: var(--text-soft);
       text-align: justify;
       white-space: normal;
     }
@@ -1827,8 +2074,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .kymon-action-footer {
       margin-top: 18px;
       padding-top: 12px;
-      border-top: 1px solid #e2e8f0;
-      color: #475569;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
       font-weight: 600;
       line-height: 1.75;
     }
@@ -1836,12 +2083,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .kymon-footer-action {
       margin-top: 18px;
       padding-top: 14px;
-      border-top: 1px solid #e2e8f0;
+      border-top: 1px solid var(--border);
     }
 
     .kymon-footer-action p {
       margin: 8px 0 0;
-      color: #475569;
+      color: var(--muted);
       font-weight: 600;
       line-height: 1.7;
     }
@@ -1851,9 +2098,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       align-items: center;
       padding: 4px 10px;
       border-radius: 999px;
-      background: #eff6ff;
-      color: #1d4ed8;
-      border: 1px solid #bfdbfe;
+      background: var(--surface-highlight);
+      color: var(--surface-highlight-text);
+      border: 1px solid var(--surface-highlight-border);
       font-size: 0.72rem;
       font-weight: 700;
       letter-spacing: 0.06em;
@@ -1884,7 +2131,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       padding: 28px 0 8px 0;
       margin-top: 20px;
       font-style: italic;
-      color: #64748b;
+      color: var(--muted);
       font-size: 0.95rem;
       line-height: 1.6;
     }
@@ -1910,13 +2157,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       display: flex; gap: 8px;
     }
     .kimon-input-row input {
-      flex: 1; background: #0f172a; border: 1px solid #334155;
-      color: #e2e8f0; border-radius: 10px; padding: 10px 14px;
+      flex: 1; background: var(--input-bg); border: 1px solid var(--input-border);
+      color: var(--input-text); border-radius: 10px; padding: 10px 14px;
       font-size: 0.9375rem;
       font-family: inherit;
     }
-    .kimon-input-row input::placeholder { color: #475569; }
-    .kimon-input-row input:focus { outline: none; border-color: #6366f1; }
+    .kimon-input-row input::placeholder { color: var(--input-placeholder); }
+    .kimon-input-row input:focus { outline: none; border-color: var(--input-focus-border); }
     .kimon-btn {
       background: #6366f1; border: none; color: #fff;
       padding: 10px 18px; border-radius: 10px; cursor: pointer;
@@ -1929,24 +2176,24 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       display: none; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
     }
     .kimon-suggestion-chip {
-      background: #1e293b; border: 1px solid #334155; color: #94a3b8;
+      background: var(--surface-soft); border: 1px solid var(--border-strong); color: var(--muted);
       border-radius: 999px; padding: 4px 12px; font-size: 0.78rem;
       cursor: pointer; transition: all 0.15s;
     }
-    .kimon-suggestion-chip:hover { border-color: #6366f1; color: #a5b4fc; }
+    .kimon-suggestion-chip:hover { border-color: var(--info); color: var(--text); }
     .kimon-error {
-      display: none; color: #f87171; font-size: 0.82rem;
+      display: none; color: var(--error-text); font-size: 0.82rem;
       padding: 6px 10px; border-radius: 8px;
-      background: rgba(239,68,68,0.1); margin-bottom: 8px;
+      background: var(--error-bg); margin-bottom: 8px;
     }
-    .kimon-error-inline { color: #f87171; margin: 0; font-size: 0.88rem; }
+    .kimon-error-inline { color: var(--error-text); margin: 0; font-size: 0.88rem; }
     /* === KYMON CHAT (Gemini-like minimal) === */
     .kimon-terminal {
       background: transparent;
       border: none;
       border-radius: 0;
       padding: 0;
-      color: #1E293B;
+      color: var(--text);
       box-shadow: none;
       overflow: visible;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1976,12 +2223,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-size: 1.0625rem;
       font-weight: 600;
       letter-spacing: -0.01em;
-      color: #1E293B;
+      color: var(--text);
     }
     .kimon-meta-tags {
       margin-left: auto;
       font-size: 0.72rem;
-      color: #94A3B8;
+      color: var(--kimon-meta-text);
       font-weight: 400;
     }
     .kimon-messages {
@@ -2000,8 +2247,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     /* Scrollbar */
     .kimon-messages::-webkit-scrollbar { width: 4px; }
     .kimon-messages::-webkit-scrollbar-track { background: transparent; }
-    .kimon-messages::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
-    .kimon-messages::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+    .kimon-messages::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+    .kimon-messages::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
     /* ── Thinking Animation ── */
     .kimon-thinking {
@@ -2009,7 +2256,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       align-items: center;
       gap: 10px;
       padding: 12px 0;
-      color: #64748b;
+      color: var(--muted);
       font-size: 0.85rem;
       animation: kimon-fadein 0.3s ease-out;
       order: 9999; /* Always at the bottom */
@@ -2019,11 +2266,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     /* Tip text */
     .kimon-tip {
       font-size: 0.8rem;
-      color: #94a3b8;
+      color: var(--muted);
       text-align: center;
       padding: 16px 12px;
       line-height: 1.5;
-      border-top: 1px solid #e2e8f0;
+      border-top: 1px solid var(--kimon-tip-border);
       margin-top: 8px;
     }
     .kimon-tip-icon {
@@ -2033,7 +2280,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       margin-right: 6px;
       font-size: 0.95rem;
     }
-    .kimon-tip strong { color: #64748b; }
+    .kimon-tip strong { color: var(--muted); }
     .kimon-thinking-dots {
       display: flex;
       gap: 4px;
@@ -2043,13 +2290,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: #94A3B8;
+      background: var(--muted);
       animation: kimon-bounce 1.4s infinite ease-in-out both;
     }
     .kimon-thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
     .kimon-thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
     .kimon-thinking-text {
-      color: #64748b;
+      color: var(--muted);
       margin: 0;
       font-size: 0.85rem;
     }
@@ -2077,20 +2324,21 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       border: none;
     }
     .kimon-message-user {
-      background: #1E293B;
+      background: var(--kimon-user-bubble-bg);
       margin-left: auto;
       margin-right: 0;
+      border: 1px solid var(--kimon-user-bubble-border);
       border-bottom-right-radius: 6px;
     }
-    .kimon-message-user .kimon-message-text { color: #FFFFFF; }
+    .kimon-message-user .kimon-message-text { color: var(--kimon-user-bubble-text); }
     .kimon-section { margin-bottom: 10px; }
     .kimon-section:last-child { margin-bottom: 0; }
     .kimon-section-label {
       display: block; font-size: 0.8rem; font-weight: 600;
-      color: #475569; margin-bottom: 6px;
+      color: var(--muted); margin-bottom: 6px;
     }
     .kimon-message-text {
-      font-size: 0.9375rem; line-height: 1.75; color: #334155; margin: 0;
+      font-size: 0.9375rem; line-height: 1.75; color: var(--text-soft); margin: 0;
     }
     /* Suggestions */
     .kimon-suggestions-dynamic {
@@ -2100,9 +2348,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       border: none;
     }
     .kimon-suggestion-chip {
-      background: #f1f5f9; /* Muted light gray/blue background */
-      border: 1px solid #e2e8f0;
-      color: #0f172a; /* Dark text for contrast */
+      background: var(--surface-softer);
+      border: 1px solid var(--border);
+      color: var(--text);
       padding: 6px 14px;
       border-radius: 20px; /* Fully rounded */
       font-size: 0.8rem;
@@ -2111,9 +2359,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       transition: all 0.2s ease;
     }
     .kimon-suggestion-chip:hover {
-      background: #e2e8f0;
-      border-color: #cbd5e1;
-      color: #000000;
+      background: var(--surface-soft);
+      border-color: var(--border-strong);
+      color: var(--text);
       transform: translateY(-1px);
     }
 
@@ -2127,9 +2375,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .kimon-input {
       flex: 1;
-      background: #F1F5F9;
-      border: 1px solid transparent;
-      color: #1E293B;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      color: var(--input-text);
       border-radius: 24px;
       padding: 12px 20px;
       font-size: 0.9375rem;
@@ -2139,15 +2387,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .kimon-input:focus {
       outline: none;
-      background: #FFFFFF;
-      border-color: #CBD5E1;
+      background: var(--input-focus-bg);
+      border-color: var(--input-focus-border);
       box-shadow: 0 0 0 3px rgba(148,163,184,0.1);
     }
-    .kimon-input::placeholder { color: #94A3B8; }
+    .kimon-input::placeholder { color: var(--input-placeholder); }
     .kimon-send-btn {
-      background: #1E293B;
+      background: var(--kimon-user-bubble-bg);
       border: none;
-      color: #FFFFFF;
+      color: var(--kimon-user-bubble-text);
       width: 44px; height: 44px;
       border-radius: 50%;
       cursor: pointer;
@@ -2156,7 +2404,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       flex-shrink: 0;
     }
     .kimon-send-btn:hover:not(:disabled) {
-      background: #0F172A;
+      filter: brightness(1.08);
       transform: scale(1.05);
     }
     .kimon-send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
@@ -2165,16 +2413,16 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .kimon-error {
       display: none; margin: 8px 0;
       padding: 8px 14px;
-      background: #FEF2F2;
-      border: 1px solid #FECACA;
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
       border-radius: 12px;
-      color: #DC2626;
+      color: var(--error-text);
       font-size: 0.82rem;
     }
     .kimon-error-inline {
-      color: #DC2626; font-size: 0.82rem; margin: 0;
-      background: #FEF2F2; padding: 10px 14px;
-      border-radius: 12px; border: 1px solid #FECACA;
+      color: var(--error-text); font-size: 0.82rem; margin: 0;
+      background: var(--error-bg); padding: 10px 14px;
+      border-radius: 12px; border: 1px solid var(--error-border);
     }
 
     /* Old unused styles kept for compatibility */
@@ -2188,19 +2436,35 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         <h1 class="app-title"><img src="/favicon.png" alt="" style="height:32px; vertical-align:middle; margin-right:8px;">Kymon</h1>
         <p class="app-subtitle">Vô xem cho biết, chốt cho nhanh</p>
       </div>
-      <form method="GET" action="/" class="controls" id="timeForm">
-        <label>${getSectionLabel('Ngày')}
-          <input id="dateInput" type="date" name="date" value="${selectedDate}">
-        </label>
-        <label>${getSectionLabel('Giờ')}
-          <input id="hourInput" type="number" name="hour" min="0" max="23" value="${hour}" style="width:80px;">
-        </label>
-        <label>Phút
-          <input id="minuteInput" type="number" name="minute" min="0" max="59" value="${selectedMinute}" style="width:80px;">
-        </label>
-        <button type="submit">Lập Bàn</button>
-        <a href="/" class="link-btn" id="useNowLink">Hiện Tại</a>
-      </form>
+      <div class="header-actions">
+        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Đổi giao diện" title="Đổi giao diện">
+          <span class="theme-toggle-icon theme-icon-moon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path>
+            </svg>
+          </span>
+          <span class="theme-toggle-icon theme-icon-sun" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2.2M12 19.8V22M4.93 4.93l1.56 1.56M17.51 17.51l1.56 1.56M2 12h2.2M19.8 12H22M4.93 19.07l1.56-1.56M17.51 6.49l1.56-1.56"></path>
+            </svg>
+          </span>
+          <span class="sr-only">Đổi giao diện</span>
+        </button>
+        <form method="GET" action="/" class="controls" id="timeForm">
+          <label>${getSectionLabel('Ngày')}
+            <input id="dateInput" type="date" name="date" value="${selectedDate}">
+          </label>
+          <label>${getSectionLabel('Giờ')}
+            <input id="hourInput" type="number" name="hour" min="0" max="23" value="${hour}" style="width:80px;">
+          </label>
+          <label>Phút
+            <input id="minuteInput" type="number" name="minute" min="0" max="59" value="${selectedMinute}" style="width:80px;">
+          </label>
+          <button type="submit">Lập Bàn</button>
+          <a href="/" class="link-btn" id="useNowLink">Hiện Tại</a>
+        </form>
+      </div>
     </header>
 
     <div class="workspace">
@@ -2371,11 +2635,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   </div>
 
   <script>
+    const THEME_STORAGE_KEY = 'kymon_theme';
     const CHART_TIME_MODE = ${JSON.stringify(chartTimeMode)};
     const INITIAL_CHART_TIME = ${JSON.stringify({ date: selectedDate, hour, minute })};
     const timeFormEl = document.getElementById('timeForm');
     const dateInputEl = document.getElementById('dateInput');
     const hourInputEl = document.getElementById('hourInput');
+    const themeToggleEl = document.getElementById('themeToggle');
     
     const LOADER_PHRASES = ${JSON.stringify(loaderPhrases)};
 
@@ -2406,6 +2672,30 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const useNowLinkEl = document.getElementById('useNowLink');
     const signalButtons = Array.from(document.querySelectorAll('.signal-with-tooltip'));
     const internalLabelToggles = Array.from(document.querySelectorAll('#showInternalLabelsToggle, #showInternalLabelsGridToggle'));
+
+    function getActiveTheme() {
+      return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+    }
+
+    function syncThemeToggle(theme) {
+      if (!themeToggleEl) return;
+      const nextTheme = theme === 'dark' ? 'light' : 'dark';
+      const label = nextTheme === 'dark' ? 'Chuyển sang giao diện tối' : 'Chuyển sang giao diện sáng';
+      themeToggleEl.setAttribute('aria-label', label);
+      themeToggleEl.setAttribute('title', label);
+      themeToggleEl.setAttribute('aria-pressed', String(theme === 'dark'));
+    }
+
+    function applyTheme(theme, { persist = false } = {}) {
+      const resolvedTheme = theme === 'dark' ? 'dark' : 'light';
+      document.documentElement.dataset.theme = resolvedTheme;
+      document.documentElement.style.colorScheme = resolvedTheme;
+      syncThemeToggle(resolvedTheme);
+      if (!persist) return;
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, resolvedTheme);
+      } catch {}
+    }
 
     function escapeHTML(raw) {
       const source = String(raw ?? '');
@@ -2568,6 +2858,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       const effectiveTime = getEffectiveChartTimeFromLocation();
       applyResolvedTimeToForm(effectiveTime);
       updateLiveClock(effectiveTime);
+    })();
+
+    (function initThemeToggle() {
+      applyTheme(getActiveTheme());
+      if (!themeToggleEl) return;
+      themeToggleEl.addEventListener('click', () => {
+        const nextTheme = getActiveTheme() === 'dark' ? 'light' : 'dark';
+        applyTheme(nextTheme, { persist: true });
+      });
     })();
 
     // ── Kimon AI ─────────────────────────────────────────────────────────────
