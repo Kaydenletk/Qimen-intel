@@ -2642,6 +2642,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const THEME_STORAGE_KEY = 'kymon_theme';
     const CHART_TIME_MODE = ${JSON.stringify(chartTimeMode)};
     const INITIAL_CHART_TIME = ${JSON.stringify({ date: selectedDate, hour, minute })};
+    const KYMON_PARTIAL_LEAD = ${JSON.stringify(KYMON_PARTIAL_LEAD)};
+    const KYMON_PARTIAL_MESSAGE = ${JSON.stringify(KYMON_PARTIAL_MESSAGE)};
+    const KYMON_PARTIAL_ACTION = ${JSON.stringify(KYMON_PARTIAL_ACTION)};
+    const KYMON_UNCLEAR_MESSAGE = ${JSON.stringify(KYMON_UNCLEAR_MESSAGE)};
     const timeFormEl = document.getElementById('timeForm');
     const dateInputEl = document.getElementById('dateInput');
     const hourInputEl = document.getElementById('hourInput');
