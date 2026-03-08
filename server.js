@@ -14,8 +14,9 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 import { analyze } from './src/index.js';
 import { generateDeterministicEnergyFlow } from './src/logic/dungThan/index.js';
 import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
-import { buildKimonPrompt, buildKimonSystemInstruction } from './src/logic/kimon/promptBuilder.js';
 import { parseKimonJsonResponse, toKimonResponseSchema } from './src/logic/kimon/jsonResponse.js';
+import { detectTopicHybrid } from './src/logic/kimon/detectTopic.js';
+import { selectModel, buildPromptByTier } from './src/logic/kimon/modelRouter.js';
 import {
   ORDER as SLOT_ORDER,
   SLOT_TO_PALACE,
@@ -4155,18 +4156,36 @@ export default function handler(req, res) {
         }
         recordGeminiRequest();
 
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        // ── Tiered AI Routing ──
         const isAutoLoad = userContext === '__AUTO_LOAD__';
-        const systemInstruction = buildKimonSystemInstruction();
+        const apiKey = process.env.GEMINI_API_KEY;
+        const { topic, tier, confidence } = isAutoLoad
+          ? { topic: 'chung', tier: 'topic', confidence: 'auto' }
+          : await detectTopicHybrid(userContext, apiKey);
+        const { model: modelName, maxTokens } = selectModel(tier);
+        const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
+          tier, topic: topic || 'chung', qmdjData, userContext, isAutoLoad,
+        });
+        console.log(`[Kimon][stream] tier=${tier} topic=${topic} model=${modelName} confidence=${confidence} maxTokens=${maxTokens} format=${responseFormat}`);
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+
+        const generationConfig = {
+          temperature: tier === 'companion' ? 0.7 : 0.3,
+          maxOutputTokens: maxTokens,
+        };
+        if (responseFormat === 'json') {
+          generationConfig.responseMimeType = 'application/json';
+        }
+        // Disable thinking for Flash to prevent token budget exhaustion
+        if (tier !== 'strategy') {
+          generationConfig.thinkingConfig = { thinkingBudget: 0 };
+        }
 
         const model = genAI.getGenerativeModel({
-          model: 'gemini-2.5-pro',
-          systemInstruction,
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: KYMON_MAX_OUTPUT_TOKENS,
-            responseMimeType: 'application/json',
-          },
+          model: modelName,
+          systemInstruction: systemPrompt,
+          generationConfig,
           safetySettings: [
             { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
             { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -4175,9 +4194,7 @@ export default function handler(req, res) {
           ]
         });
 
-        const prompt = buildKimonPrompt({ qmdjData, userContext, isAutoLoad });
-
-        const streamResult = await model.generateContentStream(prompt);
+        const streamResult = await model.generateContentStream(userPrompt);
         let fullText = '';
 
         for await (const chunk of streamResult.stream) {
@@ -4192,9 +4209,27 @@ export default function handler(req, res) {
         logKimonModelMeta('/api/kimon/stream', finalResponse, fullText);
 
         try {
-          const parsed = toKimonResponseSchema(parseKimonJsonResponse(fullText), fullText);
-          console.log('[Kimon] Parsed OK, keys:', Object.keys(parsed));
-          res.write(`data: ${JSON.stringify({ __DONE__: true, parsed })}\n\n`);
+          // Companion mode returns plain text — wrap into schema
+          if (responseFormat === 'text') {
+            const companionParsed = {
+              mode: 'companion',
+              schema: 'companion',
+              lead: fullText.trim(),
+              timeHint: '',
+              message: fullText.trim(),
+              closingLine: '',
+              _tier: tier,
+              _topic: topic,
+            };
+            console.log('[Kimon] Companion response, length:', fullText.length);
+            res.write(`data: ${JSON.stringify({ __DONE__: true, parsed: companionParsed })}\n\n`);
+          } else {
+            const parsed = toKimonResponseSchema(parseKimonJsonResponse(fullText), fullText);
+            parsed._tier = tier;
+            parsed._topic = topic;
+            console.log('[Kimon] Parsed OK, keys:', Object.keys(parsed));
+            res.write(`data: ${JSON.stringify({ __DONE__: true, parsed })}\n\n`);
+          }
         } catch (parseErr) {
           console.error('[Kimon] JSON parse failed:', parseErr.message);
           console.error('[Kimon] Raw response:', fullText.substring(0, 500));
@@ -4235,22 +4270,58 @@ export default function handler(req, res) {
       try {
         const body = JSON.parse(bodyData);
         const { qmdjData, userContext = 'chung' } = body;
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const apiKey = process.env.GEMINI_API_KEY;
         const isAutoLoad = userContext === '__AUTO_LOAD__';
-        const model = genAI.getGenerativeModel({
-          model: 'gemini-2.5-pro',
-          systemInstruction: buildKimonSystemInstruction(),
-          generationConfig: {
-            temperature: 0.3,
-            responseMimeType: 'application/json',
-            maxOutputTokens: KYMON_MAX_OUTPUT_TOKENS,
-          }
+
+        // ── Tiered AI Routing ──
+        const { topic, tier, confidence } = isAutoLoad
+          ? { topic: 'chung', tier: 'topic', confidence: 'auto' }
+          : await detectTopicHybrid(userContext, apiKey);
+        const { model: modelName, maxTokens } = selectModel(tier);
+        const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
+          tier, topic: topic || 'chung', qmdjData, userContext, isAutoLoad,
         });
-        const prompt = buildKimonPrompt({ qmdjData, userContext, isAutoLoad });
-        const result = await model.generateContent(prompt);
+        console.log(`[Kimon][json] tier=${tier} topic=${topic} model=${modelName} confidence=${confidence} maxTokens=${maxTokens} format=${responseFormat}`);
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const generationConfig = {
+          temperature: tier === 'companion' ? 0.7 : 0.3,
+          maxOutputTokens: maxTokens,
+        };
+        if (responseFormat === 'json') {
+          generationConfig.responseMimeType = 'application/json';
+        }
+        // Disable thinking for Flash to prevent token budget exhaustion
+        if (tier !== 'strategy') {
+          generationConfig.thinkingConfig = { thinkingBudget: 0 };
+        }
+
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: systemPrompt,
+          generationConfig,
+        });
+        const result = await model.generateContent(userPrompt);
         const rawText = await result.response.text();
         logKimonModelMeta('/api/kimon', result.response, rawText);
-        const parsed = toKimonResponseSchema(parseKimonJsonResponse(rawText), rawText);
+
+        let parsed;
+        if (responseFormat === 'text') {
+          parsed = {
+            mode: 'companion',
+            schema: 'companion',
+            lead: rawText.trim(),
+            timeHint: '',
+            message: rawText.trim(),
+            closingLine: '',
+            _tier: tier,
+            _topic: topic,
+          };
+        } else {
+          parsed = toKimonResponseSchema(parseKimonJsonResponse(rawText), rawText);
+          parsed._tier = tier;
+          parsed._topic = topic;
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(parsed));
       } catch (error) {

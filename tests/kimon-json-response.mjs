@@ -98,24 +98,24 @@ const publicSchema = toKimonResponseSchema({
   tamLy: { trangThai: 'legacy', dongChay: 'legacy' },
   hanhDong: ['legacy'],
 });
-assert.deepEqual(publicSchema, {
-  mode: 'decision',
-  lead: 'Chưa nên ký.',
-  timeHint: 'Sáng mai hợp hơn.',
-  message: 'Bề ngoài ổn, nhưng còn một lớp thông tin chưa lộ hết.',
-  closingLine: 'Đừng ký khi vẫn còn thấy mờ.',
-});
+assert.equal(publicSchema.mode, 'decision');
+assert.equal(publicSchema.lead, 'Chưa nên ký.');
+assert.equal(publicSchema.timeHint, 'Sáng mai hợp hơn.');
+assert.equal(publicSchema.message, 'Bề ngoài ổn, nhưng còn một lớp thông tin chưa lộ hết.');
+assert.equal(publicSchema.closingLine, 'Đừng ký khi vẫn còn thấy mờ.');
+// Deep Dive fields preserved through toKimonResponseSchema
+assert.equal(publicSchema.tongQuan, 'legacy');
+assert.deepEqual(publicSchema.tamLy, { trangThai: 'legacy', dongChay: 'legacy' });
+assert.deepEqual(publicSchema.hanhDong, ['legacy']);
 
 const strictFallbackSchema = toKimonResponseSchema(
   parseKimonJsonResponse('{"mode":"decision","lead":"Đang xem..."\n{"mode":"decision"'),
   '{"mode":"decision","lead":"Đang xem..."\n{"mode":"decision"'
 );
-assert.deepEqual(strictFallbackSchema, {
-  mode: 'decision',
-  lead: 'Đang xem...',
-  timeHint: '',
-  message: 'Đang xem...',
-  closingLine: 'Bạn gửi lại câu hỏi ngắn hơn nhé.',
-});
+assert.equal(strictFallbackSchema.mode, 'decision');
+assert.equal(strictFallbackSchema.lead, 'Đang xem...');
+assert.equal(strictFallbackSchema.timeHint, '');
+assert.equal(strictFallbackSchema.message, 'Đang xem...');
+assert.equal(strictFallbackSchema.closingLine, 'Bạn gửi lại câu hỏi ngắn hơn nhé.');
 
 console.log('ASSERTIONS: OK');

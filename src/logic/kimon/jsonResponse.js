@@ -281,6 +281,22 @@ function normalizeKimonPayload(parsed, rawText = '') {
     normalized.tongQuan = normalized.message;
   }
 
+  // Reverse: populate lead/message from Deep Dive fields
+  if (normalized.tongQuan && !normalized.lead) {
+    normalized.lead = normalized.tongQuan;
+  }
+  if (normalized.tongQuan && !normalized.message) {
+    const parts = [
+      normalized.tamLy?.trangThai,
+      normalized.tamLy?.dongChay,
+      normalized.chienLuoc?.noiDung,
+    ].filter(Boolean);
+    normalized.message = parts.join('\n\n') || normalized.tongQuan;
+  }
+  if (normalized.kimonQuote && !normalized.closingLine) {
+    normalized.closingLine = normalized.kimonQuote;
+  }
+
   if (normalized.timeHint && !normalized.thoiDiemGoiY) {
     normalized.thoiDiemGoiY = normalized.timeHint;
   }
@@ -368,6 +384,10 @@ export function coerceKimonResponsePayload(payload, rawText = '') {
 }
 
 export function toKimonResponseSchema(payload, rawText = '') {
+  // Check original payload for Deep Dive / Strategy fields BEFORE normalization
+  const originalHasTongQuan = payload && typeof payload.tongQuan === 'string' && payload.tongQuan.trim();
+  const originalHasVerdict = payload && typeof payload.verdict === 'string' && payload.verdict.trim();
+
   const normalized = normalizeKimonPayload(payload, rawText);
 
   const hasUsableSalvage = [normalized.lead, normalized.timeHint, normalized.message, normalized.closingLine]
@@ -385,11 +405,30 @@ export function toKimonResponseSchema(payload, rawText = '') {
   }
 
   const closingLine = normalized.closingLine || (rawText && !extractBalancedJsonObject(rawText) ? PARTIAL_RESPONSE_ACTION : '');
-  return {
+  const result = {
     mode: typeof normalized.mode === 'string' && normalized.mode.trim() ? normalized.mode.trim() : 'interpretation',
     lead: typeof normalized.lead === 'string' ? normalized.lead.trim() : '',
     timeHint: typeof normalized.timeHint === 'string' ? normalized.timeHint.trim() : '',
     message: typeof normalized.message === 'string' ? normalized.message.trim() : '',
     closingLine: typeof closingLine === 'string' ? closingLine.trim() : '',
   };
+
+  // Preserve Deep Dive schema fields only when ORIGINAL payload had them
+  if (originalHasTongQuan) {
+    result.tongQuan = normalized.tongQuan;
+    if (normalized.tamLy && (normalized.tamLy.trangThai || normalized.tamLy.dongChay)) result.tamLy = normalized.tamLy;
+    if (normalized.chienLuoc && normalized.chienLuoc.noiDung) result.chienLuoc = normalized.chienLuoc;
+    if (normalized.hanhDong && normalized.hanhDong.length) result.hanhDong = normalized.hanhDong;
+    if (normalized.kimonQuote) result.kimonQuote = normalized.kimonQuote;
+  }
+
+  // Preserve Strategy schema fields only when ORIGINAL payload had them
+  if (originalHasVerdict) {
+    result.verdict = normalized.verdict;
+    if (normalized.analysis) result.analysis = normalized.analysis;
+    if (normalized.adversary) result.adversary = normalized.adversary;
+    if (normalized.tactics) result.tactics = normalized.tactics;
+  }
+
+  return result;
 }

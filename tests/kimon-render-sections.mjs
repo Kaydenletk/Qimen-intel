@@ -105,13 +105,15 @@ assert.match(serverSource, /\.kymon-action-footer \{/, 'Closing/action footer ph
 
 assert.match(serverSource, /const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 3072;/, 'Phải giữ dấu vết giá trị token cũ để debug');
 assert.match(serverSource, /const KYMON_MAX_OUTPUT_TOKENS = 5120;/, 'Backend Kymon phải tăng output length để giảm truncation');
-assert.match(serverSource, /maxOutputTokens: KYMON_MAX_OUTPUT_TOKENS/, 'Backend phải dùng đúng hằng số output length');
+assert.match(serverSource, /maxOutputTokens: maxTokens/, 'Backend phải dùng dynamic maxTokens từ tiered router');
 assert.match(serverSource, /function logKimonModelMeta\(route, response, rawText = ''\)/, 'Backend phải log finish reason và raw response length');
 assert.match(serverSource, /logKimonModelMeta\('\/api\/kimon', result\.response, rawText\);/, 'Route non-stream phải log meta model');
 assert.match(serverSource, /logKimonModelMeta\('\/api\/kimon\/stream', finalResponse, fullText\);/, 'Route stream phải log meta model');
 assert.match(serverSource, /import \{ parseKimonJsonResponse, toKimonResponseSchema \} from '\.\/src\/logic\/kimon\/jsonResponse\.js';/, 'Server phải import helper schema public mới');
-assert.match(serverSource, /const parsed = toKimonResponseSchema\(parseKimonJsonResponse\(rawText\), rawText\);/, 'Route non-stream phải trả về đúng schema mới');
-assert.match(serverSource, /const parsed = toKimonResponseSchema\(parseKimonJsonResponse\(fullText\), fullText\);/, 'Route stream phải shape parsed payload về schema mới');
+assert.match(serverSource, /import \{ detectTopicHybrid \} from '\.\/src\/logic\/kimon\/detectTopic\.js';/, 'Server phải import detectTopicHybrid');
+assert.match(serverSource, /import \{ selectModel, buildPromptByTier \} from '\.\/src\/logic\/kimon\/modelRouter\.js';/, 'Server phải import tiered router');
+assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(rawText\), rawText\)/, 'Route non-stream phải trả về đúng schema mới');
+assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(fullText\), fullText\)/, 'Route stream phải shape parsed payload về schema mới');
 assert.match(serverSource, /const fallback = toKimonResponseSchema\(parseKimonJsonResponse\(fullText\), fullText\);/, 'Fallback route stream cũng phải giữ schema mới');
 
 console.log('ASSERTIONS: OK');

@@ -146,3 +146,51 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
 
   return `${baseContext}\n\n[CÂU HỎI NGƯỜI DÙNG]\n${userContext}\n\nHãy trả lời theo đúng JSON schema, bám dữ liệu đã cho.`;
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// COMPANION MODE — Lightweight prompt for Gemini Flash
+// ══════════════════════════════════════════════════════════════════════════════
+
+const COMPANION_SYSTEM = `Bạn là Kymon — bạn đồng hành am hiểu Kỳ Môn Độn Giáp. Giọng: ngang hàng, điềm tĩnh, hơi khô hài. Trả lời bằng tiếng Việt.
+
+NGUYÊN TẮC:
+- Với câu hỏi đời thường: dùng Khí Nền Chung (Cung Giờ + Trực Sử) để luận.
+- KHÔNG kéo câu hỏi vào chủ đề lớn (tài chính, sự nghiệp) trừ khi user hỏi thẳng.
+- Xâu chuỗi Môn + Tinh + Thần thành 1 dòng năng lượng, không liệt kê rời rạc.
+- Thuật ngữ Kỳ Môn: chỉ nêu khi giúp làm sáng vấn đề, kèm giải thích đời thường.
+- KHÔNG sáo ngữ: "năng lượng cân bằng", "hãy tin vào bản thân".
+- Trả lời tự nhiên, 2-3 đoạn ngắn, không JSON, không bullet.
+- Câu chốt cuối: 1 câu thấm thía, tối đa 15 từ.`;
+
+export function buildCompanionPrompt({ qmdjData = {}, userContext = '' }) {
+  const hourPalace = qmdjData?.hourMarkerPalace ?? '';
+  const hourDir = qmdjData?.hourMarkerDirection ?? '';
+  const hourDoor = qmdjData?.hourDoor ?? '';
+  const hourStar = qmdjData?.hourStar ?? '';
+  const hourDeity = qmdjData?.hourDeity ?? '';
+  const hourScore = qmdjData?.hourEnergyScore ?? 0;
+
+  const trucSuPalace = qmdjData?.directEnvoyPalace ?? '';
+  const trucSuDir = qmdjData?.directEnvoyDirection ?? '';
+  const trucSuDoor = qmdjData?.directEnvoyDoor ?? '';
+  const trucSuStar = qmdjData?.directEnvoyStar ?? '';
+  const trucSuDeity = qmdjData?.directEnvoyDeity ?? '';
+  const trucSuScore = qmdjData?.directEnvoyActionScore ?? 0;
+
+  const states = [
+    qmdjData?.isPhucAm ? 'Phục Âm' : '',
+    qmdjData?.isPhanNgam ? 'Phản Ngâm' : '',
+  ].filter(Boolean).join(', ');
+
+  const userPrompt = [
+    `[CUNG GIỜ] Cung ${hourPalace} (${hourDir}): Môn=${hourDoor} | Tinh=${hourStar} | Thần=${hourDeity} | Score=${hourScore}`,
+    `[TRỰC SỬ] Cung ${trucSuPalace} (${trucSuDir}): Môn=${trucSuDoor} | Tinh=${trucSuStar} | Thần=${trucSuDeity} | Score=${trucSuScore}`,
+    states ? `[TRẠNG THÁI] ${states}` : '',
+    '',
+    `[CÂU HỎI] ${userContext}`,
+    '',
+    'Trả lời tự nhiên, ngắn gọn, sắc.',
+  ].filter(s => s !== false).join('\n');
+
+  return { systemPrompt: COMPANION_SYSTEM, userPrompt };
+}
