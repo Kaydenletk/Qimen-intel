@@ -102,8 +102,8 @@ assert.match(serverSource, /\.kymon-time-hint \{/, 'Time hint phải có style r
 assert.match(serverSource, /\.kymon-analysis-flow \{/, 'Analysis flow phải có style riêng');
 assert.match(serverSource, /\.kymon-action-footer \{/, 'Closing/action footer phải có style riêng');
 
-assert.match(serverSource, /const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 2200;/, 'Phải giữ dấu vết giá trị token cũ để debug');
-assert.match(serverSource, /const KYMON_MAX_OUTPUT_TOKENS = 3072;/, 'Backend Kymon phải tăng output length để giảm truncation');
+assert.match(serverSource, /const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 3072;/, 'Phải giữ dấu vết giá trị token cũ để debug');
+assert.match(serverSource, /const KYMON_MAX_OUTPUT_TOKENS = 5120;/, 'Backend Kymon phải tăng output length để giảm truncation');
 assert.match(serverSource, /maxOutputTokens: KYMON_MAX_OUTPUT_TOKENS/, 'Backend phải dùng đúng hằng số output length');
 assert.match(serverSource, /function logKimonModelMeta\(route, response, rawText = ''\)/, 'Backend phải log finish reason và raw response length');
 assert.match(serverSource, /logKimonModelMeta\('\/api\/kimon', result\.response, rawText\);/, 'Route non-stream phải log meta model');

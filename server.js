@@ -3227,6 +3227,41 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         return createEmergencyKimonPayload('');
       }
 
+      // ── Detect Deep Dive schema (tongQuan/tamLy/chienLuoc/hanhDong/kimonQuote) ──
+      const hasTongQuan = typeof rawData.tongQuan === 'string' && rawData.tongQuan.trim();
+
+      if (hasTongQuan) {
+        const tamLy = (rawData.tamLy && typeof rawData.tamLy === 'object' && !Array.isArray(rawData.tamLy))
+          ? { trangThai: String(rawData.tamLy.trangThai || '').trim(), dongChay: String(rawData.tamLy.dongChay || '').trim() }
+          : { trangThai: '', dongChay: '' };
+        const chienLuoc = (rawData.chienLuoc && typeof rawData.chienLuoc === 'object')
+          ? { noiDung: String(rawData.chienLuoc.noiDung || '').trim() }
+          : (typeof rawData.chienLuoc === 'string' ? { noiDung: rawData.chienLuoc.trim() } : { noiDung: '' });
+        const hanhDong = Array.isArray(rawData.hanhDong)
+          ? rawData.hanhDong.filter(item => typeof item === 'string' && item.trim())
+          : [];
+        const kimonQuote = typeof rawData.kimonQuote === 'string' ? rawData.kimonQuote.trim() : '';
+
+        // Build legacy fields for backwards compat
+        const messageParts = [tamLy.trangThai, tamLy.dongChay, chienLuoc.noiDung].filter(Boolean);
+
+        return {
+          mode: 'deep-dive',
+          schema: 'deep-dive',
+          tongQuan: rawData.tongQuan.trim(),
+          tamLy,
+          chienLuoc,
+          hanhDong,
+          kimonQuote,
+          // Legacy fallbacks
+          lead: rawData.tongQuan.trim(),
+          timeHint: '',
+          message: messageParts.join('\n\n') || rawData.tongQuan.trim(),
+          closingLine: kimonQuote,
+        };
+      }
+
+      // ── Legacy schema (lead/timeHint/message/closingLine) ──
       const lead = typeof rawData.lead === 'string'
         ? rawData.lead.trim()
         : (typeof rawData.summary === 'string' ? rawData.summary.trim() : '');
@@ -3611,40 +3646,100 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       const fragment = document.createDocumentFragment();
       const typewriterSections = [];
 
-      const leadText = data?.lead || data?.summary || data?.quickTake || '';
-      const timeHintText = data?.timeHint || '';
-      const messageText = data?.message || data?.analysis || '';
-      const closingText = data?.closingLine || data?.action || '';
-
-      if (leadText) {
-        const leadEntry = createTypewriterSectionEntry('kymon-lead', leadText);
-        if (leadEntry) {
-          fragment.appendChild(leadEntry.element);
-          typewriterSections.push(leadEntry);
+      // ── Deep Dive schema (tongQuan/tamLy/chienLuoc/hanhDong/kimonQuote) ──
+      if (data?.schema === 'deep-dive' && data?.tongQuan) {
+        // tongQuan → lead section (no label)
+        const tongQuanEntry = createTypewriterSectionEntry('kymon-lead', data.tongQuan);
+        if (tongQuanEntry) {
+          fragment.appendChild(tongQuanEntry.element);
+          typewriterSections.push(tongQuanEntry);
         }
-      }
 
-      if (timeHintText) {
-        const timeHintEntry = createTypewriterSectionEntry('kymon-time-hint', timeHintText, { labelText: 'Thời điểm:' });
-        if (timeHintEntry) {
-          fragment.appendChild(timeHintEntry.element);
-          typewriterSections.push(timeHintEntry);
+        // tamLy → tâm lý section
+        const tamLyText = [data.tamLy?.trangThai, data.tamLy?.dongChay].filter(Boolean).join('\\n\\n');
+        if (tamLyText) {
+          const tamLyEntry = createTypewriterSectionEntry('kymon-analysis-flow', tamLyText);
+          if (tamLyEntry) {
+            fragment.appendChild(tamLyEntry.element);
+            typewriterSections.push(tamLyEntry);
+          }
         }
-      }
 
-      if (messageText) {
-        const analysisEntry = createTypewriterSectionEntry('kymon-analysis-flow', messageText);
-        if (analysisEntry) {
-          fragment.appendChild(analysisEntry.element);
-          typewriterSections.push(analysisEntry);
+        // chienLuoc → chiến lược section
+        if (data.chienLuoc?.noiDung) {
+          const clEntry = createTypewriterSectionEntry('kymon-analysis-flow', data.chienLuoc.noiDung);
+          if (clEntry) {
+            fragment.appendChild(clEntry.element);
+            typewriterSections.push(clEntry);
+          }
         }
-      }
 
-      if (closingText) {
-        const closingEntry = createTypewriterSectionEntry('kymon-action-footer', closingText);
-        if (closingEntry) {
-          fragment.appendChild(closingEntry.element);
-          typewriterSections.push(closingEntry);
+        // hanhDong → ordered list
+        if (data.hanhDong?.length) {
+          const hdContainer = document.createElement('div');
+          hdContainer.className = 'kymon-action-list';
+          hdContainer.hidden = true;
+          const ol = document.createElement('ol');
+          ol.style.cssText = 'margin:0; padding-left:1.2em; list-style-type:decimal;';
+          const hdUnits = [];
+          data.hanhDong.forEach(step => {
+            const li = document.createElement('li');
+            li.className = 'kimon-message-text';
+            const prepared = buildTypewriterRichTextFragment(step);
+            li.appendChild(prepared.fragment);
+            hdUnits.push(...prepared.units);
+            ol.appendChild(li);
+          });
+          hdContainer.appendChild(ol);
+          fragment.appendChild(hdContainer);
+          typewriterSections.push({ element: hdContainer, units: hdUnits, unitIndex: 0 });
+        }
+
+        // kimonQuote → closing footer
+        if (data.kimonQuote) {
+          const quoteEntry = createTypewriterSectionEntry('kymon-action-footer', data.kimonQuote);
+          if (quoteEntry) {
+            fragment.appendChild(quoteEntry.element);
+            typewriterSections.push(quoteEntry);
+          }
+        }
+      } else {
+        // ── Legacy schema (lead/timeHint/message/closingLine) ──
+        const leadText = data?.lead || data?.summary || data?.quickTake || '';
+        const timeHintText = data?.timeHint || '';
+        const messageText = data?.message || data?.analysis || '';
+        const closingText = data?.closingLine || data?.action || '';
+
+        if (leadText) {
+          const leadEntry = createTypewriterSectionEntry('kymon-lead', leadText);
+          if (leadEntry) {
+            fragment.appendChild(leadEntry.element);
+            typewriterSections.push(leadEntry);
+          }
+        }
+
+        if (timeHintText) {
+          const timeHintEntry = createTypewriterSectionEntry('kymon-time-hint', timeHintText, { labelText: 'Thời điểm:' });
+          if (timeHintEntry) {
+            fragment.appendChild(timeHintEntry.element);
+            typewriterSections.push(timeHintEntry);
+          }
+        }
+
+        if (messageText) {
+          const analysisEntry = createTypewriterSectionEntry('kymon-analysis-flow', messageText);
+          if (analysisEntry) {
+            fragment.appendChild(analysisEntry.element);
+            typewriterSections.push(analysisEntry);
+          }
+        }
+
+        if (closingText) {
+          const closingEntry = createTypewriterSectionEntry('kymon-action-footer', closingText);
+          if (closingEntry) {
+            fragment.appendChild(closingEntry.element);
+            typewriterSections.push(closingEntry);
+          }
         }
       }
 
