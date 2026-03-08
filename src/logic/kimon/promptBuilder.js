@@ -49,6 +49,30 @@ function buildInternalInsightsContext(qmdjData = {}) {
   ].filter(Boolean).join('\n');
 }
 
+function buildSelectedTopicContext(qmdjData = {}) {
+  const topicKey = qmdjData?.selectedTopicKey || '';
+  const selectedTopicResult = qmdjData?.selectedTopicResult || '';
+  const insight = qmdjData?.insight || '';
+  const lines = [];
+
+  if (selectedTopicResult) {
+    lines.push(`[PHÂN TÍCH CHỦ ĐỀ: ${topicKey || 'chung'}]`);
+    lines.push(selectedTopicResult);
+  }
+
+  if (insight) {
+    lines.push('[INSIGHT ENGINE]');
+    lines.push(insight);
+  }
+
+  if (topicKey === 'hoc-tap' || topicKey === 'thi-cu') {
+    lines.push('[ƯU TIÊN LUẬN GIẢI]');
+    lines.push('Tập trung đọc Cảnh Môn và Thiên Phụ trước, vì đây là trục đề cương, tài liệu chuẩn và tín hiệu thi cử.');
+  }
+
+  return lines.join('\n');
+}
+
 export function buildKimonSystemInstruction() {
   return `Bạn là Kimon, một quân sư Kỳ Môn hiện đại, sắc bén, thực tế và có khả năng đọc thấu tâm lý (Deep Dive). Bạn chỉ được trả lời bằng tiếng Việt.
 
@@ -121,6 +145,7 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
   const topicsContext = buildTopicsContext(qmdjData);
   const colorSignal = buildColorSignal(qmdjData);
   const internalInsights = buildInternalInsightsContext(qmdjData);
+  const selectedTopicContext = buildSelectedTopicContext(qmdjData);
 
   // Linear time awareness
   const currentHour = qmdjData?.currentHour ?? '';
@@ -152,6 +177,7 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
     '[CHỈ DẤU CHO AI]',
     colorSignal,
     internalInsights ? `\n[INTERNAL INSIGHTS]\n${internalInsights}` : '',
+    selectedTopicContext ? `\n${selectedTopicContext}` : '',
     '',
     `[ĐIỂM TỔNG] ${overallScore}${qmdjData?.solarTerm ? ` | ${qmdjData.solarTerm}` : ''}${qmdjData?.cucSo ? ` | Cục ${qmdjData.cucSo} ${qmdjData?.isDuong ? 'Dương' : 'Âm'}` : ''}${extras ? ` | ${extras}` : ''}`,
     '',

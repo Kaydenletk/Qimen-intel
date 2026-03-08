@@ -26,7 +26,7 @@ const KEYWORD_MAP = {
     'bệnh', 'đau', 'khám', 'thuốc', 'bác sĩ', 'viện', 'sức khỏe', 'sức khoẻ',
     'mệt', 'ốm', 'gym', 'tập', 'chạy bộ', 'ngủ', 'stress', 'tinh thần',
   ],
-  'tinh-yeu': [
+  'tinh-duyen': [
     'crush', 'người yêu', 'bạn gái', 'bạn trai', 'yêu', 'hẹn hò', 'cưới',
     'hôn nhân', 'chia tay', 'tình cảm', 'thả thính', 'tán', 'ngoại tình',
     'vợ', 'chồng', 'người ấy', 'tình yêu',
@@ -77,8 +77,8 @@ const KEYWORD_MAP = {
     'xin việc', 'CV', 'resume', 'apply', 'ứng tuyển', 'nhận việc',
     'offer letter', 'thực tập', 'intern',
   ],
-  'dien-trach': [
-    'nhà', 'đất', 'BĐS', 'bất động sản', 'thuê', 'mua nhà', 'căn hộ',
+  'bat-dong-san': [
+    'nhà', 'đất', 'đất đai', 'BĐS', 'bất động sản', 'thuê', 'mua nhà', 'căn hộ',
     'chung cư', 'biệt thự', 'sổ đỏ', 'sang tên',
   ],
   'muu-luoc': [
@@ -95,8 +95,8 @@ const STRATEGY_TOPICS = new Set(['muu-luoc', 'dam-phan', 'doi-no', 'kien-tung'])
 const COMPANION_TOPICS = new Set(['chung']);
 
 const TOPIC_ALIASES = {
-  'tinh-duyen': 'tinh-yeu',
-  'bat-dong-san': 'dien-trach',
+  'tinh-yeu': 'tinh-duyen',
+  'dien-trach': 'bat-dong-san',
 };
 
 const DEEP_DIVE_KEYWORDS = [
@@ -136,9 +136,9 @@ function getTier(topic) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const VALID_TOPICS = new Set([
-  'tai-van', 'suc-khoe', 'tinh-yeu', 'su-nghiep', 'kinh-doanh',
+  'tai-van', 'suc-khoe', 'tinh-duyen', 'su-nghiep', 'kinh-doanh',
   'thi-cu', 'hoc-tap', 'ky-hop-dong', 'dam-phan', 'doi-no', 'kien-tung',
-  'xuat-hanh', 'xin-viec', 'dien-trach', 'muu-luoc', 'chung',
+  'xuat-hanh', 'xin-viec', 'bat-dong-san', 'muu-luoc', 'chung',
 ]);
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -226,7 +226,7 @@ export function detectTopic(userMessage) {
 export async function classifyWithAI(userMessage, apiKey) {
   const classifyPrompt = `Phân loại câu hỏi sau vào 1 trong các category. Chỉ trả về KEY, không giải thích.
 
-Categories: tai-van, suc-khoe, tinh-yeu, su-nghiep, kinh-doanh, thi-cu, hoc-tap, ky-hop-dong, dam-phan, doi-no, kien-tung, xuat-hanh, xin-viec, dien-trach, muu-luoc, chung
+Categories: tai-van, suc-khoe, tinh-duyen, su-nghiep, kinh-doanh, thi-cu, hoc-tap, ky-hop-dong, dam-phan, doi-no, kien-tung, xuat-hanh, xin-viec, bat-dong-san, muu-luoc, chung
 
 Câu hỏi: "${userMessage}"
 

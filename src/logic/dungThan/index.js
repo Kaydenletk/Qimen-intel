@@ -8,9 +8,9 @@ import { buildWealthInsight } from './wealthLogic.js';
 export { generateEnergyFlowSummary, generateDeterministicEnergyFlow } from './energyFlowLogic.js';
 
 const HEALTH_TOPICS = new Set(['suc-khoe']);
-const LOVE_TOPICS = new Set(['tinh-yeu', 'tinh-duyen']);
+const LOVE_TOPICS = new Set(['tinh-duyen', 'tinh-yeu']);
 const STUDY_TOPICS = new Set(['thi-cu', 'hoc-tap']);
-const WEALTH_TOPICS = new Set(['tai-van', 'kinh-doanh', 'ky-hop-dong', 'doi-no', 'dien-trach', 'bat-dong-san']);
+const WEALTH_TOPICS = new Set(['tai-van', 'kinh-doanh', 'ky-hop-dong', 'doi-no', 'bat-dong-san', 'dien-trach']);
 const CAREER_TOPICS = new Set(['su-nghiep', 'xin-viec', 'dam-phan', 'kien-tung', 'muu-luoc']);
 
 function buildFallbackInsight(context) {

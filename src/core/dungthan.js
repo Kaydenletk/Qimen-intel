@@ -7,21 +7,21 @@ import { PALACE_META } from './tables.js';
 import { getElementState } from './states.js';
 
 function normalizeTopicKey(topicKey) {
-  if (topicKey === 'tinh-duyen') return 'tinh-yeu';
-  if (topicKey === 'bat-dong-san') return 'dien-trach';
+  if (topicKey === 'tinh-yeu') return 'tinh-duyen';
+  if (topicKey === 'dien-trach') return 'bat-dong-san';
   if (topicKey === 'hoc-tap') return 'thi-cu';
   return topicKey;
 }
 
-const LOVE_TOPIC = { label: 'Tình Yêu / Hôn Nhân', primaryDoors: ['Hưu Môn', 'Sinh Môn'], primaryDeities: ['Lục Hợp', 'Thái Âm', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Chu Tước'], usefulStars: ['Thiên Phụ', 'Thiên Nhậm'] };
-const PROPERTY_TOPIC = { label: 'Điền Trạch / Mua Bán Nhà Đất', primaryDoors: ['Sinh Môn', 'Khai Môn'], primaryDeities: ['Cửu Địa', 'Lục Hợp'], avoidDoors: ['Tử Môn'], avoidDeities: ['Câu Trận', 'Chu Tước'], usefulStars: ['Thiên Phụ', 'Thiên Tâm'] };
+const LOVE_TOPIC = { label: 'Tình Duyên / Hôn Nhân', primaryDoors: ['Hưu Môn', 'Sinh Môn'], primaryDeities: ['Lục Hợp', 'Thái Âm', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Chu Tước'], usefulStars: ['Thiên Phụ', 'Thiên Nhậm'] };
+const PROPERTY_TOPIC = { label: 'Bất Động Sản / Mua Bán Nhà Đất', primaryDoors: ['Sinh Môn', 'Khai Môn'], primaryDeities: ['Cửu Địa', 'Lục Hợp'], avoidDoors: ['Tử Môn'], avoidDeities: ['Câu Trận', 'Chu Tước'], usefulStars: ['Thiên Phụ', 'Thiên Tâm'] };
 
 // ── Topic definitions (compact 4-line format) ─────────────────────────────────
 export const TOPICS = {
   'tai-van': { label: 'Tài Vận / Đầu Tư', primaryDoors: ['Sinh Môn', 'Khai Môn'], primaryDeities: ['Lục Hợp', 'Thái Âm', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Đằng Xà', 'Chu Tước'], usefulStars: ['Thiên Tâm', 'Thiên Nhậm', 'Thiên Phụ'] },
   'suc-khoe': { label: 'Sức Khỏe / Khám Bệnh', primaryDoors: ['Sinh Môn'], primaryDeities: ['Lục Hợp', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Đằng Xà'], usefulStars: ['Thiên Tâm'] },
-  'tinh-yeu': LOVE_TOPIC,
   'tinh-duyen': LOVE_TOPIC,
+  'tinh-yeu': LOVE_TOPIC,
   'su-nghiep': { label: 'Sự Nghiệp / Thăng Tiến', primaryDoors: ['Khai Môn', 'Sinh Môn'], primaryDeities: ['Cửu Thiên', 'Trực Phù'], avoidDoors: ['Tử Môn'], avoidDeities: ['Câu Trận', 'Chu Tước'], usefulStars: ['Thiên Tâm', 'Thiên Xung'] },
   'kinh-doanh': { label: 'Kinh Doanh / Khai Trương', primaryDoors: ['Sinh Môn', 'Khai Môn'], primaryDeities: ['Lục Hợp', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Đằng Xà', 'Chu Tước', 'Cửu Địa'], usefulStars: ['Thiên Tâm', 'Thiên Nhậm', 'Thiên Xung'] },
   'thi-cu': { label: 'Thi Cử / Phỏng Vấn', primaryDoors: ['Khai Môn', 'Hưu Môn'], primaryDeities: ['Thái Âm', 'Cửu Thiên', 'Lục Hợp'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Đằng Xà'], usefulStars: ['Thiên Phụ', 'Thiên Nhậm', 'Thiên Anh'] },
@@ -31,8 +31,8 @@ export const TOPICS = {
   'kien-tung': { label: 'Kiện Tụng / Pháp Lý', primaryDoors: ['Khai Môn'], primaryDeities: ['Câu Trận', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Hưu Môn'], avoidDeities: ['Chu Tước', 'Đằng Xà'], usefulStars: ['Thiên Xung'] },
   'xuat-hanh': { label: 'Xuất Hành / Du Lịch', primaryDoors: ['Sinh Môn', 'Khai Môn', 'Hưu Môn'], primaryDeities: ['Lục Hợp', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Đằng Xà'], usefulStars: ['Thiên Nhậm', 'Thiên Tâm'] },
   'xin-viec': { label: 'Xin Việc / Phỏng Vấn', primaryDoors: ['Khai Môn'], primaryDeities: ['Cửu Thiên', 'Lục Hợp'], avoidDoors: ['Tử Môn'], avoidDeities: ['Câu Trận'], usefulStars: ['Thiên Nhậm', 'Thiên Phụ'] },
-  'dien-trach': PROPERTY_TOPIC,
   'bat-dong-san': PROPERTY_TOPIC,
+  'dien-trach': PROPERTY_TOPIC,
   'muu-luoc': { label: 'Mưu Lược / Chiến Lược', primaryDoors: ['Khai Môn', 'Sinh Môn'], primaryDeities: ['Thái Âm', 'Cửu Thiên'], avoidDoors: ['Tử Môn'], avoidDeities: ['Đằng Xà', 'Cửu Địa'], usefulStars: ['Thiên Phụ', 'Thiên Tâm', 'Thiên Nhậm'] },
 };
 
@@ -103,7 +103,7 @@ export function generateAdvice(topicKey, best, chart) {
         ? `Năng lượng tích cực đang hội tụ. Việc điều trị hoặc thay đổi thói quen sinh hoạt lúc này sẽ mang lại kết quả phục hồi rõ rệt. Tiểu vũ trụ trong bạn đang dần cân bằng.`
         : `Hệ thống năng lượng đang báo động đỏ. Đừng chủ quan với các dấu hiệu nhỏ, hãy tìm kiếm sự tư vấn chuyên sâu thay vì tự phán đoán.`}`,
 
-    'tinh-yeu': `${ok} Hẹn hò hướng ${dir} (${pNm}). ${than} hỗ trợ — ${['Lục Hợp', 'Thái Âm', 'Thanh Long'].includes(than)
+    'tinh-duyen': `${ok} Hẹn hò hướng ${dir} (${pNm}). ${than} hỗ trợ — ${['Lục Hợp', 'Thái Âm', 'Thanh Long'].includes(than)
       ? `Tần số rung động đang trùng khớp. Đây là lúc "nhân duyên tiền định" xuất hiện. Hãy mở lòng và chủ động, bởi sợi dây liên kết đang rất bền chặt và chân thành.`
       : cat
         ? `Bầu không khí đang trở nên ấm áp hơn. Một cuộc trò chuyện sâu sắc hoặc một buổi hẹn nhẹ nhàng sẽ là khởi đầu tốt để thấu hiểu đối phương.`
@@ -145,7 +145,7 @@ export function generateAdvice(topicKey, best, chart) {
       ? `Bạn chính là mảnh ghép mà doanh nghiệp đang tìm kiếm. Hãy tự tin tỏa sáng bằng kinh nghiệm thực tế, cơ hội để bạn đạt được thỏa thuận lương thưởng như ý rất gần.`
       : `Tỉ lệ cạnh tranh đang rất cao hoặc yêu cầu công việc chưa thực sự khớp với bạn. Hãy làm nổi bật những giá trị khác biệt (USP) của bản thân để gây ấn tượng mạnh.`}`,
 
-    'dien-trach': `${ok} Giao dịch nhà đất hướng ${dir}. ${than} × ${mon} — ${cat
+    'bat-dong-san': `${ok} Giao dịch nhà đất hướng ${dir}. ${than} × ${mon} — ${cat
       ? `Đây là một "bất động sản vàng" với pháp lý minh bạch và tiềm năng tăng giá lớn. Năng lượng của đất đang tương sinh với bạn, giao dịch sẽ diễn ra nhanh chóng.`
       : `Cần đặc biệt lưu ý về quy hoạch hoặc tranh chấp ngầm. Đừng để vẻ ngoài hào nhoáng đánh lừa, hãy kiểm tra thực địa và hồ sơ pháp lý thật kỹ trước khi đặt cọc.`}`,
 

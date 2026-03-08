@@ -19,7 +19,7 @@ const MODELS = {
 
 const TIER_CONFIG = {
   companion: { model: MODELS.flash, maxTokens: 800 },
-  topic:     { model: MODELS.flash, maxTokens: 2048 },
+  topic:     { model: MODELS.pro,   maxTokens: 3072 },
   strategy:  { model: MODELS.pro,   maxTokens: 3072 },
 };
 

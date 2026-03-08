@@ -10,8 +10,8 @@ const TOPIC_KEY_MAP = {
   'ky-hop-dong': { libraryKey: 'MONEY_INVEST', strength: 'strong' },
   'dam-phan': { libraryKey: 'MONEY_INVEST', strength: 'strong' },
   'doi-no': { libraryKey: 'MONEY_INVEST', strength: 'strong' },
-  'dien-trach': { libraryKey: 'MONEY_INVEST', strength: 'strong' },
   'bat-dong-san': { libraryKey: 'MONEY_INVEST', strength: 'strong' },
+  'dien-trach': { libraryKey: 'MONEY_INVEST', strength: 'strong' },
   'su-nghiep': { libraryKey: 'CAREER_INTERVIEW', strength: 'strong' },
   'xin-viec': { libraryKey: 'CAREER_INTERVIEW', strength: 'strong' },
   'muu-luoc': { libraryKey: 'CAREER_INTERVIEW', strength: 'medium' },
@@ -19,8 +19,8 @@ const TOPIC_KEY_MAP = {
   'thi-cu': { libraryKey: 'EXAM_STUDY', strength: 'strong' },
   'hoc-tap': { libraryKey: 'EXAM_STUDY', strength: 'strong' },
   'suc-khoe': { libraryKey: 'HEALTH_CHECK', strength: 'strong' },
-  'tinh-yeu': { libraryKey: 'MONEY_INVEST', strength: 'weak' },
   'tinh-duyen': { libraryKey: 'MONEY_INVEST', strength: 'weak' },
+  'tinh-yeu': { libraryKey: 'MONEY_INVEST', strength: 'weak' },
   'xuat-hanh': { libraryKey: 'MONEY_INVEST', strength: 'weak' },
 };
 

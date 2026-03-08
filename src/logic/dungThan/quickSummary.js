@@ -242,6 +242,33 @@ export const TOPIC_DICTIONARIES = {
       `Về sức khỏe, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
   },
 
+  'tinh-duyen': {
+    label: 'Tình Duyên / Hôn Nhân',
+    mon: {
+      'Sinh': 'mối quan hệ đang phát triển tích cực',
+      'Khai': 'sẵn sàng mở lòng đón nhận tình yêu mới',
+      'Hưu': 'cần thời gian để hai bên nghỉ ngơi, suy nghĩ',
+      'Thương': 'có xung đột, tranh cãi trong mối quan hệ',
+      'Đỗ': 'cảm xúc bị kìm nén, khó bày tỏ',
+      'Cảnh': 'tình cảm được bày tỏ công khai',
+      'Tử': 'mối quan hệ đang đi vào ngõ cụt',
+      'Kinh': 'có chuyện bất ngờ trong tình cảm',
+    },
+    tinh: {
+      'Thiên Phụ': 'có người mai mối hoặc giúp đỡ',
+      'Thiên Nhậm': 'tình cảm cần thời gian để vun đắp',
+      'Thiên Tâm': 'nên suy nghĩ kỹ về mối quan hệ này',
+    },
+    than: {
+      'Lục Hợp': 'nhân duyên tốt, dễ kết nối',
+      'Thái Âm': 'tình cảm phát triển kín đáo, sâu lắng',
+      'Đằng Xà': 'cẩn thận bị lừa tình hoặc hiểu lầm',
+      'Chu Tước': 'có thị phi, người thứ ba can thiệp',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về tình duyên, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+
   'tinh-yeu': {
     label: 'Tình Duyên / Hôn Nhân',
     mon: {
@@ -269,31 +296,58 @@ export const TOPIC_DICTIONARIES = {
       `Về tình duyên, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
   },
 
-  'tinh-duyen': {
-    label: 'Tình Duyên / Hôn Nhân',
+  'bat-dong-san': {
+    label: 'Bất Động Sản / Nhà Đất',
     mon: {
-      'Sinh': 'mối quan hệ đang phát triển tích cực',
-      'Khai': 'sẵn sàng mở lòng đón nhận tình yêu mới',
-      'Hưu': 'cần thời gian để hai bên nghỉ ngơi, suy nghĩ',
-      'Thương': 'có xung đột, tranh cãi trong mối quan hệ',
-      'Đỗ': 'cảm xúc bị kìm nén, khó bày tỏ',
-      'Cảnh': 'tình cảm được bày tỏ công khai',
-      'Tử': 'mối quan hệ đang đi vào ngõ cụt',
-      'Kinh': 'có chuyện bất ngờ trong tình cảm',
+      'Sinh': 'nhà cửa đất đai đang có lực tăng trưởng, dễ sinh lợi hoặc chốt giao dịch',
+      'Khai': 'thời điểm thuận để mở giao dịch, thương lượng hoặc xuống tiền có tính toán',
+      'Hưu': 'nên tạm giữ nhịp, khảo sát kỹ trước khi cam kết lớn',
+      'Cảnh': 'thông tin quy hoạch, pháp lý hoặc giá thị trường đang lộ ra rõ hơn',
+      'Đỗ': 'hồ sơ hoặc tiến độ giao dịch đang bị nghẽn, cần tháo nút thắt',
+      'Tử': 'thương vụ dễ bế tắc, cần tránh xuống tiền vội',
+      'Kinh': 'có biến động về pháp lý, giá cả hoặc tâm lý thị trường',
+      'Thương': 'cạnh tranh gay gắt, dễ phát sinh va chạm lợi ích',
     },
     tinh: {
-      'Thiên Phụ': 'có người mai mối hoặc giúp đỡ',
-      'Thiên Nhậm': 'tình cảm cần thời gian để vun đắp',
-      'Thiên Tâm': 'nên suy nghĩ kỹ về mối quan hệ này',
+      'Thiên Phụ': 'có môi giới, chuyên gia hoặc giấy tờ hỗ trợ khá chuẩn',
+      'Thiên Tâm': 'cần soi kỹ pháp lý, dòng tiền và khả năng khai thác thực tế',
+      'Thiên Nhậm': 'thương vụ này hợp kiểu chậm chắc, không hợp lướt nóng',
     },
     than: {
-      'Lục Hợp': 'nhân duyên tốt, dễ kết nối',
-      'Thái Âm': 'tình cảm phát triển kín đáo, sâu lắng',
-      'Đằng Xà': 'cẩn thận bị lừa tình hoặc hiểu lầm',
-      'Chu Tước': 'có thị phi, người thứ ba can thiệp',
+      'Lục Hợp': 'dễ chốt được bên mua bán hoặc người đứng ra kết nối',
+      'Cửu Địa': 'đất có nền, giao dịch hợp kiểu chắc gốc hơn là phô trương',
+      'Thái Âm': 'nên đi kín kẽ, ưu tiên kiểm tra giấy tờ và điều khoản ngầm',
+      'Đằng Xà': 'cẩn thận tin rao đẹp nhưng thông tin chưa sạch',
     },
     template: (monText, tinhText, thanText) =>
-      `Về tình duyên, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+      `Về nhà cửa đất đai, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+
+  'dien-trach': {
+    label: 'Bất Động Sản / Nhà Đất',
+    mon: {
+      'Sinh': 'nhà cửa đất đai đang có lực tăng trưởng, dễ sinh lợi hoặc chốt giao dịch',
+      'Khai': 'thời điểm thuận để mở giao dịch, thương lượng hoặc xuống tiền có tính toán',
+      'Hưu': 'nên tạm giữ nhịp, khảo sát kỹ trước khi cam kết lớn',
+      'Cảnh': 'thông tin quy hoạch, pháp lý hoặc giá thị trường đang lộ ra rõ hơn',
+      'Đỗ': 'hồ sơ hoặc tiến độ giao dịch đang bị nghẽn, cần tháo nút thắt',
+      'Tử': 'thương vụ dễ bế tắc, cần tránh xuống tiền vội',
+      'Kinh': 'có biến động về pháp lý, giá cả hoặc tâm lý thị trường',
+      'Thương': 'cạnh tranh gay gắt, dễ phát sinh va chạm lợi ích',
+    },
+    tinh: {
+      'Thiên Phụ': 'có môi giới, chuyên gia hoặc giấy tờ hỗ trợ khá chuẩn',
+      'Thiên Tâm': 'cần soi kỹ pháp lý, dòng tiền và khả năng khai thác thực tế',
+      'Thiên Nhậm': 'thương vụ này hợp kiểu chậm chắc, không hợp lướt nóng',
+    },
+    than: {
+      'Lục Hợp': 'dễ chốt được bên mua bán hoặc người đứng ra kết nối',
+      'Cửu Địa': 'đất có nền, giao dịch hợp kiểu chắc gốc hơn là phô trương',
+      'Thái Âm': 'nên đi kín kẽ, ưu tiên kiểm tra giấy tờ và điều khoản ngầm',
+      'Đằng Xà': 'cẩn thận tin rao đẹp nhưng thông tin chưa sạch',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về nhà cửa đất đai, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
   },
 
   'hoc-tap': {
@@ -415,6 +469,11 @@ const TOPIC_MUU_KE = {
     'Khai': 'Hãy chủ động đề xuất một bản kế hoạch mới ngay trong buổi họp, tận dụng thế mở để chiếm lòng tin cấp trên.',
     'Sinh': 'Chốt một đầu việc có kết quả đo được, để biến điểm sáng thành thành tích thật.',
   },
+  'bat-dong-san': {
+    'Sinh': 'Ưu tiên tài sản có dòng tiền hoặc giá trị sử dụng rõ ràng, đừng chỉ mua theo kỳ vọng kể lại.',
+    'Khai': 'Mở deal bằng bộ câu hỏi pháp lý và quy hoạch thật cụ thể, để bên kia phải lộ bài ngay từ đầu.',
+    'Cảnh': 'Bám sát bảng giá, hồ sơ và thông tin quy hoạch đang lộ ra để chọn đúng cửa vào.',
+  },
   'hoc-tap': {
     'Cảnh': 'Bám sát đề cương, khoanh đúng phần trọng điểm và luyện lại các dạng câu hỏi dễ ra trước.',
     'Khai': 'Mở một khung học mới thật rõ: chia môn, chia chặng, chia đầu ra theo từng buổi.',
@@ -423,6 +482,11 @@ const TOPIC_MUU_KE = {
   'thi-cu': {
     'Cảnh': 'Ưu tiên đọc kỹ cấu trúc đề, tiêu chí chấm và các tín hiệu từ giáo viên để ôn đúng trọng tâm.',
     'Khai': 'Chốt checklist thi cử rõ ràng: tài liệu, lịch ôn, khung giờ làm bài và phương án dự phòng.',
+  },
+  'dien-trach': {
+    'Sinh': 'Ưu tiên tài sản có dòng tiền hoặc giá trị sử dụng rõ ràng, đừng chỉ mua theo kỳ vọng kể lại.',
+    'Khai': 'Mở deal bằng bộ câu hỏi pháp lý và quy hoạch thật cụ thể, để bên kia phải lộ bài ngay từ đầu.',
+    'Cảnh': 'Bám sát bảng giá, hồ sơ và thông tin quy hoạch đang lộ ra để chọn đúng cửa vào.',
   },
 };
 

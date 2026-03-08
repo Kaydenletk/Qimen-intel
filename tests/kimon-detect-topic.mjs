@@ -17,7 +17,7 @@ assert.equal(t4.topic, 'tai-van', 'Vàng → tai-van');
 assert.equal(t4.tier, 'topic');
 
 const t5 = detectTopic('crush có thích mình không');
-assert.equal(t5.topic, 'tinh-yeu', 'Crush → tinh-yeu');
+assert.equal(t5.topic, 'tinh-duyen', 'Crush → tinh-duyen');
 assert.equal(t5.tier, 'topic');
 
 const t6 = detectTopic('đau đầu quá');
@@ -73,7 +73,7 @@ const t17 = detectTopic('tiền');
 assert.equal(t17.topic, 'tai-van', '1 từ tiền → tai-van');
 
 const t18 = detectTopic('yêu');
-assert.equal(t18.topic, 'tinh-yeu', '1 từ yêu → tinh-yeu');
+assert.equal(t18.topic, 'tinh-duyen', '1 từ yêu → tinh-duyen');
 
 const t19 = detectTopic('bệnh');
 assert.equal(t19.topic, 'suc-khoe', '1 từ bệnh → suc-khoe');
@@ -82,7 +82,11 @@ const t20 = detectTopic('gym');
 assert.equal(t20.topic, 'suc-khoe', '1 từ gym → suc-khoe');
 
 const t21 = detectTopic('nhà');
-assert.equal(t21.topic, 'dien-trach', '1 từ nhà → dien-trach');
+assert.equal(t21.topic, 'bat-dong-san', '1 từ nhà → bat-dong-san');
+
+const t24 = detectTopic('Tình hình đất đai dạo này sao?');
+assert.equal(t24.topic, 'bat-dong-san', 'Đất đai → bat-dong-san');
+assert.equal(t24.tier, 'topic');
 
 // ── AI fallback threshold regression ──
 const t22 = await detectTopicHybrid('thất nghiệp', '');

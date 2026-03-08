@@ -113,6 +113,55 @@ function logKimonModelMeta(route, response, rawText = '') {
   );
 }
 
+function resolveTopicDetailLookup(qmdjData = {}) {
+  const raw = qmdjData?.allTopicDetails;
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed)
+        ? Object.fromEntries(parsed.filter(Boolean).map(item => [item.key, item]))
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  if (Array.isArray(raw)) {
+    return Object.fromEntries(raw.filter(Boolean).map(item => [item.key, item]));
+  }
+  if (typeof raw === 'object') return raw;
+  return {};
+}
+
+function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '') {
+  if (!topicKey || topicKey === 'chung') return qmdjData;
+
+  const topicLookup = resolveTopicDetailLookup(qmdjData);
+  const fallbackKey = topicKey === 'hoc-tap'
+    ? 'thi-cu'
+    : topicKey === 'tinh-yeu'
+      ? 'tinh-duyen'
+      : topicKey === 'dien-trach'
+        ? 'bat-dong-san'
+        : '';
+  const detail = topicLookup[topicKey] || (fallbackKey ? topicLookup[fallbackKey] : null);
+
+  if (!detail) {
+    return {
+      ...qmdjData,
+      selectedTopicKey: topicKey,
+    };
+  }
+
+  return {
+    ...qmdjData,
+    selectedTopicKey: topicKey,
+    selectedTopic: detail.chipLabel || detail.topic || qmdjData.selectedTopic || topicKey,
+    selectedTopicResult: detail.promptTopicResult || qmdjData.selectedTopicResult || '',
+    insight: detail.promptInsight || qmdjData.insight || '',
+  };
+}
+
 function generateHTML(date, hour, minute = 0, options = {}) {
   const { chart, evaluation, topicResults } = analyze(date, hour);
   const chartTimeMode = options.chartTimeMode || 'live';
@@ -166,8 +215,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   const TOPIC_CHIP_LABELS = {
     'tai-van': 'Tiền bạc / Đầu tư',
     'su-nghiep': 'Công việc / Sự nghiệp',
-    'tinh-yeu': 'Tình yêu / Mối quan hệ',
     'tinh-duyen': 'Tình cảm / Mối quan hệ',
+    'tinh-yeu': 'Tình yêu / Mối quan hệ',
     'kinh-doanh': 'Kinh doanh',
     'suc-khoe': 'Sức khỏe',
     'thi-cu': 'Thi cử',
@@ -178,8 +227,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     'kien-tung': 'Kiện tụng',
     'xuat-hanh': 'Xuất hành',
     'xin-viec': 'Xin việc',
-    'dien-trach': 'Điền trạch / Nhà đất',
     'bat-dong-san': 'Bất động sản',
+    'dien-trach': 'Điền trạch / Nhà đất',
     'muu-luoc': 'Mưu lược',
   };
   const formatScore = score => `${score >= 0 ? '+' : ''}${score}`;
@@ -489,6 +538,18 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       tactics: strategic
         ? { do: Array.isArray(strategic.do) ? strategic.do : [], avoid: Array.isArray(strategic.avoid) ? strategic.avoid : [] }
         : (insight?.tactics || { do: [], avoid: [] }),
+      promptTopicResult: [
+        strategic?.headline ? `Headline: ${strategic.headline}` : '',
+        oneLiner ? `Core: ${oneLiner}` : '',
+        counselorNarrative ? `Narrative: ${counselorNarrative}` : '',
+        strategic && Array.isArray(strategic.do) && strategic.do.length ? `Do: ${strategic.do.join(' | ')}` : '',
+        strategic && Array.isArray(strategic.avoid) && strategic.avoid.length ? `Avoid: ${strategic.avoid.join(' | ')}` : '',
+        t.actionAdvice ? `ActionAdvice: ${t.actionAdvice}` : '',
+      ].filter(Boolean).join('\n'),
+      promptInsight: [
+        insightEvidence.length ? insightEvidence.join('\n') : '',
+        strategic?.disclaimer || insight?.disclaimer || '',
+      ].filter(Boolean).join('\n'),
       learn: insight?.learn || { usefulGods: [], flags: [], mappingNotes: [] },
       disclaimer: strategic?.disclaimer || insight?.disclaimer || '',
       reasons: Array.isArray(t.reasons) ? t.reasons : [],
@@ -2545,6 +2606,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             data-display-palaces="${escapeHTML(JSON.stringify(displayChart.palaces || {}))}"
             data-palace-summaries="${escapeHTML(JSON.stringify(palaceSummaries || {}).replace(/</g, '\\u003c'))}"
             data-all-topics="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ topic: t.topic, score: t.score, action: t.actionAdvice, verdict: t.verdict }))))}"
+            data-all-topic-details="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ key: t.key, topic: t.topic, chipLabel: t.chipLabel, promptTopicResult: t.promptTopicResult, promptInsight: t.promptInsight }))).replace(/</g, '\\u003c'))}"
             data-mon="${escapeHTML(energyFlow.metadata?.door || '')}"
             data-than="${escapeHTML(energyFlow.metadata?.deity || '')}"
             data-tinh="${escapeHTML(energyFlow.metadata?.star || '')}"
@@ -3053,11 +3115,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       if (!kimonAutoData) return {};
       let displayPalaces = {};
       let palaceSummaries = {};
+      let allTopicDetails = [];
       try {
         displayPalaces = JSON.parse(kimonAutoData.dataset.displayPalaces || '{}');
       } catch {}
       try {
         palaceSummaries = JSON.parse(kimonAutoData.dataset.palaceSummaries || '{}');
+      } catch {}
+      try {
+        allTopicDetails = JSON.parse(kimonAutoData.dataset.allTopicDetails || '[]');
       } catch {}
       const resolvePalaceSignals = palaceNum => {
         const palace = displayPalaces?.[palaceNum] || displayPalaces?.[String(palaceNum)] || null;
@@ -3120,6 +3186,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         directEnvoyActionScore: parseInt(kimonAutoData.dataset.routeScore) || 0,
         quickReadSummary: kimonAutoData.dataset.quickReadSummary || '',
         allTopics: kimonAutoData.dataset.allTopics || '[]',
+        allTopicDetails,
         palaceSummaries,
         // Linear time awareness
         currentHour: parseInt(hourInputEl?.value) || new Date().getHours(),
@@ -3963,7 +4030,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           mon: currentTopic.usefulGodGate || base.mon,
           than: currentTopic.usefulGodDeity || base.than,
           cung: currentTopic.usefulGodPalaceName || base.cung,
-          selectedTopic: currentTopic.chipLabel || 'chung'
+          selectedTopic: currentTopic.chipLabel || 'chung',
+          selectedTopicKey: currentTopic.key || 'chung',
+          selectedTopicResult: currentTopic.promptTopicResult || '',
+          insight: currentTopic.promptInsight || '',
         } : base;
 
         const data = await sendKymonRequest({
@@ -4174,9 +4244,10 @@ export default function handler(req, res) {
         const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
         const { topic, tier, confidence } = detection;
         const effectiveTier = isDeepDive ? 'strategy' : tier;
+        const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
-          tier: effectiveTier, topic: topic || 'chung', qmdjData, userContext, isAutoLoad,
+          tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
         });
         console.log(`[Kimon][stream] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} maxTokens=${maxTokens} format=${responseFormat}`);
 
@@ -4292,9 +4363,10 @@ export default function handler(req, res) {
         const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
         const { topic, tier, confidence } = detection;
         const effectiveTier = isDeepDive ? 'strategy' : tier;
+        const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
-          tier: effectiveTier, topic: topic || 'chung', qmdjData, userContext, isAutoLoad,
+          tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
         });
         console.log(`[Kimon][json] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} maxTokens=${maxTokens} format=${responseFormat}`);
 
