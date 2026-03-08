@@ -29,6 +29,17 @@ node src/index.js  # Runs built-in demo
 for f in tests/*.mjs; do node "$f"; done
 ```
 
+## Protected Code (DO NOT MODIFY)
+
+The QMDJ calculation engine in `src/core/` is stable and locked. Only modify these files if explicitly requested by the user:
+
+- `tables.js` - Pure data constants
+- `calendar.js` - Solar term calculation
+- `stems.js` - Day/Hour pillar calculations
+- `flying.js` - Palace rotation engine
+- `dungthan.js` - Topic analysis
+- `cachcuc.js` - Formation detection
+
 ## Architecture
 
 ### Core Engine (`src/core/`)

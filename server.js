@@ -3114,6 +3114,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         // Linear time awareness
         currentHour: parseInt(hourInputEl?.value) || new Date().getHours(),
         currentMinute: parseInt(minuteInputEl?.value) || new Date().getMinutes(),
+        // Hybrid Ứng Kỳ: Pass displayPalaces for future hours calculation
+        displayPalaces: displayPalaces,
       };
     }
 
