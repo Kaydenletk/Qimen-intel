@@ -3256,7 +3256,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           // Legacy fallbacks
           lead: rawData.tongQuan.trim(),
           timeHint: '',
-          message: messageParts.join('\n\n') || rawData.tongQuan.trim(),
+          message: messageParts.join('\\n\\n') || rawData.tongQuan.trim(),
           closingLine: kimonQuote,
         };
       }

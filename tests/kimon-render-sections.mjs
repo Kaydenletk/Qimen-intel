@@ -52,6 +52,7 @@ assert.match(serverSource, /const responseText = await res\.text\(\);/, 'Request
 assert.match(serverSource, /const parsed = parseKimonResponseText\(responseText\);/, 'Request helper phải parse raw response an toàn');
 assert.match(serverSource, /const normalized = normalizeKimonUiPayload\(parsed\);/, 'Request helper phải normalize schema trước khi render');
 assert.match(serverSource, /function normalizeKimonUiPayload\(rawData\)/, 'Frontend phải validate và normalize schema response');
+assert.match(serverSource, /message:\s*messageParts\.join\('\\\\n\\\\n'\) \|\| rawData\.tongQuan\.trim\(\),/, 'Deep-dive legacy fallback trong client script phải escape newline đúng để không phá inline JS');
 assert.match(serverSource, /function extractFirstJsonBlockText\(rawText\)/, 'Frontend phải có helper balanced-brace extraction');
 assert.match(serverSource, /console\.warn\('\[Kymon\] Frontend parse direct failed:'/,'Frontend phải log parse fail để debug');
 assert.match(serverSource, /logKimonDebug\('response received', \{\s*status: res\.status,\s*responseLength: responseText\.length,\s*\}\);/, 'Frontend nên log response length để debug truncation');
