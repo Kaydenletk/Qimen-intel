@@ -121,8 +121,40 @@ function testNegotiationAdvantageCase() {
   );
 }
 
+function testStudyInsightCase() {
+  const chart = buildChartWithPalace(9, {
+    mon: { name: 'Cảnh Môn', short: 'Cảnh' },
+    than: { name: 'Cửu Thiên' },
+    star: { name: 'Thiên Phụ', short: 'Phụ' },
+    can: { name: 'Đinh' },
+    khongVong: false,
+    trucSu: false,
+    trucPhu: false,
+  });
+
+  const topicResult = buildTopicResult({
+    palaceNum: 9,
+    dir: 'S',
+    palaceName: 'Ly',
+    score: 1,
+  });
+
+  const insight = generateStrategicInsight({
+    chart,
+    topicKey: 'hoc-tap',
+    topicResult,
+  });
+
+  assert.equal(insight.score, 1, `Expected study score=1, got ${insight.score}`);
+  assert.ok(
+    /học tập|ôn tập|kiến thức/i.test(insight.coreMessage + ' ' + insight.narrative),
+    `Expected study narrative, got ${insight.coreMessage} // ${insight.narrative}`
+  );
+}
+
 testWealthWarningCase();
 testHealthDigestiveFocusCase();
 testNegotiationAdvantageCase();
+testStudyInsightCase();
 
 console.log('dungThanStrategic.test.mjs: OK');

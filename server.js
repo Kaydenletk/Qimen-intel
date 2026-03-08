@@ -15,7 +15,7 @@ import { analyze } from './src/index.js';
 import { generateDeterministicEnergyFlow } from './src/logic/dungThan/index.js';
 import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
 import { parseKimonJsonResponse, toKimonResponseSchema } from './src/logic/kimon/jsonResponse.js';
-import { detectTopicHybrid } from './src/logic/kimon/detectTopic.js';
+import { detectDeepDive, detectTopicHybrid } from './src/logic/kimon/detectTopic.js';
 import { selectModel, buildPromptByTier } from './src/logic/kimon/modelRouter.js';
 import {
   ORDER as SLOT_ORDER,
@@ -166,16 +166,19 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   const TOPIC_CHIP_LABELS = {
     'tai-van': 'Tiền bạc / Đầu tư',
     'su-nghiep': 'Công việc / Sự nghiệp',
+    'tinh-yeu': 'Tình yêu / Mối quan hệ',
     'tinh-duyen': 'Tình cảm / Mối quan hệ',
     'kinh-doanh': 'Kinh doanh',
     'suc-khoe': 'Sức khỏe',
     'thi-cu': 'Thi cử',
+    'hoc-tap': 'Học tập',
     'ky-hop-dong': 'Hợp đồng',
     'dam-phan': 'Đàm phán',
     'doi-no': 'Đòi nợ',
     'kien-tung': 'Kiện tụng',
     'xuat-hanh': 'Xuất hành',
     'xin-viec': 'Xin việc',
+    'dien-trach': 'Điền trạch / Nhà đất',
     'bat-dong-san': 'Bất động sản',
     'muu-luoc': 'Mưu lược',
   };
@@ -2540,6 +2543,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           <span id="totalScoreValue" data-kimon-score="${evaluation.overallScore}" hidden>${evaluation.overallScore}</span>
           <span id="kimonAutoData"
             data-display-palaces="${escapeHTML(JSON.stringify(displayChart.palaces || {}))}"
+            data-palace-summaries="${escapeHTML(JSON.stringify(palaceSummaries || {}).replace(/</g, '\\u003c'))}"
             data-all-topics="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ topic: t.topic, score: t.score, action: t.actionAdvice, verdict: t.verdict }))))}"
             data-mon="${escapeHTML(energyFlow.metadata?.door || '')}"
             data-than="${escapeHTML(energyFlow.metadata?.deity || '')}"
@@ -3048,8 +3052,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     function getBaseQmdjData() {
       if (!kimonAutoData) return {};
       let displayPalaces = {};
+      let palaceSummaries = {};
       try {
         displayPalaces = JSON.parse(kimonAutoData.dataset.displayPalaces || '{}');
+      } catch {}
+      try {
+        palaceSummaries = JSON.parse(kimonAutoData.dataset.palaceSummaries || '{}');
       } catch {}
       const resolvePalaceSignals = palaceNum => {
         const palace = displayPalaces?.[palaceNum] || displayPalaces?.[String(palaceNum)] || null;
@@ -3112,6 +3120,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         directEnvoyActionScore: parseInt(kimonAutoData.dataset.routeScore) || 0,
         quickReadSummary: kimonAutoData.dataset.quickReadSummary || '',
         allTopics: kimonAutoData.dataset.allTopics || '[]',
+        palaceSummaries,
         // Linear time awareness
         currentHour: parseInt(hourInputEl?.value) || new Date().getHours(),
         currentMinute: parseInt(minuteInputEl?.value) || new Date().getMinutes(),
@@ -4159,26 +4168,29 @@ export default function handler(req, res) {
         // ── Tiered AI Routing ──
         const isAutoLoad = userContext === '__AUTO_LOAD__';
         const apiKey = process.env.GEMINI_API_KEY;
-        const { topic, tier, confidence } = isAutoLoad
+        const detection = isAutoLoad
           ? { topic: 'chung', tier: 'topic', confidence: 'auto' }
           : await detectTopicHybrid(userContext, apiKey);
-        const { model: modelName, maxTokens } = selectModel(tier);
+        const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
+        const { topic, tier, confidence } = detection;
+        const effectiveTier = isDeepDive ? 'strategy' : tier;
+        const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
-          tier, topic: topic || 'chung', qmdjData, userContext, isAutoLoad,
+          tier: effectiveTier, topic: topic || 'chung', qmdjData, userContext, isAutoLoad,
         });
-        console.log(`[Kimon][stream] tier=${tier} topic=${topic} model=${modelName} confidence=${confidence} maxTokens=${maxTokens} format=${responseFormat}`);
+        console.log(`[Kimon][stream] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} maxTokens=${maxTokens} format=${responseFormat}`);
 
         const genAI = new GoogleGenerativeAI(apiKey);
 
         const generationConfig = {
-          temperature: tier === 'companion' ? 0.7 : 0.3,
+          temperature: effectiveTier === 'companion' ? 0.7 : 0.3,
           maxOutputTokens: maxTokens,
         };
         if (responseFormat === 'json') {
           generationConfig.responseMimeType = 'application/json';
         }
         // Disable thinking for Flash to prevent token budget exhaustion
-        if (tier !== 'strategy') {
+        if (effectiveTier !== 'strategy') {
           generationConfig.thinkingConfig = { thinkingBudget: 0 };
         }
 
@@ -4218,14 +4230,14 @@ export default function handler(req, res) {
               timeHint: '',
               message: fullText.trim(),
               closingLine: '',
-              _tier: tier,
+              _tier: effectiveTier,
               _topic: topic,
             };
             console.log('[Kimon] Companion response, length:', fullText.length);
             res.write(`data: ${JSON.stringify({ __DONE__: true, parsed: companionParsed })}\n\n`);
           } else {
             const parsed = toKimonResponseSchema(parseKimonJsonResponse(fullText), fullText);
-            parsed._tier = tier;
+            parsed._tier = effectiveTier;
             parsed._topic = topic;
             console.log('[Kimon] Parsed OK, keys:', Object.keys(parsed));
             res.write(`data: ${JSON.stringify({ __DONE__: true, parsed })}\n\n`);
@@ -4274,25 +4286,28 @@ export default function handler(req, res) {
         const isAutoLoad = userContext === '__AUTO_LOAD__';
 
         // ── Tiered AI Routing ──
-        const { topic, tier, confidence } = isAutoLoad
+        const detection = isAutoLoad
           ? { topic: 'chung', tier: 'topic', confidence: 'auto' }
           : await detectTopicHybrid(userContext, apiKey);
-        const { model: modelName, maxTokens } = selectModel(tier);
+        const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
+        const { topic, tier, confidence } = detection;
+        const effectiveTier = isDeepDive ? 'strategy' : tier;
+        const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
-          tier, topic: topic || 'chung', qmdjData, userContext, isAutoLoad,
+          tier: effectiveTier, topic: topic || 'chung', qmdjData, userContext, isAutoLoad,
         });
-        console.log(`[Kimon][json] tier=${tier} topic=${topic} model=${modelName} confidence=${confidence} maxTokens=${maxTokens} format=${responseFormat}`);
+        console.log(`[Kimon][json] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} maxTokens=${maxTokens} format=${responseFormat}`);
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const generationConfig = {
-          temperature: tier === 'companion' ? 0.7 : 0.3,
+          temperature: effectiveTier === 'companion' ? 0.7 : 0.3,
           maxOutputTokens: maxTokens,
         };
         if (responseFormat === 'json') {
           generationConfig.responseMimeType = 'application/json';
         }
         // Disable thinking for Flash to prevent token budget exhaustion
-        if (tier !== 'strategy') {
+        if (effectiveTier !== 'strategy') {
           generationConfig.thinkingConfig = { thinkingBudget: 0 };
         }
 

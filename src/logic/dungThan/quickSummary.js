@@ -242,6 +242,33 @@ export const TOPIC_DICTIONARIES = {
       `Về sức khỏe, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
   },
 
+  'tinh-yeu': {
+    label: 'Tình Duyên / Hôn Nhân',
+    mon: {
+      'Sinh': 'mối quan hệ đang phát triển tích cực',
+      'Khai': 'sẵn sàng mở lòng đón nhận tình yêu mới',
+      'Hưu': 'cần thời gian để hai bên nghỉ ngơi, suy nghĩ',
+      'Thương': 'có xung đột, tranh cãi trong mối quan hệ',
+      'Đỗ': 'cảm xúc bị kìm nén, khó bày tỏ',
+      'Cảnh': 'tình cảm được bày tỏ công khai',
+      'Tử': 'mối quan hệ đang đi vào ngõ cụt',
+      'Kinh': 'có chuyện bất ngờ trong tình cảm',
+    },
+    tinh: {
+      'Thiên Phụ': 'có người mai mối hoặc giúp đỡ',
+      'Thiên Nhậm': 'tình cảm cần thời gian để vun đắp',
+      'Thiên Tâm': 'nên suy nghĩ kỹ về mối quan hệ này',
+    },
+    than: {
+      'Lục Hợp': 'nhân duyên tốt, dễ kết nối',
+      'Thái Âm': 'tình cảm phát triển kín đáo, sâu lắng',
+      'Đằng Xà': 'cẩn thận bị lừa tình hoặc hiểu lầm',
+      'Chu Tước': 'có thị phi, người thứ ba can thiệp',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về tình duyên, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+
   'tinh-duyen': {
     label: 'Tình Duyên / Hôn Nhân',
     mon: {
@@ -267,6 +294,32 @@ export const TOPIC_DICTIONARIES = {
     },
     template: (monText, tinhText, thanText) =>
       `Về tình duyên, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+
+  'hoc-tap': {
+    label: 'Học Tập / Thi Cử',
+    mon: {
+      'Sinh': 'năng lượng học tập đang lên, dễ tiếp thu kiến thức mới',
+      'Khai': 'thời điểm tốt để bắt đầu môn học hoặc khóa đào tạo mới',
+      'Hưu': 'cần thời gian củng cố lại kiến thức cũ, đừng học nhồi nhét',
+      'Cảnh': 'tin tức về đề thi, đề cương hoặc kết quả sẽ sớm xuất hiện',
+      'Đỗ': 'việc học đang gặp bế tắc, cần tìm phương pháp mới',
+      'Tử': 'áp lực thi cử lớn, dễ nản lòng hoặc kết quả không như ý',
+      'Kinh': 'lo lắng thái quá về thi cử, hoặc có biến động trong lịch thi',
+      'Thương': 'cạnh tranh điểm số gay gắt hoặc bị áp lực từ giáo viên',
+    },
+    tinh: {
+      'Thiên Phụ': 'gặp được giáo viên giỏi hoặc có tài liệu học tập rất chuẩn',
+      'Thiên Tâm': 'cần lập kế hoạch ôn thi logic và có chiến thuật',
+      'Thiên Nhậm': 'cần kiên trì học tập dài hạn, không nên học tủ',
+    },
+    than: {
+      'Trực Phù': 'được thầy cô hoặc cấp trên nâng đỡ, chỉ bảo',
+      'Cửu Thiên': 'tư duy mở mang, học một biết mười, thi cử hanh thông',
+      'Thái Âm': 'thích hợp cho việc tự học, nghiên cứu chuyên sâu',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về học tập, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
   },
 
   'su-nghiep': {
@@ -357,6 +410,61 @@ function evaluateCombination(mon, tinh, than) {
   return { verdict: 'Bình thường', emoji: '➡️', color: 'gray' };
 }
 
+const TOPIC_MUU_KE = {
+  'su-nghiep': {
+    'Khai': 'Hãy chủ động đề xuất một bản kế hoạch mới ngay trong buổi họp, tận dụng thế mở để chiếm lòng tin cấp trên.',
+    'Sinh': 'Chốt một đầu việc có kết quả đo được, để biến điểm sáng thành thành tích thật.',
+  },
+  'hoc-tap': {
+    'Cảnh': 'Bám sát đề cương, khoanh đúng phần trọng điểm và luyện lại các dạng câu hỏi dễ ra trước.',
+    'Khai': 'Mở một khung học mới thật rõ: chia môn, chia chặng, chia đầu ra theo từng buổi.',
+    'Sinh': 'Tăng nhịp luyện đề hoặc làm bài tập ứng dụng ngay khi vừa học xong lý thuyết.',
+  },
+  'thi-cu': {
+    'Cảnh': 'Ưu tiên đọc kỹ cấu trúc đề, tiêu chí chấm và các tín hiệu từ giáo viên để ôn đúng trọng tâm.',
+    'Khai': 'Chốt checklist thi cử rõ ràng: tài liệu, lịch ôn, khung giờ làm bài và phương án dự phòng.',
+  },
+};
+
+function buildMuuKe(topic, monShort) {
+  return TOPIC_MUU_KE[topic]?.[monShort]
+    || (monShort === 'Khai'
+      ? 'Chủ động mở cửa bằng một bước đi rõ ràng, có người nhận, có mốc thời gian, có đầu ra kiểm chứng.'
+      : monShort === 'Sinh'
+        ? 'Nuôi thế mạnh đang có bằng nhịp làm đều, tăng dần lực thay vì bung một lần quá mạnh.'
+        : monShort === 'Hưu'
+          ? 'Lùi một nhịp để gom dữ kiện, giữ sức và chỉ hành động khi cửa sáng hơn.'
+          : monShort === 'Cảnh'
+            ? 'Dùng thông tin đang lộ ra để đọc thế cục, không đoán mò khi dữ kiện đã xuất hiện.'
+            : 'Đi một bước vừa lực, kiểm tra phản hồi thật rồi mới quyết định tăng tốc hay đổi hướng.');
+}
+
+function buildCounterMeasure(monShort, tinh, than) {
+  if (tinh === 'Thiên Bồng') {
+    return monShort === 'Hưu'
+      ? 'Giữ thế chậm và kín để khóa bớt biến động, không cho đối thủ kéo bạn vào nhịp rối.'
+      : 'Dùng sự tĩnh lặng của Hưu Môn hoặc một nhịp kiểm tra chéo để chế ngự biến động và quyết định bốc đồng.';
+  }
+  if (than === 'Đằng Xà') {
+    return 'Ưu tiên xác minh bằng giấy trắng mực đen, tránh suy diễn hoặc tin vào tín hiệu chưa được chốt.';
+  }
+  if (monShort === 'Kinh') {
+    return 'Hạ nhịp, tách tin gây hoảng khỏi dữ kiện thật, rồi mới ra quyết định.';
+  }
+  if (monShort === 'Đỗ') {
+    return 'Đừng cố ép cửa đang tắc; hãy đổi cách tiếp cận hoặc chia mục tiêu nhỏ hơn.';
+  }
+  return '';
+}
+
+function buildLogicRaw({ mon, monShort, tinh, than, topic, direction, palaceName, evaluation }) {
+  const location = palaceName && direction
+    ? `${palaceName} (${direction})`
+    : direction || palaceName || 'chưa rõ vị trí';
+  const nature = `verdict=${evaluation.verdict}; mon=${mon || '—'}; tinh=${tinh || '—'}; than=${than || '—'}`;
+  return `${topic || 'chung'} | ${nature}; palace=${location}; doorShort=${monShort || '—'}`;
+}
+
 /**
  * generateQuickSummary - Hàm "Người thông dịch" chính
  *
@@ -403,6 +511,18 @@ export function generateQuickSummary({ mon, tinh, than, topic, direction, palace
 
   // Tạo shortSummary - chỉ giữ ý chính của Môn (hành động)
   const shortSummary = capitalize(monText);
+  const muuKe = buildMuuKe(topic, monShort);
+  const counter = buildCounterMeasure(monShort, tinh, than);
+  const logicRaw = buildLogicRaw({
+    mon,
+    monShort,
+    tinh,
+    than,
+    topic,
+    direction,
+    palaceName,
+    evaluation,
+  });
 
   return {
     // Câu tóm tắt chính (đầy đủ)
@@ -454,6 +574,11 @@ export function generateQuickSummary({ mon, tinh, than, topic, direction, palace
 
     // Dòng kết luận ngắn cho UI
     oneLiner: `${evaluation.emoji} ${locationText ? `${locationText}: ` : ''}${evaluation.verdict}. ${summary}`,
+
+    // Tầng tổ hợp cho AI và tactical UI
+    muuKe,
+    counter,
+    logicRaw,
   };
 }
 

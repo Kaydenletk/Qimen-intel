@@ -32,6 +32,23 @@ function buildColorSignal(qmdjData = {}) {
   ].filter(Boolean).join('\n');
 }
 
+function buildInternalInsightsContext(qmdjData = {}) {
+  const palaceSummaries = qmdjData?.palaceSummaries || {};
+  const hourPalace = qmdjData?.hourMarkerPalace;
+  const routePalace = qmdjData?.directEnvoyPalace;
+  const hourLogic = palaceSummaries?.[hourPalace]?.logicRaw || palaceSummaries?.[String(hourPalace)]?.logicRaw || '';
+  const routeLogic = palaceSummaries?.[routePalace]?.logicRaw || palaceSummaries?.[String(routePalace)]?.logicRaw || '';
+  const quickMuuKe = palaceSummaries?.[hourPalace]?.muuKe || palaceSummaries?.[String(hourPalace)]?.muuKe || '';
+  const quickCounter = palaceSummaries?.[hourPalace]?.counter || palaceSummaries?.[String(hourPalace)]?.counter || '';
+
+  return [
+    hourLogic ? `[LOGIC RAW CUNG GIỜ] ${hourLogic}` : '',
+    routeLogic ? `[LOGIC RAW TRỰC SỬ] ${routeLogic}` : '',
+    quickMuuKe ? `[MƯU KẾ GỢI Ý] ${quickMuuKe}` : '',
+    quickCounter ? `[KHẮC CHẾ GỢI Ý] ${quickCounter}` : '',
+  ].filter(Boolean).join('\n');
+}
+
 export function buildKimonSystemInstruction() {
   return `Bạn là Kimon, một quân sư Kỳ Môn hiện đại, sắc bén, thực tế và có khả năng đọc thấu tâm lý (Deep Dive). Bạn chỉ được trả lời bằng tiếng Việt.
 
@@ -103,6 +120,7 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
   ].filter(Boolean).join(' | ');
   const topicsContext = buildTopicsContext(qmdjData);
   const colorSignal = buildColorSignal(qmdjData);
+  const internalInsights = buildInternalInsightsContext(qmdjData);
 
   // Linear time awareness
   const currentHour = qmdjData?.currentHour ?? '';
@@ -133,6 +151,7 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
     '',
     '[CHỈ DẤU CHO AI]',
     colorSignal,
+    internalInsights ? `\n[INTERNAL INSIGHTS]\n${internalInsights}` : '',
     '',
     `[ĐIỂM TỔNG] ${overallScore}${qmdjData?.solarTerm ? ` | ${qmdjData.solarTerm}` : ''}${qmdjData?.cucSo ? ` | Cục ${qmdjData.cucSo} ${qmdjData?.isDuong ? 'Dương' : 'Âm'}` : ''}${extras ? ` | ${extras}` : ''}`,
     '',

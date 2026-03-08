@@ -8,6 +8,23 @@
 import { enrichData } from '../../utils/qmdjHelper.js';
 import { getFutureHoursContext } from './futureHours.js';
 
+function buildInternalInsightsContext(qmdjData = {}) {
+  const palaceSummaries = qmdjData?.palaceSummaries || {};
+  const hourPalace = qmdjData?.hourMarkerPalace;
+  const routePalace = qmdjData?.directEnvoyPalace;
+  const hourLogic = palaceSummaries?.[hourPalace]?.logicRaw || palaceSummaries?.[String(hourPalace)]?.logicRaw || '';
+  const routeLogic = palaceSummaries?.[routePalace]?.logicRaw || palaceSummaries?.[String(routePalace)]?.logicRaw || '';
+  const quickMuuKe = palaceSummaries?.[hourPalace]?.muuKe || palaceSummaries?.[String(hourPalace)]?.muuKe || '';
+  const quickCounter = palaceSummaries?.[hourPalace]?.counter || palaceSummaries?.[String(hourPalace)]?.counter || '';
+
+  return [
+    hourLogic ? `[LOGIC RAW CUNG GIỜ] ${hourLogic}` : '',
+    routeLogic ? `[LOGIC RAW TRỰC SỬ] ${routeLogic}` : '',
+    quickMuuKe ? `[MƯU KẾ GỢI Ý] ${quickMuuKe}` : '',
+    quickCounter ? `[KHẮC CHẾ GỢI Ý] ${quickCounter}` : '',
+  ].filter(Boolean).join('\n');
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SYSTEM INSTRUCTION — Strategy Tier
 // ══════════════════════════════════════════════════════════════════════════════
@@ -100,6 +117,7 @@ export function buildStrategyPrompt({ qmdjData = {}, userContext = '', topicKey 
 
   // Insight engine output
   const insight = qmdjData?.insight || '';
+  const internalInsights = buildInternalInsightsContext(qmdjData);
 
   const userPrompt = [
     timeContext,
@@ -110,6 +128,7 @@ export function buildStrategyPrompt({ qmdjData = {}, userContext = '', topicKey 
     `[ĐIỂM TỔNG] ${overallScore}${qmdjData?.solarTerm ? ` | ${qmdjData.solarTerm}` : ''}${qmdjData?.cucSo ? ` | Cục ${qmdjData.cucSo} ${qmdjData?.isDuong ? 'Dương' : 'Âm'}` : ''}${extras ? ` | ${extras}` : ''}`,
     formations ? `[CÁCH CỤC] ${formations}` : '',
     topFormations ? `[TOP FORMATIONS]\n${topFormations}` : '',
+    internalInsights ? `[INTERNAL INSIGHTS]\n${internalInsights}` : '',
     selectedTopicResult ? `[PHÂN TÍCH CHỦ ĐỀ: ${topicKey}]\n${selectedTopicResult}` : '',
     insight ? `[INSIGHT ENGINE]\n${insight}` : '',
     '',

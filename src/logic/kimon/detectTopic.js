@@ -26,7 +26,7 @@ const KEYWORD_MAP = {
     'bệnh', 'đau', 'khám', 'thuốc', 'bác sĩ', 'viện', 'sức khỏe', 'sức khoẻ',
     'mệt', 'ốm', 'gym', 'tập', 'chạy bộ', 'ngủ', 'stress', 'tinh thần',
   ],
-  'tinh-duyen': [
+  'tinh-yeu': [
     'crush', 'người yêu', 'bạn gái', 'bạn trai', 'yêu', 'hẹn hò', 'cưới',
     'hôn nhân', 'chia tay', 'tình cảm', 'thả thính', 'tán', 'ngoại tình',
     'vợ', 'chồng', 'người ấy', 'tình yêu',
@@ -48,8 +48,13 @@ const KEYWORD_MAP = {
     'thương hiệu', 'đối tác', 'chạy ads', 'quảng cáo', 'thị trường', 'cạnh tranh', 'đối thủ',
   ],
   'thi-cu': [
-    'thi', 'điểm', 'học', 'phỏng vấn', 'interview', 'bài tập', 'deadline', 'exam',
-    'đỗ', 'trượt', 'ôn', 'luận văn', 'đồ án',
+    'thi', 'điểm', 'điểm số', 'phỏng vấn', 'interview', 'exam',
+    'đỗ', 'trượt', 'thi cử', 'kỳ thi', 'đề thi', 'tốt nghiệp', 'thi lại',
+  ],
+  'hoc-tap': [
+    'học', 'học tập', 'học hành', 'đề cương', 'ôn thi', 'ôn bài',
+    'bài tập', 'deadline', 'luận văn', 'đồ án', 'tự học', 'giáo trình',
+    'môn học', 'khóa học',
   ],
   'ky-hop-dong': [
     'hợp đồng', 'ký', 'contract', 'thỏa thuận', 'deal', 'ký kết',
@@ -72,7 +77,7 @@ const KEYWORD_MAP = {
     'xin việc', 'CV', 'resume', 'apply', 'ứng tuyển', 'nhận việc',
     'offer letter', 'thực tập', 'intern',
   ],
-  'bat-dong-san': [
+  'dien-trach': [
     'nhà', 'đất', 'BĐS', 'bất động sản', 'thuê', 'mua nhà', 'căn hộ',
     'chung cư', 'biệt thự', 'sổ đỏ', 'sang tên',
   ],
@@ -89,9 +94,40 @@ const KEYWORD_MAP = {
 const STRATEGY_TOPICS = new Set(['muu-luoc', 'dam-phan', 'doi-no', 'kien-tung']);
 const COMPANION_TOPICS = new Set(['chung']);
 
+const TOPIC_ALIASES = {
+  'tinh-duyen': 'tinh-yeu',
+  'bat-dong-san': 'dien-trach',
+};
+
+const DEEP_DIVE_KEYWORDS = [
+  'tại sao', 'vì sao', 'giải thích', 'cơ sở nào', 'tính sao ra',
+  'luận kỹ', 'phân tích sâu', 'chi tiết hơn', 'tại sao lại chọn',
+];
+
+export function canonicalizeTopicKey(topic) {
+  if (!topic || typeof topic !== 'string') return topic;
+  return TOPIC_ALIASES[topic] || topic;
+}
+
+export function detectDeepDive(userMessage) {
+  const q = normalize(userMessage || '');
+  return DEEP_DIVE_KEYWORDS.some(keyword => q.includes(normalize(keyword)));
+}
+
+function escapeRegex(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function hasKeywordMatch(text, keyword) {
+  if (!text || !keyword) return false;
+  const pattern = new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegex(keyword)}(?=[^\\p{L}\\p{N}]|$)`, 'u');
+  return pattern.test(text);
+}
+
 function getTier(topic) {
-  if (!topic || COMPANION_TOPICS.has(topic)) return 'companion';
-  if (STRATEGY_TOPICS.has(topic)) return 'strategy';
+  const canonicalTopic = canonicalizeTopicKey(topic);
+  if (!canonicalTopic || COMPANION_TOPICS.has(canonicalTopic)) return 'companion';
+  if (STRATEGY_TOPICS.has(canonicalTopic)) return 'strategy';
   return 'topic';
 }
 
@@ -100,9 +136,9 @@ function getTier(topic) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const VALID_TOPICS = new Set([
-  'tai-van', 'suc-khoe', 'tinh-duyen', 'su-nghiep', 'kinh-doanh',
-  'thi-cu', 'ky-hop-dong', 'dam-phan', 'doi-no', 'kien-tung',
-  'xuat-hanh', 'xin-viec', 'bat-dong-san', 'muu-luoc', 'chung',
+  'tai-van', 'suc-khoe', 'tinh-yeu', 'su-nghiep', 'kinh-doanh',
+  'thi-cu', 'hoc-tap', 'ky-hop-dong', 'dam-phan', 'doi-no', 'kien-tung',
+  'xuat-hanh', 'xin-viec', 'dien-trach', 'muu-luoc', 'chung',
 ]);
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -114,8 +150,7 @@ function normalize(text) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D');
+    .replace(/đ/g, 'd');
 }
 
 // Pre-compute normalized keyword map for faster matching
@@ -143,12 +178,6 @@ export function detectTopic(userMessage) {
 
   const msgLower = userMessage.toLowerCase();
   const msgNorm = normalize(userMessage);
-  const words = msgNorm.split(/\s+/).filter(Boolean);
-
-  // Too short & no keyword match → companion
-  if (words.length < 2) {
-    return { topic: null, confidence: null, tier: 'companion' };
-  }
 
   let bestTopic = null;
   let bestScore = 0;
@@ -158,7 +187,7 @@ export function detectTopic(userMessage) {
 
     for (let i = 0; i < keywords.length; i++) {
       // Try exact Vietnamese match first
-      if (msgLower.includes(keywords[i].toLowerCase())) {
+      if (hasKeywordMatch(msgLower, keywords[i].toLowerCase())) {
         const score = keywords[i].length; // Longer keyword = more specific
         if (score > bestScore) {
           bestScore = score;
@@ -166,7 +195,7 @@ export function detectTopic(userMessage) {
         }
       }
       // Fallback to normalized match
-      else if (msgNorm.includes(normKeywords[i])) {
+      else if (hasKeywordMatch(msgNorm, normKeywords[i])) {
         const score = normKeywords[i].length;
         if (score > bestScore) {
           bestScore = score;
@@ -177,7 +206,8 @@ export function detectTopic(userMessage) {
   }
 
   if (bestTopic) {
-    return { topic: bestTopic, confidence: 'keyword', tier: getTier(bestTopic) };
+    const canonicalTopic = canonicalizeTopicKey(bestTopic);
+    return { topic: canonicalTopic, confidence: 'keyword', tier: getTier(canonicalTopic) };
   }
 
   return { topic: null, confidence: null, tier: 'companion' };
@@ -196,7 +226,7 @@ export function detectTopic(userMessage) {
 export async function classifyWithAI(userMessage, apiKey) {
   const classifyPrompt = `Phân loại câu hỏi sau vào 1 trong các category. Chỉ trả về KEY, không giải thích.
 
-Categories: tai-van, suc-khoe, tinh-duyen, su-nghiep, kinh-doanh, thi-cu, ky-hop-dong, dam-phan, doi-no, kien-tung, xuat-hanh, xin-viec, bat-dong-san, muu-luoc, chung
+Categories: tai-van, suc-khoe, tinh-yeu, su-nghiep, kinh-doanh, thi-cu, hoc-tap, ky-hop-dong, dam-phan, doi-no, kien-tung, xuat-hanh, xin-viec, dien-trach, muu-luoc, chung
 
 Câu hỏi: "${userMessage}"
 
@@ -220,7 +250,9 @@ KEY:`;
     }
 
     const data = await response.json();
-    const text = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().toLowerCase().replace(/[^a-z-]/g, '');
+    const text = canonicalizeTopicKey(
+      (data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().toLowerCase().replace(/[^a-z-]/g, '')
+    );
 
     if (VALID_TOPICS.has(text)) {
       return { topic: text, confidence: 'ai', tier: getTier(text) };
@@ -251,7 +283,7 @@ export async function detectTopicHybrid(userMessage, apiKey) {
 
   // Message too short for AI classify
   const words = (userMessage || '').split(/\s+/).filter(Boolean);
-  if (words.length < 3) {
+  if (words.length < 2) {
     return { topic: 'chung', confidence: 'fallback', tier: 'companion' };
   }
 

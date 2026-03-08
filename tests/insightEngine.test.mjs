@@ -12,6 +12,7 @@ function testTopicMapping() {
     'ky-hop-dong': 'MONEY_INVEST',
     'dam-phan': 'MONEY_INVEST',
     'doi-no': 'MONEY_INVEST',
+    'dien-trach': 'MONEY_INVEST',
     'bat-dong-san': 'MONEY_INVEST',
     'su-nghiep': 'CAREER_INTERVIEW',
     'xin-viec': 'CAREER_INTERVIEW',
@@ -19,6 +20,7 @@ function testTopicMapping() {
     'kien-tung': 'CAREER_INTERVIEW',
     'thi-cu': 'EXAM_STUDY',
     'suc-khoe': 'HEALTH_CHECK',
+    'tinh-yeu': 'MONEY_INVEST',
     'tinh-duyen': 'MONEY_INVEST',
     'xuat-hanh': 'MONEY_INVEST',
   };
@@ -148,6 +150,14 @@ function testAnalyzeBackCompatAndInsightPresent() {
   }
 }
 
+function testAnalyzeDefaultsUseCanonicalTopicKeys() {
+  const { topicResults } = analyze(DATE, HOUR);
+  assert.ok(topicResults['tinh-yeu'], 'Default analyze should include tinh-yeu');
+  assert.ok(topicResults['dien-trach'], 'Default analyze should include dien-trach');
+  assert.ok(!topicResults['tinh-duyen'], 'Default analyze should not duplicate alias tinh-duyen');
+  assert.ok(!topicResults['bat-dong-san'], 'Default analyze should not duplicate alias bat-dong-san');
+}
+
 testTopicMapping();
 testDoorAndStarNormalize();
 testConfidenceMultipliers();
@@ -155,5 +165,6 @@ testActionLabelMapping();
 testBuildInsightContract();
 testGravePlaceholderDoesNotReduceConfidence();
 testAnalyzeBackCompatAndInsightPresent();
+testAnalyzeDefaultsUseCanonicalTopicKeys();
 
 console.log('insightEngine.test.mjs: OK');

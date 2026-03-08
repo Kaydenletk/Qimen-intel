@@ -110,7 +110,7 @@ assert.match(serverSource, /function logKimonModelMeta\(route, response, rawText
 assert.match(serverSource, /logKimonModelMeta\('\/api\/kimon', result\.response, rawText\);/, 'Route non-stream phải log meta model');
 assert.match(serverSource, /logKimonModelMeta\('\/api\/kimon\/stream', finalResponse, fullText\);/, 'Route stream phải log meta model');
 assert.match(serverSource, /import \{ parseKimonJsonResponse, toKimonResponseSchema \} from '\.\/src\/logic\/kimon\/jsonResponse\.js';/, 'Server phải import helper schema public mới');
-assert.match(serverSource, /import \{ detectTopicHybrid \} from '\.\/src\/logic\/kimon\/detectTopic\.js';/, 'Server phải import detectTopicHybrid');
+assert.match(serverSource, /import \{ [^}]*detectTopicHybrid[^}]*\} from '\.\/src\/logic\/kimon\/detectTopic\.js';/, 'Server phải import detectTopicHybrid từ detectTopic.js');
 assert.match(serverSource, /import \{ selectModel, buildPromptByTier \} from '\.\/src\/logic\/kimon\/modelRouter\.js';/, 'Server phải import tiered router');
 assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(rawText\), rawText\)/, 'Route non-stream phải trả về đúng schema mới');
 assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(fullText\), fullText\)/, 'Route stream phải shape parsed payload về schema mới');
