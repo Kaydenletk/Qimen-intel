@@ -35,6 +35,12 @@ import { buildInsight }      from './core/insightEngine.js';
 import { generateStrategicInsight } from './logic/dungThan/index.js';
 import { buildDisplayChart, getSectionLabel, getVisualPalaceEntries } from './ui/displayMappings.js';
 
+const DEFAULT_TOPIC_KEYS = [
+  'tai-van', 'suc-khoe', 'tinh-yeu', 'su-nghiep', 'kinh-doanh',
+  'thi-cu', 'ky-hop-dong', 'dam-phan', 'doi-no', 'kien-tung',
+  'xuat-hanh', 'xin-viec', 'dien-trach', 'muu-luoc',
+];
+
 /**
  * analyze(date, hour, topics?)
  * One-call convenience wrapper — builds chart + evaluates + scores all topics.
@@ -44,7 +50,7 @@ import { buildDisplayChart, getSectionLabel, getVisualPalaceEntries } from './ui
  * @param {string[]} topics   Subset of TOPICS keys (default: all)
  * @returns {{ chart, states, evaluation, topicResults }}
  */
-export function analyze(date, hour, topics = Object.keys(TOPICS)) {
+export function analyze(date, hour, topics = DEFAULT_TOPIC_KEYS) {
   const chart      = buildFullChart(date, hour);
   const states     = scoreChartStates(chart);
   const evaluation = evaluateChart(chart);
