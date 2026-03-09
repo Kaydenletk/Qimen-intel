@@ -41,5 +41,7 @@ export function buildGeneralInsight(context) {
     avoidList,
     usefulGodEvidence,
     flagEvidence,
+    markersForAI: context.markersForAI,
+    nguHanhRelation: context.nguHanhRelation,
   });
 }

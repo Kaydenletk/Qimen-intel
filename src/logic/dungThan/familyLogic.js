@@ -80,5 +80,7 @@ export function buildFamilyInsight(context) {
     avoidList,
     usefulGodEvidence,
     flagEvidence,
+    markersForAI: context.markersForAI,
+    nguHanhRelation: context.nguHanhRelation,
   });
 }

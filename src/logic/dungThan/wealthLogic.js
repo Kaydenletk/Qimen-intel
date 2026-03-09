@@ -238,5 +238,7 @@ export function buildWealthInsight(context) {
     usefulGodEvidence,
     flagEvidence,
     disclaimer: 'Thông tin chỉ mang tính tham khảo chiến lược, không phải khuyến nghị đầu tư.',
+    markersForAI: context.markersForAI,
+    nguHanhRelation: context.nguHanhRelation,
   });
 }

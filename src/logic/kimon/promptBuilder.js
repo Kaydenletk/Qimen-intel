@@ -50,6 +50,38 @@ function buildInternalInsightsContext(qmdjData = {}) {
   ].filter(Boolean).join('\n');
 }
 
+function buildPROFrameworkContext(qmdjData = {}) {
+  const markers = qmdjData?.selectedTopicMarkersForAI;
+  const nguHanh = qmdjData?.selectedTopicNguHanh;
+  if (!markers) return '';
+
+  const lines = [
+    '[BẢN ĐỒ 4 BƯỚC CHO AI]',
+    markers.rootCausePalace
+      ? `- Bước 1 (Gốc rễ): Đọc cung ${markers.rootCausePalace} (${markers.rootCausePalaceName}) — Dụng Thần, gốc rễ vấn đề.`
+      : '',
+    markers.rootCausePalace
+      ? `- Bước 2 (Tình trạng): Đọc Môn + Tinh + Thần tại cung ${markers.rootCausePalace} để thấy nhịp và tính chất sự việc.`
+      : '',
+    markers.userPalace
+      ? `- Bước 3 (Tâm lý): Đọc cung ${markers.userPalace} (${markers.userPalaceName}) — Nhật Can, tâm lý và vị thế người hỏi.`
+      : '- Bước 3 (Tâm lý): Nhật Can chưa xác định rõ trên bàn, đọc Cung Giờ thay thế.',
+    markers.actionPalace
+      ? `- Bước 4 (Mưu lược): Đọc cung ${markers.actionPalace} (${markers.actionPalaceName}) — Trực Sử, đường thoát hiểm và hành động.`
+      : '- Bước 4 (Mưu lược): Tìm cung có Cát Tinh/Cát Thần gần nhất.',
+    markers.blockerFlags?.length
+      ? `- Blocker tại cung Dụng Thần: ${markers.blockerFlags.join(', ')}.`
+      : '',
+  ];
+
+  if (nguHanh?.promptBlock) {
+    lines.push('');
+    lines.push(nguHanh.promptBlock);
+  }
+
+  return lines.filter(Boolean).join('\n');
+}
+
 function buildSelectedTopicContext(qmdjData = {}) {
   const topicKey = qmdjData?.selectedTopicKey || '';
   const selectedTopicResult = qmdjData?.selectedTopicResult || '';
@@ -81,16 +113,11 @@ function buildSelectedTopicContext(qmdjData = {}) {
   }
 
   if (aiHints) {
-    lines.push('[ƯU TIÊN FLAGS]');
-    lines.push('Nếu thấy block [QUAN TRỌNG - FLAGS] hoặc các dòng [Dịch Mã]/[Không Vong]/[Phục Ngâm]/[Phản Ngâm] trong [GỢI Ý ẨN DỤ CHO AI], phải dùng chúng để xác định nhịp sự việc và đòn hành động trước tiên.');
-    lines.push('Nếu có Dịch Mã thì tránh khuyên chờ chậm hoặc từ từ; phải đọc theo nhịp nhanh, bất ngờ, sắp ập đến.');
-    lines.push('Nếu có Không Vong thì phải cảnh báo delay, ảo tưởng hoặc kết quả rỗng; ưu tiên xác minh thay vì dồn lực.');
-    lines.push('Nếu có đồng thời Dịch Mã + Không Vong thì đây là kịch bản "Ngựa chạy vào hố": càng nhanh càng nguy hiểm, phải phanh gấp và kiểm chứng dữ liệu gốc trước.');
-    lines.push('Nếu có đồng thời Dịch Mã + Phục Ngâm → "Nội kích ngoại tĩnh": áp lực nội bộ lớn, muốn đi mà chân bị kẹt. Phải khuyên giải áp trước khi hành động.');
-    lines.push('Nếu có đồng thời Dịch Mã + Phản Ngâm → "Quay xe trong gió": biến động mạnh, ưu tiên ngắn hạn, tin phương án đầu tiên.');
-    lines.push('Nếu có đồng thời Không Vong + Phục Ngâm → "Dừng lại hoàn toàn" (CRITICAL): tê liệt + rỗng. Không hành động gì lúc này.');
-    lines.push('Nếu có đồng thời Không Vong + Phản Ngâm → "Ảo ảnh đảo ngược": cái nhảy vào là giả, quay xe cũng là bẫy. Xác minh toàn bộ.');
-    lines.push('Quy tắc ưu tiên: cờ Âm (Không Vong, Phục Ngâm) luôn thắng cờ Dương (Dịch Mã, Phản Ngâm). An toàn hơn tốc độ.');
+    lines.push('[NGUYÊN TẮC ĐỌC FLAGS]');
+    lines.push('Flags đã được engine tính toán và tổng hợp trong headline/coreMessage ở trên. Bám sát kết luận engine thay vì tự luận lại.');
+    lines.push('Cờ Âm (Không Vong, Phục Ngâm) luôn thắng cờ Dương (Dịch Mã, Phản Ngâm). An toàn hơn tốc độ.');
+    lines.push('Nếu engine ghi Dịch Mã: đọc theo nhịp nhanh, không khuyên chờ. Nếu engine ghi Không Vong: ưu tiên xác minh, không khuyên dồn lực.');
+    lines.push('Khi 2+ flags chồng lớp, engine đã ghi combo tại headline/coreMessage. Dùng combo đó làm trục, không tự sáng tạo kịch bản khác.');
     lines.push(aiHints);
   }
 
@@ -176,6 +203,7 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
     enrichData(qmdjData || {}),
     '',
     usefulGodFocusContext,
+    buildPROFrameworkContext(qmdjData),
     '',
     '[CHỈ DẤU CHO AI]',
     colorSignal,

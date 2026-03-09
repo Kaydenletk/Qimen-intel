@@ -131,6 +131,8 @@ export function buildHealthInsight(context) {
     usefulGodEvidence,
     flagEvidence,
     disclaimer: 'Thông tin chỉ mang tính tham khảo chiến lược, không thay thế tư vấn bác sĩ.',
+    markersForAI: context.markersForAI,
+    nguHanhRelation: context.nguHanhRelation,
   });
 
   output.recommendedDepartment = recommendedDepartment;

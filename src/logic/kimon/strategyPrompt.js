@@ -40,6 +40,38 @@ function buildSelectedTopicFlagsContext(qmdjData = {}) {
   ].join('\n');
 }
 
+function buildPROFrameworkContext(qmdjData = {}) {
+  const markers = qmdjData?.selectedTopicMarkersForAI;
+  const nguHanh = qmdjData?.selectedTopicNguHanh;
+  if (!markers) return '';
+
+  const lines = [
+    '[BẢN ĐỒ 4 BƯỚC CHO AI]',
+    markers.rootCausePalace
+      ? `- Bước 1 (Gốc rễ): Đọc cung ${markers.rootCausePalace} (${markers.rootCausePalaceName}) — Dụng Thần, gốc rễ vấn đề.`
+      : '',
+    markers.rootCausePalace
+      ? `- Bước 2 (Tình trạng): Đọc Môn + Tinh + Thần tại cung ${markers.rootCausePalace} để thấy nhịp và tính chất sự việc.`
+      : '',
+    markers.userPalace
+      ? `- Bước 3 (Tâm lý): Đọc cung ${markers.userPalace} (${markers.userPalaceName}) — Nhật Can, tâm lý và vị thế người hỏi.`
+      : '- Bước 3 (Tâm lý): Nhật Can chưa xác định rõ trên bàn, đọc Cung Giờ thay thế.',
+    markers.actionPalace
+      ? `- Bước 4 (Mưu lược): Đọc cung ${markers.actionPalace} (${markers.actionPalaceName}) — Trực Sử, đường thoát hiểm và hành động.`
+      : '- Bước 4 (Mưu lược): Tìm cung có Cát Tinh/Cát Thần gần nhất.',
+    markers.blockerFlags?.length
+      ? `- Blocker tại cung Dụng Thần: ${markers.blockerFlags.join(', ')}.`
+      : '',
+  ];
+
+  if (nguHanh?.promptBlock) {
+    lines.push('');
+    lines.push(nguHanh.promptBlock);
+  }
+
+  return lines.filter(Boolean).join('\n');
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SYSTEM INSTRUCTION — Strategy Tier
 // ══════════════════════════════════════════════════════════════════════════════
@@ -68,6 +100,17 @@ Tuyệt đối KHÔNG định nghĩa thuật ngữ theo lối sách vở cổ. B
 - Không được trả lời theo kiểu "điểm ý chính rồi thôi". Nếu trận có nhiều lớp tín hiệu, phải bóc ra ít nhất 2-4 tầng nghĩa để người đọc thấy toàn cảnh của thế trận.
 - Ưu tiên vẽ ra bức tranh đầy đủ: khí đang dồn ở đâu, lực cản nằm ở đâu, điểm sáng nằm ở đâu, và vì sao các tín hiệu đó nối với nhau.
 - Khi có nhiều dấu hiệu đồng thời xuất hiện trong một cung, phải giải thích mối quan hệ giữa chúng thay vì chỉ kể tên từng yếu tố.
+
+[SYNTHESIS RULES - QUY TẮC TỔNG HỢP NÂNG CAO]
+Khi nhiều tín hiệu đồng thời xuất hiện trong cùng một cung, BẮT BUỘC phải đọc chúng như một tổ hợp:
+- Hung Môn (Tử/Kinh/Thương) + Cát Tinh/Thần (Thiên Tâm/Thiên Phụ/Trực Phù/Cửu Địa): "Trong nguy có cơ" — hoàn cảnh bế tắc nhưng nội lực bên trong vẫn vững.
+- Dịch Mã + Đằng Xà: "Cú twist chóng mặt" — sự việc chạy nhanh và xoắn lắt léo, chỉ giữ được nhịp mới thoát.
+- Không Vong + Cát Môn (Khai/Sinh/Hưu): "Hưng phấn ảo" — cửa nhìn đẹp nhưng ruột rỗng, kiểm chứng trước khi tin.
+- Cửu Địa + Đỗ Môn: "Nền vững nhưng cửa kẹt" — có nền tảng nhưng chưa đủ điều kiện mở.
+- Cửu Thiên + Sinh Môn: "Bùng nổ sinh lời" — tốc độ gặp cơ hội, nhịp mạnh nhất để hành động.
+- Thái Âm + Hưu Môn: "Ẩn mình chờ thời" — trực giác bảo phải lùi, thời điểm tốt để tích lũy kín.
+- TƯƠNG QUAN LỰC LƯỢNG: Khi thấy block [TƯƠNG QUAN LỰC LƯỢNG], bắt buộc dùng nó làm nền cho Bước 3 (User Psychology).
+- Tuyệt đối không nói "tốt xấu lẫn lộn" chung chung. Phải chỉ rõ TỐT ở chỗ nào, XẤU ở chỗ nào, và chúng tương tác ra sao.
 
 [OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC]
 Khi luận giải, BẮT BUỘC trình bày theo đúng 4 phần sau (dùng in đậm để phân chia rõ ràng):
@@ -127,6 +170,7 @@ export function buildStrategyPrompt({ qmdjData = {}, userContext = '', topicKey 
   const selectedTopicResult = qmdjData?.selectedTopicResult || '';
   const aiHints = qmdjData?.aiHints || '';
   const selectedTopicFlags = buildSelectedTopicFlagsContext(qmdjData);
+  const proFrameworkContext = buildPROFrameworkContext(qmdjData);
 
   // Insight engine output
   const insight = qmdjData?.insight || '';
@@ -143,6 +187,7 @@ export function buildStrategyPrompt({ qmdjData = {}, userContext = '', topicKey 
     topFormations ? `[TOP FORMATIONS]\n${topFormations}` : '',
     internalInsights ? `[INTERNAL INSIGHTS]\n${internalInsights}` : '',
     selectedTopicResult ? `[PHÂN TÍCH CHỦ ĐỀ: ${topicKey}]\n${selectedTopicResult}` : '',
+    proFrameworkContext,
     selectedTopicFlags,
     topicKey === 'tai-van'
       ? '[ƯU TIÊN TÀI VẬN]\nTrước khi luận, hãy chốt rõ: đây là cuộc chiến tốc độ hay bài toán kiên nhẫn. Đọc theo trục Can Mậu (vốn/ thanh khoản) + Sinh Môn (lợi nhuận) + Nhật Can (người cầm tiền). Không lẫn sang nhà đất.'

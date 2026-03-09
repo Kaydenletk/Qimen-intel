@@ -73,5 +73,7 @@ export function buildLoveInsight(context) {
     avoidList,
     usefulGodEvidence,
     flagEvidence,
+    markersForAI: context.markersForAI,
+    nguHanhRelation: context.nguHanhRelation,
   }));
 }

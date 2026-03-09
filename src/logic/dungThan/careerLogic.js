@@ -85,5 +85,7 @@ export function buildCareerInsight(context, topicKey) {
     avoidList,
     usefulGodEvidence,
     flagEvidence,
+    markersForAI: context.markersForAI,
+    nguHanhRelation: context.nguHanhRelation,
   });
 }

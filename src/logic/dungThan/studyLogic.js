@@ -129,5 +129,7 @@ export function buildStudyInsight(context) {
     avoidList,
     usefulGodEvidence,
     flagEvidence,
+    markersForAI: context.markersForAI,
+    nguHanhRelation: context.nguHanhRelation,
   });
 }

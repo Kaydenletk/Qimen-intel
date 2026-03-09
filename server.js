@@ -518,6 +518,8 @@ function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '') {
     selectedTopicFlags: Array.isArray(detail.flags) ? detail.flags : (Array.isArray(qmdjData.selectedTopicFlags) ? qmdjData.selectedTopicFlags : []),
     selectedTopicUsefulPalace: detail.usefulGodPalace || qmdjData.selectedTopicUsefulPalace || '',
     selectedTopicUsefulPalaceName: detail.usefulGodPalaceName || qmdjData.selectedTopicUsefulPalaceName || '',
+    selectedTopicMarkersForAI: detail.markersForAI || qmdjData.selectedTopicMarkersForAI || null,
+    selectedTopicNguHanh: detail.nguHanhRelation || qmdjData.selectedTopicNguHanh || null,
   };
 }
 
@@ -927,6 +929,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       confidence: insightConfidence,
       confidencePct: Math.round(insightConfidence * 100),
       aiHints,
+      markersForAI: strategic?.markersForAI || null,
+      nguHanhRelation: strategic?.nguHanhRelation || null,
       formationEvidence,
       insightEvidence,
       insightEvidenceText: insightEvidence.map(line => `// ${line}`).join('\n'),
@@ -934,13 +938,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         ? { do: Array.isArray(strategic.do) ? strategic.do : [], avoid: Array.isArray(strategic.avoid) ? strategic.avoid : [] }
         : (insight?.tactics || { do: [], avoid: [] }),
       promptTopicResult: [
-        strategic?.headline ? `Headline: ${strategic.headline}` : '',
-        oneLiner ? `Core: ${oneLiner}` : '',
-        usefulGodFlags.length ? `Flags: ${usefulGodFlags.join(' | ')}` : '',
-        counselorNarrative ? `Narrative: ${counselorNarrative}` : '',
-        strategic && Array.isArray(strategic.do) && strategic.do.length ? `Do: ${strategic.do.join(' | ')}` : '',
-        strategic && Array.isArray(strategic.avoid) && strategic.avoid.length ? `Avoid: ${strategic.avoid.join(' | ')}` : '',
-        t.actionAdvice ? `ActionAdvice: ${t.actionAdvice}` : '',
+        strategic?.headline,
+        strategic?.coreMessage,
+        strategic?.narrative,
+        strategic?.nguHanhRelation?.promptBlock || '',
       ].filter(Boolean).join('\n'),
       promptInsight: [
         insightEvidence.length ? insightEvidence.join('\n') : '',
@@ -3244,7 +3245,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             data-display-palaces="${escapeHTML(JSON.stringify(displayChart.palaces || {}))}"
             data-palace-summaries="${escapeHTML(JSON.stringify(palaceSummaries || {}).replace(/</g, '\\u003c'))}"
             data-all-topics="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ topic: t.topic, score: t.score, action: t.actionAdvice, verdict: t.verdict }))))}"
-            data-all-topic-details="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ key: t.key, topic: t.topic, chipLabel: t.chipLabel, promptTopicResult: t.promptTopicResult, promptInsight: t.promptInsight, aiHints: t.aiHints || '', flags: Array.isArray(t.flags) ? t.flags : [], usefulGodPalace: t.usefulGodPalace || '', usefulGodPalaceName: t.usefulGodPalaceName || '' }))).replace(/</g, '\\u003c'))}"
+            data-all-topic-details="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ key: t.key, topic: t.topic, chipLabel: t.chipLabel, promptTopicResult: t.promptTopicResult, promptInsight: t.promptInsight, aiHints: t.aiHints || '', flags: Array.isArray(t.flags) ? t.flags : [], usefulGodPalace: t.usefulGodPalace || '', usefulGodPalaceName: t.usefulGodPalaceName || '', markersForAI: t.markersForAI || null, nguHanhRelation: t.nguHanhRelation || null }))).replace(/</g, '\\u003c'))}"
             data-mon="${escapeHTML(energyFlow.metadata?.door || '')}"
             data-than="${escapeHTML(energyFlow.metadata?.deity || '')}"
             data-tinh="${escapeHTML(energyFlow.metadata?.star || '')}"
@@ -5695,6 +5696,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           selectedTopicFlags: Array.isArray(currentTopic.flags) ? currentTopic.flags : [],
           selectedTopicUsefulPalace: currentTopic.usefulGodPalace || '',
           selectedTopicUsefulPalaceName: currentTopic.usefulGodPalaceName || '',
+          selectedTopicMarkersForAI: currentTopic.markersForAI || null,
+          selectedTopicNguHanh: currentTopic.nguHanhRelation || null,
         } : base;
 
         const data = await sendKymonRequest({

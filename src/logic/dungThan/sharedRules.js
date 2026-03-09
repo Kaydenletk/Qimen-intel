@@ -138,6 +138,8 @@ export function makeOutput({
   usefulGodEvidence,
   flagEvidence,
   disclaimer,
+  markersForAI,
+  nguHanhRelation,
 }) {
   const output = {
     score: scoreSignal,
@@ -154,5 +156,7 @@ export function makeOutput({
     },
   };
   if (disclaimer) output.disclaimer = disclaimer;
+  if (markersForAI) output.markersForAI = markersForAI;
+  if (nguHanhRelation) output.nguHanhRelation = nguHanhRelation;
   return output;
 }

@@ -1,4 +1,5 @@
 import { PALACE_META, STEMS_BY_NAME } from '../../core/tables.js';
+import { compareNguHanh } from './nguHanhRelation.js';
 
 const DOOR_NORMALIZE = {
   'Khai Môn': 'Khai',
@@ -65,7 +66,7 @@ export function getDirectionLabel(palaceNum) {
   return PALACE_META[palaceNum]?.dir || `Cung ${palaceNum}`;
 }
 
-function findPalaceByStemName(chart, stemName) {
+export function findPalaceByStemName(chart, stemName) {
   if (!chart?.palaces || !stemName) return { palaceNum: null, palace: null };
   for (const [key, palace] of Object.entries(chart.palaces)) {
     if (Number(key) === 5) continue;
@@ -86,6 +87,28 @@ export function normalizeTopicContext({ chart, topicResult }) {
   const dayStemElement = STEMS_BY_NAME[dayStemName]?.element || '';
   const capitalStemName = 'Mậu';
   const { palaceNum: capitalPalaceNum, palace: capitalPalace } = findPalaceByStemName(chart, capitalStemName);
+  const { palaceNum: userPalaceNum } = findPalaceByStemName(chart, dayStemName);
+  const nguHanhRelation = (userPalaceNum && usefulPalaceNum)
+    ? compareNguHanh(userPalaceNum, usefulPalaceNum, dayStemName)
+    : null;
+  const actionPalaceNum = chart?.trucSuPalace || null;
+  const blockerFlags = [];
+
+  if (palace?.khongVong) blockerFlags.push('Không Vong');
+  if (door.includes('Tử')) blockerFlags.push('Tử Môn');
+  if (door.includes('Đỗ')) blockerFlags.push('Đỗ Môn');
+
+  const markersForAI = {
+    rootCausePalace: usefulPalaceNum,
+    rootCausePalaceName: PALACE_META[usefulPalaceNum]?.name || '',
+    userPalace: userPalaceNum,
+    userPalaceName: PALACE_META[userPalaceNum]?.name || '',
+    actionPalace: actionPalaceNum,
+    actionPalaceName: PALACE_META[actionPalaceNum]?.name || '',
+    blockerPalace: blockerFlags.length ? usefulPalaceNum : null,
+    blockerFlags,
+    nguHanhRelation,
+  };
 
   return {
     chart,
@@ -100,11 +123,15 @@ export function normalizeTopicContext({ chart, topicResult }) {
     earthStem: palace?.earthStem || '',
     dayStemName,
     dayStemElement,
+    userPalaceNum,
+    userPalaceName: PALACE_META[userPalaceNum]?.name || '',
     capitalStemName,
     capitalPalaceNum,
     capitalPalaceName: PALACE_META[capitalPalaceNum]?.name || '',
     capitalPalace,
     capitalFlags: deriveFlags(chart, capitalPalace),
     flags: deriveFlags(chart, palace),
+    nguHanhRelation,
+    markersForAI,
   };
 }
