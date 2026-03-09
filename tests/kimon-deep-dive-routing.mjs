@@ -8,8 +8,23 @@ const strategyPromptSource = readFileSync(new URL('../src/logic/kimon/strategyPr
 const modelRouterSource = readFileSync(new URL('../src/logic/kimon/modelRouter.js', import.meta.url), 'utf8');
 
 assert.match(serverSource, /import \{ detectDeepDive, detectTopicHybrid \} from '\.\/src\/logic\/kimon\/detectTopic\.js';/);
+assert.doesNotMatch(serverSource, /import \{ detectFlagCombos \} from '\.\/src\/logic\/dungThan\/flagCombos\.js';/);
 assert.match(serverSource, /const isDeepDive = !isAutoLoad && detectDeepDive\(userContext\);/);
+assert.match(serverSource, /function getCriticalTopicFlagCombos\(selectedTopicFlags = \[\]\)/);
+assert.match(serverSource, /function getGeminiApiKey\(\)/);
+assert.match(serverSource, /function getSafeKimonErrorMessage\(error\)/);
+assert.match(serverSource, /const criticalTopicFlagCombos = getCriticalTopicFlagCombos\(enrichedQmdjData\?\.selectedTopicFlags\);/);
+assert.match(serverSource, /flags: \['Dịch Mã', 'Phục Ngâm'\]/);
+assert.match(serverSource, /flags: \['Dịch Mã', 'Phản Ngâm'\]/);
+assert.match(serverSource, /flags: \['Không Vong', 'Phục Ngâm'\]/);
+assert.match(serverSource, /flags: \['Không Vong', 'Phản Ngâm'\]/);
+assert.doesNotMatch(serverSource, /HORSE_VOID/);
+assert.match(serverSource, /const forceStrategyTopic = \['tai-van', 'muu-luoc', 'chien-luoc'\]\.includes\(topic\);/);
 assert.match(serverSource, /const effectiveTier = \(isDeepDive \|\| hasCriticalTopicFlags \|\| forceStrategyTopic\) \? 'strategy' : tier;/);
+assert.match(serverSource, /if \(!apiKey\) \{\s*endSseWithFallback\(res, \{\s*tier: effectiveTier,\s*topic: topic \|\| 'chung',\s*message: GEMINI_API_CONFIG_MESSAGE,/s);
+assert.match(serverSource, /if \(!apiKey\) \{\s*respondWithKimonFallback\(res, \{\s*statusCode: 200,\s*tier: effectiveTier,\s*topic: topic \|\| 'chung',\s*message: GEMINI_API_CONFIG_MESSAGE,/s);
+assert.doesNotMatch(serverSource, /message:\s*isTimeoutError\(error\)\s*\?\s*KIMON_SERVICE_UNAVAILABLE_MESSAGE\s*:\s*\(error\??\.?message \|\| KIMON_SERVICE_UNAVAILABLE_MESSAGE\)/);
+assert.doesNotMatch(serverSource, /selectedTopicFlags\.length > 0/);
 
 assert.match(detectTopicSource, /You are an intent classifier\./);
 assert.match(detectTopicSource, /return a strict JSON object only/i);

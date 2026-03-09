@@ -52,6 +52,9 @@ const KYMON_PARTIAL_ACTION = 'Bạn gửi lại câu hỏi ngắn hơn nhé.';
 const KYMON_UNCLEAR_MESSAGE = 'Phản hồi từ hệ thống chưa đủ rõ để hiển thị an toàn.';
 const KIMON_SERVICE_UNAVAILABLE_MESSAGE = 'Hệ thống đang quá tải năng lượng hoặc mất kết nối. Xin vui lòng thử lại sau giây lát.';
 const KIMON_RETRY_MESSAGE = 'Xin vui lòng thử lại sau giây lát.';
+const GEMINI_API_CONFIG_MESSAGE = process.env.VERCEL
+  ? KIMON_SERVICE_UNAVAILABLE_MESSAGE
+  : 'Kymon chưa được cấu hình Gemini hợp lệ. Kiểm tra GEMINI_API_KEY trong .env.local rồi restart server.';
 
 class KimonTimeoutError extends Error {
   constructor(message = 'Kimon request timed out.') {
@@ -65,6 +68,31 @@ function isTimeoutError(error) {
   return error?.name === 'KimonTimeoutError'
     || error?.code === 'KIMON_TIMEOUT'
     || /timed out|timeout/i.test(String(error?.message || ''));
+}
+
+function getGeminiApiKey() {
+  const raw = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '';
+  const apiKey = String(raw || '').trim();
+  if (!apiKey) return '';
+  if (apiKey.toLowerCase() === 'undefined' || apiKey.toLowerCase() === 'null') return '';
+  return apiKey;
+}
+
+function isGeminiApiKeyError(error) {
+  const message = String(error?.message || '');
+  return error?.status === 400
+    && (/API_KEY_INVALID/i.test(message) || /API key not valid/i.test(message));
+}
+
+function getSafeKimonErrorMessage(error) {
+  const rawMessage = String(error?.message || '');
+  if (isTimeoutError(error)) return KIMON_SERVICE_UNAVAILABLE_MESSAGE;
+  if (error?.status === 429 || rawMessage.includes('429')) {
+    triggerGeminiCooldown();
+    return 'API Rate Limit (429). Vui lòng đợi 30 giây.';
+  }
+  if (isGeminiApiKeyError(error)) return GEMINI_API_CONFIG_MESSAGE;
+  return KIMON_SERVICE_UNAVAILABLE_MESSAGE;
 }
 
 async function withTimeout(run, timeoutMs, label = 'Operation') {
@@ -485,6 +513,33 @@ function buildTopicAiHints(topicKey = '', palace = null, chart = {}) {
 function extractTopicFlagsFromPalace(palace = {}, chart = {}) {
   return extractHintElementsFromPalace(palace, chart)
     .filter(element => ['Dịch Mã', 'Không Vong', 'Phục Ngâm', 'Phản Ngâm'].includes(element));
+}
+
+function getCriticalTopicFlagCombos(selectedTopicFlags = []) {
+  const flags = Array.isArray(selectedTopicFlags)
+    ? selectedTopicFlags.filter(Boolean)
+    : [];
+  const hasFlag = flagName => flags.some(flag => flag === flagName);
+  const combos = [
+    {
+      id: 'HORSE_FU_YIN',
+      flags: ['Dịch Mã', 'Phục Ngâm'],
+    },
+    {
+      id: 'HORSE_FAN_YIN',
+      flags: ['Dịch Mã', 'Phản Ngâm'],
+    },
+    {
+      id: 'VOID_FU_YIN',
+      flags: ['Không Vong', 'Phục Ngâm'],
+    },
+    {
+      id: 'VOID_FAN_YIN',
+      flags: ['Không Vong', 'Phản Ngâm'],
+    },
+  ];
+
+  return combos.filter(combo => combo.flags.every(hasFlag));
 }
 
 function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '') {
@@ -5979,7 +6034,7 @@ export default function handler(req, res) {
 
         // ── Tiered AI Routing ──
         const isAutoLoad = userContext === '__AUTO_LOAD__';
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = getGeminiApiKey();
         const detection = await detectTopicWithFallback({
           userContext,
           apiKey,
@@ -5989,15 +6044,24 @@ export default function handler(req, res) {
         const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
         const { topic, tier, confidence } = detection;
         const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
-        const hasCriticalTopicFlags = Array.isArray(enrichedQmdjData?.selectedTopicFlags) && enrichedQmdjData.selectedTopicFlags.length > 0;
-        const forceStrategyTopic = topic === 'tai-van';
+        const criticalTopicFlagCombos = getCriticalTopicFlagCombos(enrichedQmdjData?.selectedTopicFlags);
+        const hasCriticalTopicFlags = criticalTopicFlagCombos.length > 0;
+        const forceStrategyTopic = ['tai-van', 'muu-luoc', 'chien-luoc'].includes(topic);
         const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
         const runtimeConfig = getTierRuntimeConfig(effectiveTier);
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
           tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
         });
-        console.log(`[Kimon][stream] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} flags=${hasCriticalTopicFlags ? enrichedQmdjData.selectedTopicFlags.join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat}`);
+        console.log(`[Kimon][stream] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} flagCombos=${hasCriticalTopicFlags ? criticalTopicFlagCombos.map(combo => combo.id).join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat}`);
+        if (!apiKey) {
+          endSseWithFallback(res, {
+            tier: effectiveTier,
+            topic: topic || 'chung',
+            message: GEMINI_API_CONFIG_MESSAGE,
+          });
+          return;
+        }
         stopHeartbeat = startSseHeartbeat(res, runtimeConfig.streamKeepAliveMs);
         writeSseData(res, { __META__: { connected: true, tier: effectiveTier, topic: topic || 'chung' } });
 
@@ -6077,14 +6141,9 @@ export default function handler(req, res) {
         if (!res.writableEnded) res.end();
       } catch (error) {
         console.error('Kimon Stream Error:', error);
-        let errorMsg = isTimeoutError(error)
-          ? KIMON_SERVICE_UNAVAILABLE_MESSAGE
-          : (error.message || KIMON_SERVICE_UNAVAILABLE_MESSAGE);
-        if (error.status === 429 || String(error.message).includes('429')) {
-          triggerGeminiCooldown(); // Activate cooldown on 429
-          errorMsg = 'API Rate Limit (429). Vui lòng đợi 30 giây.';
-        }
-        endSseWithFallback(res, { message: errorMsg });
+        endSseWithFallback(res, {
+          message: getSafeKimonErrorMessage(error),
+        });
       } finally {
         stopHeartbeat();
       }
@@ -6111,7 +6170,7 @@ export default function handler(req, res) {
       try {
         const body = JSON.parse(bodyData);
         const { qmdjData, userContext = 'chung' } = body;
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = getGeminiApiKey();
         const isAutoLoad = userContext === '__AUTO_LOAD__';
 
         // ── Tiered AI Routing ──
@@ -6124,15 +6183,25 @@ export default function handler(req, res) {
         const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
         const { topic, tier, confidence } = detection;
         const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
-        const hasCriticalTopicFlags = Array.isArray(enrichedQmdjData?.selectedTopicFlags) && enrichedQmdjData.selectedTopicFlags.length > 0;
-        const forceStrategyTopic = topic === 'tai-van';
+        const criticalTopicFlagCombos = getCriticalTopicFlagCombos(enrichedQmdjData?.selectedTopicFlags);
+        const hasCriticalTopicFlags = criticalTopicFlagCombos.length > 0;
+        const forceStrategyTopic = ['tai-van', 'muu-luoc', 'chien-luoc'].includes(topic);
         const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
         const runtimeConfig = getTierRuntimeConfig(effectiveTier);
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
           tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
         });
-        console.log(`[Kimon][json] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} flags=${hasCriticalTopicFlags ? enrichedQmdjData.selectedTopicFlags.join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat}`);
+        console.log(`[Kimon][json] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} flagCombos=${hasCriticalTopicFlags ? criticalTopicFlagCombos.map(combo => combo.id).join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat}`);
+        if (!apiKey) {
+          respondWithKimonFallback(res, {
+            statusCode: 200,
+            tier: effectiveTier,
+            topic: topic || 'chung',
+            message: GEMINI_API_CONFIG_MESSAGE,
+          });
+          return;
+        }
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const generationConfig = {
@@ -6175,14 +6244,9 @@ export default function handler(req, res) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(parsed));
       } catch (error) {
-        if (error.status === 429 || String(error.message).includes('429')) {
-          triggerGeminiCooldown();
-        }
         respondWithKimonFallback(res, {
           statusCode: 200,
-          message: isTimeoutError(error)
-            ? KIMON_SERVICE_UNAVAILABLE_MESSAGE
-            : (error?.message || KIMON_SERVICE_UNAVAILABLE_MESSAGE),
+          message: getSafeKimonErrorMessage(error),
         });
       }
     });
