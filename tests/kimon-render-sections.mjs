@@ -103,6 +103,7 @@ assert.match(serverSource, /function splitKimonParagraphs\(rawText\)/, 'Phải c
 assert.match(serverSource, /function normalizeKimonDedupKey\(rawText\)/, 'Phải có helper normalize dedupe key');
 assert.match(serverSource, /function areKimonParagraphsNearDuplicate\(left, right\)/, 'Phải có helper fuzzy dedupe paragraph');
 assert.match(serverSource, /function collectUniqueKimonParagraphs\(rawText, seenParagraphs\)/, 'Phải có collector paragraph duy nhất trước khi render');
+assert.match(serverSource, /function splitKimonLongParagraph\(paragraph\)/, 'Renderer phải có helper tách block dài thành nhiều đoạn');
 assert.match(serverSource, /function buildKimonRenderModel\(data\)/, 'UI phải dựng canonical render model trước khi render');
 assert.match(serverSource, /function buildKimonPlainText\(data\) \{\s*return buildKimonRenderModel\(data\)/s, 'Plain text phải dùng render model đã dedupe');
 assert.match(serverSource, /function buildKimonPrintHtml\(data\) \{\s*return buildKimonRenderModel\(data\)/s, 'Print HTML phải dùng render model đã dedupe');
@@ -121,7 +122,8 @@ assert.match(serverSource, /label:\s*'Tổng quan'/, 'Deep-dive phải có subti
 assert.match(serverSource, /label:\s*'Nhận định'/, 'Strategy phải có subtitle Nhận định');
 assert.match(serverSource, /label:\s*'Phân tích thế trận'/, 'Strategy phải có subtitle Phân tích thế trận');
 assert.match(serverSource, /label:\s*'Nước đi đề xuất'/, 'Strategy phải có subtitle Nước đi đề xuất');
-assert.match(serverSource, /function createKimonQuoteSection\(\{ className, rawText, seenParagraphs \}\)/, 'Renderer phải có helper quote footer riêng');
+assert.match(serverSource, /function createKimonQuoteSection\(\{ className, rawText, seenParagraphs, modeLabel = '' \}\)/, 'Renderer phải có helper quote footer riêng');
+assert.match(serverSource, /modeLabel:\s*String\(modeLabel \|\| ''\)\.trim\(\)/, 'Quote footer phải giữ mode label để render ở mép phải');
 assert.match(serverSource, /schema:\s*'kymon-pro'/, 'Frontend phải detect schema Kymon Pro riêng');
 assert.match(serverSource, /className:\s*'kymon-closing-quote kymon-action-footer'/, 'Quote footer phải có class riêng thay vì section generic');
 assert.match(serverSource, /function shapeCompanionTextPayload\(rawText = ''\)/, 'Server phải shape companion text thành payload có quote footer');
@@ -132,6 +134,7 @@ assert.match(serverSource, /const fragment = document\.createDocumentFragment\(\
 assert.match(serverSource, /container\.replaceChildren\(fragment\);/, 'Renderer phải replace content một lần');
 assert.match(serverSource, /function buildTypewriterRichTextFragment\(rawText\)/, 'Renderer phải prebuild rich-text fragment cho typewriter');
 assert.match(serverSource, /function createTypewriterSectionEntry\(className, rawText, options = \{\}\)/, 'Renderer phải dựng section typewriter riêng');
+assert.match(serverSource, /\.flatMap\(splitKimonLongParagraph\)/, 'Renderer phải rebalance paragraph dài thay vì dồn thành một khối chữ');
 assert.match(serverSource, /function revealTypewriterSectionChunk\(section, chunkSize = TYPEWRITER_CHUNK_SIZE\)/, 'Typewriter phải reveal theo chunk, không từng ký tự');
 assert.match(serverSource, /function cancelActiveKimonTypingSession\(\{ finalize = true, reason = 'superseded' \} = \{\}\)/, 'Phải có helper hủy typewriter session cũ');
 assert.match(serverSource, /function startKimonTypewriterSession\(container, sections\)/, 'Phải có helper start typewriter session');

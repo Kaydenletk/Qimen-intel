@@ -2566,6 +2566,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       display: block; font-size: 0.8rem; font-weight: 600;
       color: var(--muted); margin-bottom: 6px;
     }
+    .kimon-message-body {
+      min-width: 0;
+    }
     .kimon-section-title {
       display: block;
       margin: 0 0 10px;
@@ -2700,6 +2703,24 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-weight: 400;
       line-height: 1.72;
       font-family: inherit;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+    }
+
+    .kymon-footer-text {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .kymon-footer-mode {
+      flex: 0 0 auto;
+      margin-left: auto;
+      color: var(--kimon-meta-text);
+      font-size: 0.72rem;
+      font-weight: 500;
+      line-height: 1.4;
+      white-space: nowrap;
     }
 
     .kymon-closing-quote {
@@ -4073,10 +4094,51 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         .trim();
     }
 
+    function splitKimonLongParagraph(paragraph) {
+      const text = normalizeKimonTextBlock(paragraph);
+      if (!text) return [];
+      if (text.includes('\\n')) return [text];
+      if (text.length < 360) return [text];
+      if (/^(?:[-*•]|\\d+\\.)\\s/m.test(text)) return [text];
+
+      const sentences = text
+        .split(/(?<=[.!?…:])\\s+/)
+        .map(item => item.trim())
+        .filter(Boolean);
+
+      if (sentences.length < 4) return [text];
+
+      const chunks = [];
+      let current = [];
+      let currentLength = 0;
+
+      sentences.forEach(sentence => {
+        const sentenceLength = sentence.length;
+        const shouldBreak = current.length >= 2 && (currentLength + sentenceLength) > 260;
+        if (shouldBreak) {
+          chunks.push(current.join(' ').trim());
+          current = [];
+          currentLength = 0;
+        }
+        current.push(sentence);
+        currentLength += sentenceLength + 1;
+      });
+
+      if (current.length) {
+        chunks.push(current.join(' ').trim());
+      }
+
+      return chunks.filter(Boolean);
+    }
+
     function splitKimonParagraphs(rawText) {
       const text = normalizeKimonTextBlock(rawText);
       if (!text) return [];
-      return text.split(/\\n{2,}/).map(item => item.trim()).filter(Boolean);
+      return text
+        .split(/\\n{2,}/)
+        .map(item => item.trim())
+        .filter(Boolean)
+        .flatMap(splitKimonLongParagraph);
     }
 
     function normalizeKimonDedupKey(rawText) {
@@ -4170,7 +4232,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       };
     }
 
-    function createKimonQuoteSection({ className, rawText, seenParagraphs }) {
+    function createKimonQuoteSection({ className, rawText, seenParagraphs, modeLabel = '' }) {
       const paragraphs = collectUniqueKimonParagraphs(rawText, seenParagraphs);
       if (!paragraphs.length) return null;
       return {
@@ -4178,6 +4240,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         label: '',
         className,
         text: paragraphs.join('\\n\\n'),
+        modeLabel: String(modeLabel || '').trim(),
       };
     }
 
@@ -4222,6 +4285,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           className: 'kymon-closing-quote kymon-action-footer',
           rawText: data.closingLine || data.kimonQuote || '',
           seenParagraphs,
+          modeLabel: getKimonResponseModeLabel(data),
         }));
 
         return sections;
@@ -4260,6 +4324,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           className: 'kymon-closing-quote kymon-action-footer',
           rawText: data.closingLine || data.kimonQuote || '',
           seenParagraphs,
+          modeLabel: getKimonResponseModeLabel(data),
         }));
 
         return sections;
@@ -4312,6 +4377,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           className: 'kymon-closing-quote kymon-action-footer',
           rawText: data.closingLine || data.action || '',
           seenParagraphs,
+          modeLabel: getKimonResponseModeLabel(data),
         }));
 
         return sections;
@@ -4342,6 +4408,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         className: 'kymon-closing-quote kymon-action-footer',
         rawText: data.closingLine || data.action || data.kimonQuote || '',
         seenParagraphs,
+        modeLabel: getKimonResponseModeLabel(data),
       }));
 
       return sections;
@@ -4861,7 +4928,30 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     function createMessageBubble(isKimon = true) {
       const bubble = document.createElement('div');
       bubble.className = 'kimon-message ' + (isKimon ? 'kimon-message-ai' : 'kimon-message-user');
+      if (isKimon) {
+        const body = document.createElement('div');
+        body.className = 'kimon-message-body';
+
+        bubble.appendChild(body);
+        bubble._bodyEl = body;
+      }
       return bubble;
+    }
+
+    function getMessageBubbleBody(bubble) {
+      return bubble?._bodyEl || bubble;
+    }
+
+    function getKimonResponseModeLabel(data = {}) {
+      const tier = typeof data?._tier === 'string' ? data._tier.trim() : '';
+      if (tier === 'strategy') return 'thinking';
+      if (tier === 'topic' || tier === 'companion') return 'flash';
+
+      if (data?.schema === 'kymon-pro' || data?.schema === 'strategy' || data?.schema === 'deep-dive') {
+        return 'thinking';
+      }
+
+      return 'flash';
     }
 
     // Suggestions disabled for Claude-like minimal UI
@@ -4938,6 +5028,15 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       };
     }
 
+    function attachKimonUiMeta(payload, rawData = {}) {
+      const next = { ...payload };
+      const tier = typeof rawData?._tier === 'string' ? rawData._tier.trim() : '';
+      const topic = typeof rawData?._topic === 'string' ? rawData._topic.trim() : '';
+      if (tier) next._tier = tier;
+      if (topic) next._topic = topic;
+      return next;
+    }
+
     function parseKimonResponseText(rawText) {
       const source = String(rawText || '').trim();
       if (!source) return createEmergencyKimonPayload('');
@@ -4986,7 +5085,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         // Build legacy fields for backwards compat
         const messageParts = [tamLy.trangThai, tamLy.dongChay, chienLuoc.noiDung].filter(Boolean);
 
-        return {
+        return attachKimonUiMeta({
           mode: 'deep-dive',
           schema: 'deep-dive',
           tongQuan: rawData.tongQuan.trim(),
@@ -4999,7 +5098,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           timeHint: '',
           message: messageParts.join('\\n\\n') || rawData.tongQuan.trim(),
           closingLine: kimonQuote,
-        };
+        }, rawData);
       }
 
       // ── Detect Kymon Pro schema (4 steps + closingLine) ──
@@ -5014,7 +5113,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           ? rawData.closingLine.trim()
           : (typeof rawData.kimonQuote === 'string' ? rawData.kimonQuote.trim() : '');
 
-        return {
+        return attachKimonUiMeta({
           mode: typeof rawData.mode === 'string' && rawData.mode.trim() ? rawData.mode.trim() : 'interpretation',
           schema: 'kymon-pro',
           buoc1_gocReVanDe: buoc1,
@@ -5026,7 +5125,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           lead: buoc1 || KYMON_PARTIAL_LEAD,
           timeHint: '',
           message: [buoc2, buoc3, buoc4].filter(Boolean).join('\\n\\n') || buoc1 || KYMON_UNCLEAR_MESSAGE,
-        };
+        }, rawData);
       }
 
       // ── Detect Strategy schema (verdict/analysis/adversary/tactics/closingLine) ──
@@ -5059,7 +5158,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           ? rawData.closingLine.trim()
           : (typeof rawData.action === 'string' ? rawData.action.trim() : '');
 
-        return {
+        return attachKimonUiMeta({
           mode: typeof rawData.mode === 'string' && rawData.mode.trim() ? rawData.mode.trim() : 'strategy',
           schema: 'strategy',
           verdict,
@@ -5072,7 +5171,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           timeHint: tactics.timing || '',
           message: analysis || verdict || '',
           action: closingLine,
-        };
+        }, rawData);
       }
 
       // ── Detect Companion schema (text body + closingLine footer) ──
@@ -5085,7 +5184,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         const closingLine = typeof rawData.closingLine === 'string'
           ? rawData.closingLine.trim()
           : (typeof rawData.kimonQuote === 'string' ? rawData.kimonQuote.trim() : '');
-        return {
+        return attachKimonUiMeta({
           mode: 'companion',
           schema: 'companion',
           lead,
@@ -5093,7 +5192,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           message: message || lead || KYMON_UNCLEAR_MESSAGE,
           closingLine,
           kimonQuote: closingLine,
-        };
+        }, rawData);
       }
 
       // ── Legacy schema (lead/timeHint/message/closingLine) ──
@@ -5137,7 +5236,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         normalized.closingLine = KYMON_PARTIAL_ACTION;
       }
 
-      return normalized;
+      return attachKimonUiMeta(normalized, rawData);
     }
 
     async function sendKymonRequest({ qmdjData, userContext, signal }) {
@@ -5325,7 +5424,19 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       }
 
       const prepared = buildTypewriterRichTextFragment(text);
-      entryEl.appendChild(prepared.fragment);
+      if (options.modeLabel) {
+        const textWrap = document.createElement('div');
+        textWrap.className = 'kymon-footer-text';
+        textWrap.appendChild(prepared.fragment);
+        entryEl.appendChild(textWrap);
+
+        const modeEl = document.createElement('span');
+        modeEl.className = 'kymon-footer-mode';
+        modeEl.textContent = String(options.modeLabel || '').trim();
+        entryEl.appendChild(modeEl);
+      } else {
+        entryEl.appendChild(prepared.fragment);
+      }
 
       return {
         element: entryEl,
@@ -5516,7 +5627,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         const sectionEntry = createTypewriterSectionEntry(
           section.className + ' kymon-section-block',
           section.text,
-          { labelText: section.label || '' }
+          { labelText: section.label || '', modeLabel: section.modeLabel || '' }
         );
         if (sectionEntry) {
           fragment.appendChild(sectionEntry.element);
@@ -5563,6 +5674,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     function appendKimonResponseBubble(data) {
       const bubble = createMessageBubble(true);
       kimonMessages?.appendChild(bubble);
+      const bubbleBody = getMessageBubbleBody(bubble);
       const plainText = buildKimonPlainText(data);
       const displayHtml = buildKimonDisplayHtml(data);
       logKimonDebug('render start', {
@@ -5570,7 +5682,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         leadLength: data?.lead?.length || 0,
         messageLength: data?.message?.length || 0,
       });
-      renderParsedSections(bubble, data);
+      renderParsedSections(bubbleBody, data);
       attachKimonBubbleActions(bubble, plainText);
       registerConversationEntry({
         role: 'ai',
@@ -5584,7 +5696,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     function appendKimonErrorBubble(message) {
       const bubble = createMessageBubble(true);
-      bubble.innerHTML = '<p class="kimon-error-inline">⚠️ ' + escapeHTML(message) + '</p>';
+      const bubbleBody = getMessageBubbleBody(bubble);
+      bubbleBody.innerHTML = '<p class="kimon-error-inline">⚠️ ' + escapeHTML(message) + '</p>';
       kimonMessages?.appendChild(bubble);
       smartScroll();
       return bubble;
@@ -5822,7 +5935,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       // Show greeting message
       const greeting = createMessageBubble(true);
       greeting.classList.add('kimon-greeting');
-      greeting.innerHTML = '<p class="kimon-paragraph">Chào bạn! Tôi là Kymon. Hãy hỏi tôi bất cứ điều gì về năng lượng hiện tại, công việc, tình cảm, hay quyết định bạn đang cân nhắc.</p>';
+      const greetingBody = getMessageBubbleBody(greeting);
+      greetingBody.innerHTML = '<p class="kimon-paragraph">Chào bạn! Tôi là Kymon. Hãy hỏi tôi bất cứ điều gì về năng lượng hiện tại, công việc, tình cảm, hay quyết định bạn đang cân nhắc.</p>';
       kimonMessages.appendChild(greeting);
       registerConversationEntry({
         role: 'ai',

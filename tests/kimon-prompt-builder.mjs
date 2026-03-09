@@ -55,6 +55,9 @@ assert.match(systemInstruction, /\[OUTPUT FORMAT - TOPIC JSON\]/);
 assert.match(systemInstruction, /3 key: "lead", "message", "closingLine"/i);
 assert.match(systemInstruction, /3-6 đoạn/i);
 assert.match(systemInstruction, /Trọng lượng phân tích phải nằm ở "message"/i);
+assert.match(systemInstruction, /Giữ nguyên độ dày cần thiết của nội dung/i);
+assert.match(systemInstruction, /white space rõ ràng/i);
+assert.match(systemInstruction, /mỗi đoạn chỉ nên ôm một ý chính/i);
 
 assert.match(enriched, /\[TÍN HIỆU ĐÈN\]/);
 assert.match(enriched, /Khí giờ đang nghịch, nhưng hành động đúng cách vẫn có cửa/);
@@ -74,6 +77,9 @@ assert.match(prompt, /phán quyết đủ rõ/i);
 assert.match(prompt, /hook\/thesis 1-2 câu/i);
 assert.match(prompt, /2-4 lớp để người đọc thấy được toàn cảnh/i);
 assert.match(prompt, /ít nhất 2 tín hiệu đang tương tác/i);
+assert.match(prompt, /Không được rút ngắn phần thân chỉ vì đã có phán quyết/i);
+assert.match(prompt, /các đoạn ngắn có white space rõ ràng/i);
+assert.match(prompt, /dấu hai chấm vừa phải/i);
 assert.match(prompt, /field "closingLine" riêng/);
 assert.match(prompt, /dùng đúng 3 key: lead, message, closingLine/i);
 assert.doesNotMatch(prompt, /\[SYSTEM ROLE & PERSONA\]/);
@@ -86,6 +92,8 @@ assert.match(autoPrompt, /Câu mở đầu phải chốt rõ nhịp chính/i);
 assert.match(autoPrompt, /lead = mở bài ngắn; message = thân bài chính đủ dày/i);
 assert.match(autoPrompt, /được phép viết dài hơn để diễn tả đủ bức tranh/i);
 assert.match(autoPrompt, /2-4 tầng nghĩa/i);
+assert.match(autoPrompt, /phần thân thành nhiều đoạn ngắn/i);
+assert.match(autoPrompt, /dấu hai chấm để mở ý mới/i);
 assert.match(autoPrompt, /field "closingLine" riêng/);
 assert.doesNotMatch(autoPrompt, /Ưu tiên bám Cung Giờ trước/);
 

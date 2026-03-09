@@ -38,6 +38,8 @@ assert.match(strategyPrompt.systemPrompt, /\[VERDICT FIRST - PHÁN QUYẾT MỞ 
 assert.match(strategyPrompt.systemPrompt, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /\[CLOSING LINE - CÂU CHỐT BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /2-4 tầng nghĩa/i);
+assert.match(strategyPrompt.systemPrompt, /Giữ nguyên độ dài cần thiết của bài phân tích/i);
+assert.match(strategyPrompt.systemPrompt, /các đoạn ngắn có white space rõ ràng/i);
 assert.match(strategyPrompt.systemPrompt, /Đằng Xà = Sự rắc rối/);
 assert.match(strategyPrompt.systemPrompt, /Trực Phù = Quý nhân bảo trợ/);
 assert.match(strategyPrompt.systemPrompt, /Mưu Lược Hành Động/);
@@ -55,6 +57,8 @@ assert.match(strategyPrompt.userPrompt, /Xuất đúng JSON 5 key của Kymon Pr
 assert.match(strategyPrompt.userPrompt, /field "closingLine" như một câu chốt riêng/i);
 assert.match(strategyPrompt.userPrompt, /Không được trả lời cụt hoặc quá ngắn/i);
 assert.match(strategyPrompt.userPrompt, /Mỗi bước nên giải thích rõ ít nhất 2 tín hiệu/i);
+assert.match(strategyPrompt.userPrompt, /không được tự rút ngắn phần thân|Giữ nguyên độ dày của bài phân tích/i);
+assert.match(strategyPrompt.userPrompt, /các đoạn ngắn có white space rõ/i);
 
 const wealthStrategyPrompt = buildStrategyPrompt({
   qmdjData: wealthQmdjData,
@@ -80,6 +84,8 @@ assert.match(topicPrompt, /phán quyết đủ rõ/i);
 assert.match(topicPrompt, /hook\/thesis 1-2 câu/i);
 assert.match(topicPrompt, /2-4 lớp để người đọc thấy được toàn cảnh/i);
 assert.match(topicPrompt, /ít nhất 2 tín hiệu đang tương tác/i);
+assert.match(topicPrompt, /Không được rút ngắn phần thân chỉ vì đã có phán quyết/i);
+assert.match(topicPrompt, /các đoạn ngắn có white space rõ ràng/i);
 assert.match(topicPrompt, /field "closingLine" riêng/);
 assert.match(topicPrompt, /dùng đúng 3 key: lead, message, closingLine/i);
 assert.doesNotMatch(topicPrompt, /\[SYSTEM ROLE & PERSONA\]/);
