@@ -174,22 +174,26 @@ assert.equal(hfExam.headline, 'Quay Xe Đề Thi');
 // VOID_FAN_YIN upgraded advice map
 const vfyExam = getComboTopicAdvice('VOID_FAN_YIN', 'thi-cu');
 assert.ok(vfyExam, 'VOID_FAN_YIN should have thi-cu advice');
-assert.equal(vfyExam.headline, 'Đừng Đuổi Theo Tin Rác');
+assert.equal(vfyExam.headline, 'Chống Nhiễu Tín Hiệu (Signal Noise)');
 assert.ok(
-  vfyExam.coreMessage.includes('ảo ảnh'),
-  'VOID_FAN_YIN thi-cu coreMessage should mention "ảo ảnh"'
+  vfyExam.coreMessage.includes('Ghost Signals'),
+  'VOID_FAN_YIN thi-cu coreMessage should mention "Ghost Signals"'
 );
 assert.ok(
-  vfyExam.narrative.includes('Ghost Signals'),
-  'VOID_FAN_YIN thi-cu narrative should mention "Ghost Signals"'
+  vfyExam.narrative.includes('Oscillation'),
+  'VOID_FAN_YIN thi-cu narrative should mention "Oscillation"'
 );
 
 const vfyWealth = getComboTopicAdvice('VOID_FAN_YIN', 'tai-van');
 assert.ok(vfyWealth, 'VOID_FAN_YIN should have tai-van advice');
-assert.equal(vfyWealth.headline, 'Bẫy Thanh Khoản');
+assert.equal(vfyWealth.headline, 'Bẫy Reversal Giả');
 assert.ok(
   vfyWealth.narrative.includes('Fake Out'),
   'VOID_FAN_YIN tai-van narrative should mention "Fake Out"'
+);
+assert.ok(
+  vfyWealth.doHint.includes('High-Z'),
+  'VOID_FAN_YIN tai-van doHint should mention "High-Z"'
 );
 
 const vfyLove = getComboTopicAdvice('VOID_FAN_YIN', 'tinh-duyen');
@@ -202,10 +206,14 @@ assert.ok(
 
 const vfyStrategy = getComboTopicAdvice('VOID_FAN_YIN', 'muu-luoc');
 assert.ok(vfyStrategy, 'VOID_FAN_YIN should have muu-luoc advice');
-assert.equal(vfyStrategy.headline, 'Chiến Thuật Rỗng');
+assert.equal(vfyStrategy.headline, 'Chiến Thuật Zombie Process');
 assert.ok(
-  vfyStrategy.narrative.includes('Zombie Process'),
-  'VOID_FAN_YIN muu-luoc narrative should mention "Zombie Process"'
+  vfyStrategy.coreMessage.includes('Output'),
+  'VOID_FAN_YIN muu-luoc coreMessage should mention missing "Output"'
+);
+assert.ok(
+  vfyStrategy.narrative.includes('Infinite Loop'),
+  'VOID_FAN_YIN muu-luoc narrative should mention "Infinite Loop"'
 );
 
 // Default fallback

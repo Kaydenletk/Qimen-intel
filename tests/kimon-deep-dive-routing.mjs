@@ -29,14 +29,25 @@ assert.match(promptBuilderSource, /tránh ẩn dụ sức khỏe, tiêu hóa, h�
 assert.match(strategyPromptSource, /\[INTERNAL INSIGHTS\]/);
 assert.match(strategyPromptSource, /\[FLAGS DỤNG THẦN/);
 assert.match(strategyPromptSource, /const aiHints = qmdjData\?\.aiHints \|\| '';/);
-assert.match(strategyPromptSource, /\[BẮT BUỘC QUÉT FLAGS - ƯU TIÊN HÀNG ĐẦU\]/);
-assert.match(strategyPromptSource, /\[QUY TẮC RIÊNG CHO HỌC TẬP \/ THI CỬ\]/);
-assert.match(strategyPromptSource, /Logic, Data, Memory, Processing/);
-assert.match(strategyPromptSource, /Thiên Phụ hoặc Cảnh Môn/);
-assert.match(strategyPromptSource, /Target Status & Speed/);
-assert.match(strategyPromptSource, /User's Psychology/);
-assert.match(strategyPromptSource, /bước 2 PHẢI/i);
-assert.match(strategyPromptSource, /bước 4 PHẢI/i);
+assert.match(strategyPromptSource, /\[TRỌNG TÂM LUẬN GIẢI\]/);
+assert.match(strategyPromptSource, /Dụng Thần là thực tế/);
+assert.match(strategyPromptSource, /Nhật Can là tâm thế/);
+assert.match(strategyPromptSource, /\[QUY TẮC FLAGS - "NHỊP TIM" CỦA NỖI LO\]/);
+assert.match(strategyPromptSource, /Đằng Xà\/Không Vong/);
+assert.match(strategyPromptSource, /Thương Môn\/Bạch Hổ/);
+assert.match(strategyPromptSource, /The Root \(Gốc\)/i);
+assert.match(strategyPromptSource, /The Rhythm \(Nhịp\)/i);
+assert.match(strategyPromptSource, /The Persona \(Người\)/i);
+assert.match(strategyPromptSource, /The Tactical \(Mưu\)/i);
+assert.match(strategyPromptSource, /Không được trả lời cụt/);
+assert.match(strategyPromptSource, /Thiên Phụ\/Cảnh Môn/);
+assert.match(strategyPromptSource, /Lỗ hổng gốc rễ/);
+assert.match(strategyPromptSource, /Quay xe trong gió/);
+assert.match(strategyPromptSource, /Ảo ảnh dội ngược/);
+assert.match(strategyPromptSource, /điểm tựa|bám rễ|cánh cửa hẹp/i);
+assert.match(strategyPromptSource, /không được để chúng lấn át Flags, Nhật Can hay Dụng Thần thực tế/i);
+assert.match(strategyPromptSource, /\[GỢI Ý NGỮ CẢNH HỌC TẬP\]/);
+assert.doesNotMatch(strategyPromptSource, /Logic, Data, Memory, Processing/);
 assert.match(modelRouterSource, /topic:\s+\{ model: MODELS\.flash,\s+maxTokens: 3072 \}/);
 assert.match(modelRouterSource, /strategy:\s+\{ model: MODELS\.pro,\s+maxTokens: 3072 \}/);
 

@@ -38,36 +38,45 @@ assert.match(strategyPrompt.userPrompt, /\[QUAN TRỌNG - FLAGS\]/);
 assert.match(strategyPrompt.userPrompt, /Ưu tiên đọc block \[QUAN TRỌNG - FLAGS\]/);
 assert.match(strategyPrompt.userPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
 assert.match(strategyPrompt.userPrompt, /\[INSIGHT ENGINE\]/);
-assert.match(strategyPrompt.systemPrompt, /\[BẮT BUỘC QUÉT FLAGS - ƯU TIÊN HÀNG ĐẦU\]/);
+assert.match(strategyPrompt.userPrompt, /\[GỢI Ý NGỮ CẢNH HỌC TẬP\]/);
+assert.match(strategyPrompt.userPrompt, /Thiên Phụ\/Cảnh Môn là tín hiệu mạnh/i);
+assert.match(strategyPrompt.userPrompt, /ưu tiên nỗi lo thật sự ở Nhật Can, Flags và Dụng Thần/i);
+assert.doesNotMatch(strategyPrompt.userPrompt, /Logic, Data, Memory, Processing/i);
+assert.match(strategyPrompt.systemPrompt, /Chiến lược gia Đa tầng/);
+assert.match(strategyPrompt.systemPrompt, /\[TRỌNG TÂM LUẬN GIẢI\]/);
+assert.match(strategyPrompt.systemPrompt, /Dụng Thần là thực tế/i);
+assert.match(strategyPrompt.systemPrompt, /Nhật Can là tâm thế/i);
 assert.match(strategyPrompt.systemPrompt, /Dịch Mã/);
 assert.match(strategyPrompt.systemPrompt, /Không Vong/);
-assert.match(strategyPrompt.systemPrompt, /Phục Ngâm/);
 assert.match(strategyPrompt.systemPrompt, /Phản Ngâm/);
-assert.match(strategyPrompt.systemPrompt, /Root Cause/);
-assert.match(strategyPrompt.systemPrompt, /Target Status & Speed/);
-assert.match(strategyPrompt.systemPrompt, /User's Psychology/);
-assert.match(strategyPrompt.systemPrompt, /Tactical Strategy/);
-assert.match(strategyPrompt.systemPrompt, /bước 2 và bước 4/i);
-assert.match(strategyPrompt.systemPrompt, /kiên nhẫn chờ|từ từ/i);
-assert.match(strategyPrompt.systemPrompt, /xác minh|không dồn toàn lực/i);
-assert.match(strategyPrompt.systemPrompt, /đề cương CDA/i);
-assert.match(strategyPrompt.systemPrompt, /tốc độ|bất ngờ|sắp ập đến/i);
+assert.match(strategyPrompt.systemPrompt, /Đằng Xà\/Không Vong/);
+assert.match(strategyPrompt.systemPrompt, /Thương Môn\/Bạch Hổ/);
+assert.match(strategyPrompt.systemPrompt, /The Root \(Gốc\)/i);
+assert.match(strategyPrompt.systemPrompt, /The Rhythm \(Nhịp\)/i);
+assert.match(strategyPrompt.systemPrompt, /The Persona \(Người\)/i);
+assert.match(strategyPrompt.systemPrompt, /The Tactical \(Mưu\)/i);
 assert.match(strategyPrompt.systemPrompt, /Ngựa chạy vào hố/i);
 assert.match(strategyPrompt.systemPrompt, /Phanh gấp/i);
-assert.match(strategyPrompt.systemPrompt, /QUY TẮC RIÊNG CHO HỌC TẬP \/ THI CỬ/);
-assert.match(strategyPrompt.systemPrompt, /Logic, Data, Memory, Processing/i);
-assert.match(strategyPrompt.systemPrompt, /thay vì các ẩn dụ về Sức khỏe, Tiêu hóa hoặc Hồi phục/i);
-assert.match(strategyPrompt.systemPrompt, /cung có Thiên Phụ hoặc Cảnh Môn/i);
+assert.match(strategyPrompt.systemPrompt, /Ảo ảnh dội ngược/i);
+assert.match(strategyPrompt.systemPrompt, /Quay xe trong gió/i);
+assert.match(strategyPrompt.systemPrompt, /Nếu nỗi lo nằm ở đây -> Lo cho một bóng ma/i);
+assert.match(strategyPrompt.systemPrompt, /Không được trả lời cụt/i);
+assert.match(strategyPrompt.systemPrompt, /JSON CHUẨN/i);
+assert.match(strategyPrompt.systemPrompt, /"adversary":/);
+assert.match(strategyPrompt.systemPrompt, /Thiên Phụ\/Cảnh Môn/i);
+assert.match(strategyPrompt.systemPrompt, /Lỗ hổng gốc rễ/i);
+assert.match(strategyPrompt.systemPrompt, /điểm tựa|bám rễ|cánh cửa hẹp/i);
+assert.match(strategyPrompt.systemPrompt, /không được để chúng lấn át Flags, Nhật Can hay Dụng Thần thực tế/i);
 
 const wealthStrategyPrompt = buildStrategyPrompt({
   qmdjData: wealthQmdjData,
   userContext: 'Có nên vào lệnh lúc này không?',
   topicKey: 'tai-van',
 });
-assert.match(wealthStrategyPrompt.systemPrompt, /QUY TẮC RIÊNG CHO TÀI VẬN/);
-assert.match(wealthStrategyPrompt.systemPrompt, /cuộc chiến tốc độ|bài toán kiên nhẫn/i);
-assert.match(wealthStrategyPrompt.systemPrompt, /Can Mậu = vốn/i);
-assert.match(wealthStrategyPrompt.systemPrompt, /TUYỆT ĐỐI không lẫn chủ đề nhà đất/i);
+assert.match(wealthStrategyPrompt.systemPrompt, /CHIẾN THUẬT CHO CÁC MIỀN LO LẮNG/);
+assert.match(wealthStrategyPrompt.systemPrompt, /Tiền bạc \(Tài vận\)/i);
+assert.match(wealthStrategyPrompt.systemPrompt, /Mậu.*túi tiền.*Sinh Môn.*độ nảy mầm/i);
+assert.match(wealthStrategyPrompt.systemPrompt, /Săn bắn.*Canh tác/i);
 assert.match(wealthStrategyPrompt.userPrompt, /\[ƯU TIÊN TÀI VẬN\]/);
 assert.match(wealthStrategyPrompt.userPrompt, /Can Mậu \(vốn\/ thanh khoản\) \+ Sinh Môn \(lợi nhuận\) \+ Nhật Can/i);
 
