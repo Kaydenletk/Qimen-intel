@@ -39,13 +39,16 @@ assert.match(strategyPrompt.userPrompt, /Ưu tiên đọc block \[QUAN TRỌNG -
 assert.match(strategyPrompt.userPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
 assert.match(strategyPrompt.userPrompt, /\[INSIGHT ENGINE\]/);
 assert.match(strategyPrompt.userPrompt, /\[GỢI Ý NGỮ CẢNH HỌC TẬP\]/);
-assert.match(strategyPrompt.userPrompt, /Thiên Phụ\/Cảnh Môn là tín hiệu mạnh/i);
-assert.match(strategyPrompt.userPrompt, /ưu tiên nỗi lo thật sự ở Nhật Can, Flags và Dụng Thần/i);
+assert.match(strategyPrompt.userPrompt, /Thiên Phụ\/Cảnh Môn là tín hiệu gợi ý/i);
+assert.match(strategyPrompt.userPrompt, /không được lấn át Nhật Can, Dụng Thần hay Flags/i);
 assert.doesNotMatch(strategyPrompt.userPrompt, /Logic, Data, Memory, Processing/i);
+assert.match(strategyPrompt.userPrompt, /Chỉ kéo Cung Giờ vào khi câu hỏi thuộc ngữ cảnh hiện tại\/ngắn hạn/i);
+assert.match(strategyPrompt.userPrompt, /Nếu dữ liệu đủ mạnh, phải viết ít nhất 3 lớp diễn giải thật/i);
 assert.match(strategyPrompt.systemPrompt, /Chiến lược gia Đa tầng/);
 assert.match(strategyPrompt.systemPrompt, /\[TRỌNG TÂM LUẬN GIẢI\]/);
 assert.match(strategyPrompt.systemPrompt, /Dụng Thần là thực tế/i);
 assert.match(strategyPrompt.systemPrompt, /Nhật Can là tâm thế/i);
+assert.match(strategyPrompt.systemPrompt, /Cung Giờ là khí thế hiện tại, không phải trục mặc định/i);
 assert.match(strategyPrompt.systemPrompt, /Dịch Mã/);
 assert.match(strategyPrompt.systemPrompt, /Không Vong/);
 assert.match(strategyPrompt.systemPrompt, /Phản Ngâm/);
@@ -55,18 +58,25 @@ assert.match(strategyPrompt.systemPrompt, /The Root \(Gốc\)/i);
 assert.match(strategyPrompt.systemPrompt, /The Rhythm \(Nhịp\)/i);
 assert.match(strategyPrompt.systemPrompt, /The Persona \(Người\)/i);
 assert.match(strategyPrompt.systemPrompt, /The Tactical \(Mưu\)/i);
+assert.match(strategyPrompt.systemPrompt, /"Nhật Can đang mạnh hay yếu so với Dụng Thần \(và Cung Giờ nếu bối cảnh yêu cầu\)\?"/i);
+assert.match(strategyPrompt.systemPrompt, /"Dòng năng lượng đang chảy đi đâu hay nghẽn ở đâu\?"/i);
+assert.match(strategyPrompt.systemPrompt, /"Flags đang bẻ nghĩa Môn\/Tinh như thế nào\?"/i);
 assert.match(strategyPrompt.systemPrompt, /Ngựa chạy vào hố/i);
 assert.match(strategyPrompt.systemPrompt, /Phanh gấp/i);
 assert.match(strategyPrompt.systemPrompt, /Ảo ảnh dội ngược/i);
 assert.match(strategyPrompt.systemPrompt, /Quay xe trong gió/i);
 assert.match(strategyPrompt.systemPrompt, /Nếu nỗi lo nằm ở đây -> Lo cho một bóng ma/i);
 assert.match(strategyPrompt.systemPrompt, /Không được trả lời cụt/i);
+assert.match(strategyPrompt.systemPrompt, /không được viết ngắn nếu trận đồ đang cho đủ tín hiệu để đọc sâu/i);
 assert.match(strategyPrompt.systemPrompt, /JSON CHUẨN/i);
 assert.match(strategyPrompt.systemPrompt, /"adversary":/);
 assert.match(strategyPrompt.systemPrompt, /Thiên Phụ\/Cảnh Môn/i);
 assert.match(strategyPrompt.systemPrompt, /Lỗ hổng gốc rễ/i);
 assert.match(strategyPrompt.systemPrompt, /điểm tựa|bám rễ|cánh cửa hẹp/i);
-assert.match(strategyPrompt.systemPrompt, /không được để chúng lấn át Flags, Nhật Can hay Dụng Thần thực tế/i);
+assert.match(strategyPrompt.systemPrompt, /CHỈ phân tích Cung Giờ nếu câu hỏi liên quan đến năng lượng hiện tại/i);
+assert.match(strategyPrompt.systemPrompt, /không được dùng nó để thay thế Dụng Thần/i);
+assert.match(strategyPrompt.systemPrompt, /Nội kích/i);
+assert.match(strategyPrompt.systemPrompt, /Flags trước hết bẻ nghĩa của Dụng Thần/i);
 
 const wealthStrategyPrompt = buildStrategyPrompt({
   qmdjData: wealthQmdjData,

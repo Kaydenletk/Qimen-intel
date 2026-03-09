@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const serverSource = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+const displayMappingsSource = readFileSync(new URL('../src/ui/displayMappings.js', import.meta.url), 'utf8');
+
+assert.match(displayMappingsSource, /'Developer \/ Expert Mode \(Raw Tables\)': 'Chế Độ Chuyên Gia'/, 'Expert mode label phải bỏ hậu tố đối chiếu web1');
+assert.doesNotMatch(displayMappingsSource, /Đối Chiếu Web1|Đối chiếu web 1/, 'UI label không được còn text đối chiếu web1');
 
 assert.match(serverSource, /data-display-palaces=/, 'Kimon payload phải embed displayPalaces để lookup cung giờ và trực sử');
 assert.match(serverSource, /const resolvePalaceSignals = palaceNum =>/, 'getBaseQmdjData phải có lookup fallback từ palace grid');
@@ -17,14 +21,19 @@ assert.match(serverSource, /<form id="kimonChatForm" class="kimon-input-area" no
 assert.doesNotMatch(serverSource, /<form id="kimonChatForm"[\s\S]*onsubmit=/, 'Chat form không được còn inline onsubmit chắp vá');
 assert.match(serverSource, /<button id="kimonBtn" class="kimon-send-btn" title="Gửi" type="submit">/, 'Nút gửi phải là submit button');
 assert.match(serverSource, /<button type="button" id="kimonDownloadBtn" class="kimon-download-btn" title="Tải PDF" aria-label="Tải PDF">/, 'Header chat phải có nút tải PDF icon-only');
+assert.match(serverSource, /<button type="button" id="expertCopyBtn" class="expert-copy-btn" title="Copy dữ liệu chuyên gia" aria-label="Copy dữ liệu chuyên gia">/, 'Expert mode phải có nút copy dữ liệu');
+assert.match(serverSource, /<p id="expertCopyStatus" class="expert-copy-status" aria-live="polite"><\/p>/, 'Expert mode phải có status text cho copy action');
 assert.doesNotMatch(serverSource, /<div class="kimon-meta-tags">[\s\S]*Kinh Trập[\s\S]*Dương Độn/, 'Header chat không được còn hardcode cụm meta cũ');
 assert.match(serverSource, /<p class="kimon-disclaimer">Kymon là AI, có thể luận sai hoặc thiếu ý\. Hãy dùng như một gợi ý tham khảo\.<\/p>/, 'Chatbox phải có disclaimer mềm dưới input');
 
 assert.match(serverSource, /const kimonForm = document\.getElementById\('kimonChatForm'\);/, 'Frontend phải bind trực tiếp form chat');
 assert.match(serverSource, /const kimonDownloadBtn = document\.getElementById\('kimonDownloadBtn'\);/, 'Frontend phải bind nút tải PDF');
+assert.match(serverSource, /const expertCopyBtn = document\.getElementById\('expertCopyBtn'\);/, 'Frontend phải bind nút copy expert');
+assert.match(serverSource, /const expertCopyStatus = document\.getElementById\('expertCopyStatus'\);/, 'Frontend phải bind vùng status cho copy expert');
 assert.match(serverSource, /function handleKymonSend\(event\)/, 'Phải có một submit handler duy nhất cho chat');
 assert.match(serverSource, /if \(kimonForm\) \{\s*kimonForm\.addEventListener\('submit', handleKymonSend\);\s*\}/, 'Form submit phải là entry point duy nhất');
 assert.match(serverSource, /if \(kimonDownloadBtn\) \{\s*kimonDownloadBtn\.addEventListener\('click', exportKimonConversationPdf\);\s*\}/, 'Nút tải PDF phải bind vào exporter');
+assert.match(serverSource, /if \(expertCopyBtn\) \{\s*expertCopyBtn\.addEventListener\('click', async event => \{[\s\S]*copyExpertModeData\(\);[\s\S]*\}\);\s*\}/, 'Nút copy expert phải bind vào helper clipboard riêng');
 assert.doesNotMatch(serverSource, /window\.__kymonSend = handleKymonSend;/, 'Không nên còn expose send handler toàn cục kiểu cũ');
 assert.doesNotMatch(serverSource, /document\.addEventListener\('click', event => \{[\s\S]*#kimonBtn/, 'Không nên còn delegated click listener cho nút gửi');
 assert.doesNotMatch(serverSource, /document\.addEventListener\('keydown', event => \{[\s\S]*kimonContext/, 'Không nên còn delegated keydown listener cho Enter');
@@ -63,6 +72,7 @@ assert.match(serverSource, /const parsed = parseKimonResponseText\(responseText\
 assert.match(serverSource, /const normalized = normalizeKimonUiPayload\(parsed\);/, 'Request helper phải normalize schema trước khi render');
 assert.match(serverSource, /function normalizeKimonUiPayload\(rawData\)/, 'Frontend phải validate và normalize schema response');
 assert.match(serverSource, /message:\s*messageParts\.join\('\\\\n\\\\n'\) \|\| rawData\.tongQuan\.trim\(\),/, 'Deep-dive legacy fallback trong client script phải escape newline đúng để không phá inline JS');
+assert.match(serverSource, /schema:\s*'strategy'/, 'Frontend phải detect và preserve strategy schema riêng');
 assert.match(serverSource, /function extractFirstJsonBlockText\(rawText\)/, 'Frontend phải có helper balanced-brace extraction');
 assert.match(serverSource, /console\.warn\('\[Kymon\] Frontend parse direct failed:'/,'Frontend phải log parse fail để debug');
 assert.match(serverSource, /logKimonDebug\('response received', \{\s*status: res\.status,\s*responseLength: responseText\.length,\s*\}\);/, 'Frontend nên log response length để debug truncation');
@@ -88,6 +98,31 @@ assert.match(serverSource, /attachKimonBubbleActions\(bubble, plainText\);/, 'Bu
 assert.match(serverSource, /registerConversationEntry\(\{\s*role: 'ai'/s, 'Response AI phải được ghi vào transcript store');
 assert.match(serverSource, /registerConversationEntry\(\{\s*role: 'user'/s, 'User message phải được ghi vào transcript store');
 
+assert.match(serverSource, /function normalizeKimonTextBlock\(rawText\)/, 'Phải có helper normalize text block chung cho render');
+assert.match(serverSource, /function splitKimonParagraphs\(rawText\)/, 'Phải có helper tách paragraph theo block');
+assert.match(serverSource, /function normalizeKimonDedupKey\(rawText\)/, 'Phải có helper normalize dedupe key');
+assert.match(serverSource, /function areKimonParagraphsNearDuplicate\(left, right\)/, 'Phải có helper fuzzy dedupe paragraph');
+assert.match(serverSource, /function collectUniqueKimonParagraphs\(rawText, seenParagraphs\)/, 'Phải có collector paragraph duy nhất trước khi render');
+assert.match(serverSource, /function buildKimonRenderModel\(data\)/, 'UI phải dựng canonical render model trước khi render');
+assert.match(serverSource, /function buildKimonPlainText\(data\) \{\s*return buildKimonRenderModel\(data\)/s, 'Plain text phải dùng render model đã dedupe');
+assert.match(serverSource, /function buildKimonPrintHtml\(data\) \{\s*return buildKimonRenderModel\(data\)/s, 'Print HTML phải dùng render model đã dedupe');
+assert.match(serverSource, /function setExpertCopyStatus\(message = '', type = ''\)/, 'Expert copy phải có helper status riêng');
+assert.match(serverSource, /function buildExpertCopyText\(\)/, 'Expert mode phải có formatter copy text riêng');
+assert.match(serverSource, /function copyExpertModeData\(\)/, 'Expert mode phải có helper copy clipboard riêng');
+assert.match(serverSource, /\[DANH SÁCH THEO HƯỚNG\]/, 'Text copy expert phải được tổ chức theo danh sách từng hướng');
+assert.match(serverSource, /'- Môn: '/, 'Text copy expert phải liệt kê Môn');
+assert.match(serverSource, /'- Tinh: '/, 'Text copy expert phải liệt kê Tinh');
+assert.match(serverSource, /'- Thần: '/, 'Text copy expert phải liệt kê Thần');
+assert.match(serverSource, /'- Thiên Can: '/, 'Text copy expert phải liệt kê Thiên Can');
+assert.match(serverSource, /'- Địa Can: '/, 'Text copy expert phải liệt kê Địa Can');
+assert.match(serverSource, /'- Cờ: '/, 'Text copy expert phải liệt kê cờ khi có');
+assert.match(serverSource, /navigator\.clipboard\?\.writeText/,'Clipboard copy nên ưu tiên navigator.clipboard');
+assert.match(serverSource, /label:\s*'Tổng quan'/, 'Deep-dive phải có subtitle Tổng quan');
+assert.match(serverSource, /label:\s*'Nhận định'/, 'Strategy phải có subtitle Nhận định');
+assert.match(serverSource, /label:\s*'Phân tích thế trận'/, 'Strategy phải có subtitle Phân tích thế trận');
+assert.match(serverSource, /label:\s*'Nước đi đề xuất'/, 'Strategy phải có subtitle Nước đi đề xuất');
+assert.match(serverSource, /label:\s*'Chốt'/, 'Renderer phải có subtitle Chốt');
+
 assert.match(serverSource, /function renderParsedSections\(container, data\) \{[\s\S]*container\.className = 'kymon-clean-layout';/, 'Renderer phải dùng clean layout');
 assert.match(serverSource, /const fragment = document\.createDocumentFragment\(\);/, 'Renderer nên dùng fragment để giảm DOM churn');
 assert.match(serverSource, /container\.replaceChildren\(fragment\);/, 'Renderer phải replace content một lần');
@@ -96,11 +131,10 @@ assert.match(serverSource, /function createTypewriterSectionEntry\(className, ra
 assert.match(serverSource, /function revealTypewriterSectionChunk\(section, chunkSize = TYPEWRITER_CHUNK_SIZE\)/, 'Typewriter phải reveal theo chunk, không từng ký tự');
 assert.match(serverSource, /function cancelActiveKimonTypingSession\(\{ finalize = true, reason = 'superseded' \} = \{\}\)/, 'Phải có helper hủy typewriter session cũ');
 assert.match(serverSource, /function startKimonTypewriterSession\(container, sections\)/, 'Phải có helper start typewriter session');
-assert.match(serverSource, /const leadText = data\?\.lead \|\| data\?\.summary \|\| data\?\.quickTake \|\| '';/, 'Renderer phải ưu tiên lead');
-assert.match(serverSource, /const timeHintText = data\?\.timeHint \|\| '';/, 'Renderer phải render timeHint riêng');
-assert.match(serverSource, /const messageText = data\?\.message \|\| data\?\.analysis \|\| '';/, 'Renderer phải render message riêng');
-assert.match(serverSource, /const closingText = data\?\.closingLine \|\| data\?\.action \|\| '';/, 'Renderer phải render closingLine riêng');
-assert.match(serverSource, /const analysisEntry = createTypewriterSectionEntry\('kymon-analysis-flow', messageText\);/, 'Message phải vào class phân tích dài và đi qua typewriter section');
+assert.match(serverSource, /const renderSections = buildKimonRenderModel\(data\);/, 'Renderer phải render từ canonical model duy nhất');
+assert.match(serverSource, /section\.className \+ ' kymon-section-block'/, 'Mỗi section render phải đi qua block wrapper chung');
+assert.match(serverSource, /labelEl\.className = 'kimon-section-title';/, 'Subtitle phải render bằng title class riêng');
+assert.match(serverSource, /createTypewriterSectionEntry\(\s*section\.className \+ ' kymon-section-block'/, 'Text section phải typewriter theo section model');
 assert.match(serverSource, /cancelActiveKimonTypingSession\(\{ finalize: true, reason: 'new render' \}\);/, 'Render mới phải hủy session gõ cũ trước khi bắt đầu');
 assert.match(serverSource, /activeKimonTypingSession = startKimonTypewriterSession\(container, typewriterSections\);/, 'Render phải khởi động buffered typewriter trên final payload');
 assert.match(serverSource, /scheduleNextTick\(TYPEWRITER_TICK_MS\);/, 'Typewriter phải chạy theo tick cố định');
@@ -111,10 +145,15 @@ assert.doesNotMatch(serverSource, /typing-cursor/, 'Không nên còn typewriter 
 assert.doesNotMatch(serverSource, /kimon-stream-live/, 'Không nên còn streaming cursor CSS');
 
 assert.match(serverSource, /\.kymon-clean-layout \{/, 'Phải có clean layout container style');
+assert.match(serverSource, /\.kymon-section-block \{/, 'Section block phải có spacing riêng');
 assert.match(serverSource, /\.kymon-lead \{/, 'Lead phải có style riêng');
+assert.match(serverSource, /\.kymon-lead \{[\s\S]*font-weight: 400;/, 'Lead không được bold toàn khối nữa');
 assert.match(serverSource, /\.kymon-time-hint \{/, 'Time hint phải có style riêng');
 assert.match(serverSource, /\.kymon-analysis-flow \{/, 'Analysis flow phải có style riêng');
 assert.match(serverSource, /\.kymon-action-footer \{/, 'Closing/action footer phải có style riêng');
+assert.match(serverSource, /\.kymon-action-list \{/, 'Action list phải có style riêng');
+assert.match(serverSource, /\.kimon-section-title \{[\s\S]*font-weight: 700;[\s\S]*color: var\(--surface-highlight-text\);/s, 'Chỉ subtitle mới nên giữ nhấn mạnh rõ');
+assert.match(serverSource, /\.print-mini-title\{/, 'PDF phải có subtitle mini title riêng');
 assert.match(serverSource, /\.kimon-download-btn \{/, 'Nút tải PDF phải có style riêng');
 assert.match(serverSource, /\.kimon-disclaimer \{/, 'Disclaimer phải có style riêng');
 assert.match(serverSource, /\.kimon-message-actions \{/, 'Action row dưới bubble AI phải có style riêng');

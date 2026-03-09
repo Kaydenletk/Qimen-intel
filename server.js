@@ -1830,12 +1830,69 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       list-style: none;
     }
     .expert summary::-webkit-details-marker { display: none; }
-    .expert summary::after {
-      content: ' +';
+    .expert-summary-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .expert-summary-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .expert-summary-caret {
       color: var(--info);
       font-weight: 700;
+      flex-shrink: 0;
     }
-    .expert[open] summary::after { content: ' -'; }
+    .expert-summary-caret::before { content: '+'; }
+    .expert[open] .expert-summary-caret::before { content: '-'; }
+    .expert-summary-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .expert-copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--card) 78%, transparent);
+      color: var(--text-soft);
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      line-height: 1;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+    }
+    .expert-copy-btn:hover {
+      border-color: color-mix(in srgb, var(--info) 48%, var(--border));
+      background: color-mix(in srgb, var(--card) 62%, rgba(79, 140, 255, 0.16));
+      transform: translateY(-1px);
+    }
+    .expert-copy-btn:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--info) 68%, white);
+      outline-offset: 2px;
+    }
+    .expert-copy-btn svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+    .expert-copy-status {
+      min-height: 1.1em;
+      margin: 2px 0 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .expert-copy-status.is-success { color: var(--success); }
+    .expert-copy-status.is-error { color: #ff9a9a; }
     .expert-content {
       margin-top: 12px;
       display: grid;
@@ -1886,6 +1943,17 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       .signal-with-tooltip:focus .signal-tooltip,
       .signal-with-tooltip.is-open .signal-tooltip {
         transform: translateY(0);
+      }
+      .expert-summary-row {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .expert-summary-actions {
+        width: 100%;
+      }
+      .expert-copy-btn {
+        width: 100%;
+        justify-content: center;
       }
     }
     /* 9-Palace Grid Styles */
@@ -2244,12 +2312,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .kimon-section-title {
       display: block;
-      margin: 0 0 8px;
+      margin: 0 0 10px;
       font-size: 0.76rem;
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: var(--muted);
+      color: var(--surface-highlight-text);
+      opacity: 0.86;
     }
     .kimon-time-note {
       color: var(--muted);
@@ -2303,6 +2372,14 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-family: inherit;
     }
 
+    .kymon-section-block {
+      margin-top: 18px;
+    }
+
+    .kymon-section-block:first-child {
+      margin-top: 0;
+    }
+
     .kymon-summary-box {
       margin: 0 0 16px;
       padding: 12px 14px;
@@ -2314,26 +2391,27 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
 
     .kymon-lead {
-      margin: 0 0 14px;
+      margin: 0;
       color: var(--text);
       font-size: 0.9375rem;
-      line-height: 1.75;
-      font-weight: 700;
+      line-height: 1.72;
+      font-weight: 400;
       letter-spacing: 0;
       font-family: inherit;
     }
 
     .kymon-time-hint {
-      margin: 0 0 16px;
+      margin: 0;
       color: var(--muted);
       font-size: 0.9375rem;
-      line-height: 1.75;
-      font-weight: 500;
+      line-height: 1.72;
+      font-weight: 400;
       font-family: inherit;
     }
 
     .kymon-analysis-flow {
-      line-height: 1.75;
+      margin: 0;
+      line-height: 1.72;
       letter-spacing: 0;
       font-size: 0.9375rem;
       font-weight: 400;
@@ -2358,14 +2436,32 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
 
     .kymon-action-footer {
-      margin-top: 18px;
+      margin: 0;
       padding-top: 12px;
       border-top: 1px solid var(--border);
       color: var(--text-soft);
       font-size: 0.9375rem;
       font-weight: 400;
-      line-height: 1.75;
+      line-height: 1.72;
       font-family: inherit;
+    }
+
+    .kymon-action-list {
+      margin: 0;
+      color: var(--text-soft);
+      font-size: 0.9375rem;
+      font-weight: 400;
+      line-height: 1.72;
+      font-family: inherit;
+    }
+
+    .kymon-action-list ol {
+      margin: 0;
+      padding-left: 1.2em;
+    }
+
+    .kymon-action-list li + li {
+      margin-top: 8px;
     }
 
     .kymon-footer-action {
@@ -2984,8 +3080,25 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         <!-- Thẻ Cố Vấn (insight-shell) has been removed -->
 
         <details class="card expert">
-          <summary>${getSectionLabel('Developer / Expert Mode (Raw Tables)')}</summary>
+          <summary>
+            <span class="expert-summary-row">
+              <span class="expert-summary-label">
+                <span>${getSectionLabel('Developer / Expert Mode (Raw Tables)')}</span>
+                <span class="expert-summary-caret" aria-hidden="true"></span>
+              </span>
+              <span class="expert-summary-actions">
+                <button type="button" id="expertCopyBtn" class="expert-copy-btn" title="Copy dữ liệu chuyên gia" aria-label="Copy dữ liệu chuyên gia">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="11" height="11" rx="2"></rect>
+                    <path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span>Copy list</span>
+                </button>
+              </span>
+            </span>
+          </summary>
           <div class="expert-content">
+            <p id="expertCopyStatus" class="expert-copy-status" aria-live="polite"></p>
             <!-- Visual grid removed per user request for a cleaner, AI-focused UI -->
             <table id="topicAnalysisTable">
               <thead>
@@ -3344,6 +3457,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const kimonForm = document.getElementById('kimonChatForm');
     const kimonMessages = document.getElementById('kimonMessages');
     const kimonDownloadBtn = document.getElementById('kimonDownloadBtn');
+    const expertCopyBtn = document.getElementById('expertCopyBtn');
+    const expertCopyStatus = document.getElementById('expertCopyStatus');
     const kimonSuggestions = null; // Removed: Claude-like clean UI
     const kimonError = document.getElementById('kimonError');
     const kimonAutoData = document.getElementById('kimonAutoData');
@@ -3489,6 +3604,148 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       kimonDownloadBtn.setAttribute('aria-disabled', String(!enabled));
     }
 
+    function setExpertCopyStatus(message = '', type = '') {
+      if (!expertCopyStatus) return;
+      expertCopyStatus.textContent = String(message || '').trim();
+      expertCopyStatus.className = 'expert-copy-status';
+      if (type === 'success') {
+        expertCopyStatus.classList.add('is-success');
+      } else if (type === 'error') {
+        expertCopyStatus.classList.add('is-error');
+      }
+    }
+
+    function getPalaceExportValue(entity, fallback = '—') {
+      if (!entity) return fallback;
+      if (typeof entity === 'string') {
+        const text = entity.trim();
+        return text || fallback;
+      }
+      return entity.displayShort
+        || entity.displayName
+        || entity.internalName
+        || entity.name
+        || fallback;
+    }
+
+    function getPalaceBadgeList(palace) {
+      const temporal = Array.isArray(palace?.temporalBadgeLabels)
+        ? palace.temporalBadgeLabels.map(item => getPalaceExportValue(item, '')).filter(Boolean)
+        : [];
+      const flags = Array.isArray(palace?.flagLabels)
+        ? palace.flagLabels.map(item => getPalaceExportValue(item, '')).filter(Boolean)
+        : [];
+      return { temporal, flags };
+    }
+
+    function buildExpertCopyText() {
+      const base = getBaseQmdjData();
+      const displayPalaces = base?.displayPalaces || {};
+      const palaceOrder = [4, 9, 2, 3, 5, 7, 8, 1, 6];
+      const date = String(dateInputEl?.value || INITIAL_CHART_TIME.date || '').trim();
+      const hour = parseInt(hourInputEl?.value, 10);
+      const minute = parseInt(minuteInputEl?.value, 10);
+      const timeLabel = Number.isFinite(hour) && Number.isFinite(minute)
+        ? pad2(hour) + ':' + pad2(minute)
+        : '';
+      const structure = [
+        base?.cucSo ? 'Cục ' + base.cucSo : '',
+        base?.isDuong ? 'Dương Độn' : 'Âm Độn',
+      ].filter(Boolean).join(' ');
+      const headerLines = [
+        'THIÊN BÀN QMDJ',
+        date ? '- Ngày: ' + date : '',
+        timeLabel ? '- Giờ: ' + timeLabel : '',
+        base?.dayStem ? '- Nhật Can: ' + base.dayStem : '',
+        base?.hourStem ? '- Giờ Can Chi: ' + base.hourStem : '',
+        base?.solarTerm ? '- Tiết khí: ' + base.solarTerm : '',
+        structure ? '- Cấu trúc: ' + structure : '',
+        Number.isFinite(base?.overallScore) ? '- Điểm tổng: ' + base.overallScore : '',
+      ].filter(Boolean);
+
+      const markerLines = [
+        base?.hourMarkerPalace
+          ? '- Cung Giờ: P' + base.hourMarkerPalace
+            + (base.hourMarkerDirection ? ' · ' + base.hourMarkerDirection : '')
+            + ([base.hourDoor, base.hourStar, base.hourDeity].filter(Boolean).length
+              ? ' · ' + [base.hourDoor, base.hourStar, base.hourDeity].filter(Boolean).join(' / ')
+              : '')
+          : '',
+        base?.directEnvoyPalace
+          ? '- Trực Sử: P' + base.directEnvoyPalace
+            + (base.directEnvoyDirection ? ' · ' + base.directEnvoyDirection : '')
+            + ([base.directEnvoyDoor, base.directEnvoyStar, base.directEnvoyDeity].filter(Boolean).length
+              ? ' · ' + [base.directEnvoyDoor, base.directEnvoyStar, base.directEnvoyDeity].filter(Boolean).join(' / ')
+              : '')
+          : '',
+        base?.dayMarkerPalace
+          ? '- Nhật Can marker: P' + base.dayMarkerPalace + (base.dayMarkerDirection ? ' · ' + base.dayMarkerDirection : '') + (base.dayDoor ? ' · ' + base.dayDoor : '')
+          : '',
+      ].filter(Boolean);
+
+      const palaceLines = palaceOrder.map(palaceNum => {
+        const palace = displayPalaces?.[palaceNum] || displayPalaces?.[String(palaceNum)] || null;
+        if (!palace) return '';
+        const direction = getPalaceExportValue(palace.directionLabel, palaceNum === 5 ? 'Trung Cung' : '—');
+        const star = getPalaceExportValue(palace.star);
+        const heavenStem = getPalaceExportValue(palace.can);
+        const earthStem = getPalaceExportValue(palace.earthStemLabel);
+        const door = getPalaceExportValue(palace.mon);
+        const deity = getPalaceExportValue(palace.than);
+        const sentStar = getPalaceExportValue(palace.sentStar, '');
+        const badges = getPalaceBadgeList(palace);
+        const lines = [
+          direction + ' (P' + palaceNum + ')',
+          palace?.phiTinhNum ? '- Phi Tinh: #' + palace.phiTinhNum : '',
+          door !== '—' ? '- Môn: ' + door : '',
+          star !== '—' ? '- Tinh: ' + star + (sentStar ? ' | Phụ tinh: ' + sentStar : '') : sentStar ? '- Phụ tinh: ' + sentStar : '',
+          deity !== '—' ? '- Thần: ' + deity : '',
+          heavenStem !== '—' ? '- Thiên Can: ' + heavenStem : '',
+          earthStem !== '—' ? '- Địa Can: ' + earthStem : '',
+          badges.flags.length ? '- Cờ: ' + badges.flags.join(', ') : '',
+          badges.temporal.length ? '- Marker: ' + badges.temporal.join(', ') : '',
+        ].filter(Boolean);
+        return lines.join('\\n');
+      }).filter(Boolean).join('\\n\\n');
+
+      return [
+        headerLines.join('\\n'),
+        markerLines.length ? '[MARKERS]\\n' + markerLines.join('\\n') : '',
+        '[DANH SÁCH THEO HƯỚNG]\\n' + palaceLines,
+      ].filter(Boolean).join('\\n\\n').trim();
+    }
+
+    async function copyExpertModeData() {
+      const exportText = buildExpertCopyText();
+      if (!exportText) {
+        setExpertCopyStatus('Chưa lấy được dữ liệu bàn để copy.', 'error');
+        return;
+      }
+
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(exportText);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = exportText;
+          textarea.setAttribute('readonly', 'readonly');
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          textarea.style.pointerEvents = 'none';
+          document.body.appendChild(textarea);
+          textarea.select();
+          textarea.setSelectionRange(0, textarea.value.length);
+          const copied = document.execCommand('copy');
+          textarea.remove();
+          if (!copied) throw new Error('Clipboard fallback failed');
+        }
+        setExpertCopyStatus('Đã copy dữ liệu bàn theo list.', 'success');
+      } catch (error) {
+        console.error('Expert copy failed:', error);
+        setExpertCopyStatus('Không copy được. Trình duyệt đang chặn clipboard.', 'error');
+      }
+    }
+
     function stripMarkdownForSpeech(rawText) {
       let text = String(rawText || '');
       while (text.includes('[') && text.includes('](') && text.includes(')')) {
@@ -3532,57 +3789,274 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       return text.trim();
     }
 
-    function buildKimonPlainText(data) {
-      if (!data || typeof data !== 'object') return '';
-      if (data.schema === 'deep-dive' && data.tongQuan) {
-        return [
-          data.tongQuan,
-          [data.tamLy?.trangThai, data.tamLy?.dongChay].filter(Boolean).join('\\n\\n'),
-          data.chienLuoc?.noiDung || '',
-          Array.isArray(data.hanhDong) ? data.hanhDong.map((step, index) => (step ? (index + 1) + '. ' + step : '')).filter(Boolean).join('\\n') : '',
-          data.kimonQuote || '',
-        ].filter(Boolean).join('\\n\\n').trim();
+    function normalizeKimonTextBlock(rawText) {
+      return String(rawText || '')
+        .replace(/\\r\\n/g, '\\n')
+        .replace(/\\n{3,}/g, '\\n\\n')
+        .trim();
+    }
+
+    function splitKimonParagraphs(rawText) {
+      const text = normalizeKimonTextBlock(rawText);
+      if (!text) return [];
+      return text.split(/\\n{2,}/).map(item => item.trim()).filter(Boolean);
+    }
+
+    function normalizeKimonDedupKey(rawText) {
+      return stripMarkdownForSpeech(rawText)
+        .normalize('NFD')
+        .replace(/[\\u0300-\\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\\s]/g, ' ')
+        .replace(/\\s+/g, ' ')
+        .trim();
+    }
+
+    function areKimonParagraphsNearDuplicate(left, right) {
+      const a = normalizeKimonDedupKey(left);
+      const b = normalizeKimonDedupKey(right);
+      if (!a || !b) return false;
+      if (a === b) return true;
+
+      const longer = a.length >= b.length ? a : b;
+      const shorter = a.length >= b.length ? b : a;
+      if (shorter.length >= 18 && longer.includes(shorter) && (shorter.length / longer.length) >= 0.78) {
+        return true;
       }
-      return [
-        data.lead || data.summary || data.quickTake || '',
-        data.timeHint || '',
-        data.message || data.analysis || '',
-        data.closingLine || data.action || '',
-      ].filter(Boolean).join('\\n\\n').trim();
+
+      const wordsA = new Set(a.split(' ').filter(Boolean));
+      const wordsB = new Set(b.split(' ').filter(Boolean));
+      if (!wordsA.size || !wordsB.size) return false;
+
+      let overlap = 0;
+      wordsA.forEach(word => {
+        if (wordsB.has(word)) overlap += 1;
+      });
+
+      return (overlap / Math.min(wordsA.size, wordsB.size)) >= 0.88;
+    }
+
+    function collectUniqueKimonParagraphs(rawText, seenParagraphs) {
+      const unique = [];
+      splitKimonParagraphs(rawText).forEach(paragraph => {
+        if (seenParagraphs.some(seen => areKimonParagraphsNearDuplicate(seen, paragraph))) return;
+        seenParagraphs.push(paragraph);
+        unique.push(paragraph);
+      });
+      return unique;
+    }
+
+    function coerceKimonTextValue(value) {
+      if (!value) return '';
+      if (typeof value === 'string') return normalizeKimonTextBlock(value);
+      if (Array.isArray(value)) {
+        return value
+          .map(item => (typeof item === 'string' ? normalizeKimonTextBlock(item) : ''))
+          .filter(Boolean)
+          .join('\\n\\n');
+      }
+      if (typeof value === 'object') {
+        return Object.values(value)
+          .map(item => (typeof item === 'string' ? normalizeKimonTextBlock(item) : ''))
+          .filter(Boolean)
+          .join('\\n\\n');
+      }
+      return normalizeKimonTextBlock(String(value));
+    }
+
+    function createKimonTextSection({ label, className, rawText, seenParagraphs }) {
+      const paragraphs = collectUniqueKimonParagraphs(rawText, seenParagraphs);
+      if (!paragraphs.length) return null;
+      return {
+        type: 'text',
+        label,
+        className,
+        text: paragraphs.join('\\n\\n'),
+      };
+    }
+
+    function createKimonListSection({ label, className, items, seenParagraphs }) {
+      const uniqueItems = [];
+      (Array.isArray(items) ? items : []).forEach(item => {
+        const text = normalizeKimonTextBlock(item);
+        if (!text) return;
+        if (seenParagraphs.some(seen => areKimonParagraphsNearDuplicate(seen, text))) return;
+        seenParagraphs.push(text);
+        uniqueItems.push(text);
+      });
+      if (!uniqueItems.length) return null;
+      return {
+        type: 'list',
+        label,
+        className,
+        items: uniqueItems,
+      };
+    }
+
+    function buildKimonRenderModel(data) {
+      if (!data || typeof data !== 'object') return [];
+      const sections = [];
+      const seenParagraphs = [];
+      const pushSection = section => {
+        if (section) sections.push(section);
+      };
+
+      if (data.schema === 'deep-dive' && data.tongQuan) {
+        pushSection(createKimonTextSection({
+          label: 'Tổng quan',
+          className: 'kymon-lead',
+          rawText: data.tongQuan,
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonTextSection({
+          label: 'Tâm lý & nỗi lo',
+          className: 'kymon-analysis-flow',
+          rawText: [data.tamLy?.trangThai, data.tamLy?.dongChay].filter(Boolean).join('\\n\\n'),
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonTextSection({
+          label: 'Thực tại vấn đề',
+          className: 'kymon-analysis-flow',
+          rawText: data.chienLuoc?.noiDung || '',
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonListSection({
+          label: 'Việc cần làm',
+          className: 'kymon-action-list',
+          items: Array.isArray(data.hanhDong) ? data.hanhDong : [],
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonTextSection({
+          label: 'Chốt lại',
+          className: 'kymon-action-footer',
+          rawText: data.kimonQuote || '',
+          seenParagraphs,
+        }));
+
+        return sections;
+      }
+
+      if (data.schema === 'strategy') {
+        pushSection(createKimonTextSection({
+          label: 'Nhận định',
+          className: 'kymon-lead',
+          rawText: data.verdict || data.lead || '',
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonTextSection({
+          label: 'Phân tích thế trận',
+          className: 'kymon-analysis-flow',
+          rawText: data.analysis || data.message || '',
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonTextSection({
+          label: 'Biến số cản trở',
+          className: 'kymon-analysis-flow',
+          rawText: data.adversary == null ? '' : coerceKimonTextValue(data.adversary),
+          seenParagraphs,
+        }));
+
+        const tacticItems = [];
+        if (Array.isArray(data.tactics?.do)) {
+          data.tactics.do.forEach(item => tacticItems.push('Làm: ' + item));
+        }
+        if (Array.isArray(data.tactics?.avoid)) {
+          data.tactics.avoid.forEach(item => tacticItems.push('Tránh: ' + item));
+        }
+        pushSection(createKimonListSection({
+          label: 'Nước đi đề xuất',
+          className: 'kymon-action-list',
+          items: tacticItems,
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonTextSection({
+          label: 'Thời điểm',
+          className: 'kymon-time-hint',
+          rawText: data.tactics?.timing || data.timeHint || '',
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonTextSection({
+          label: 'Chốt',
+          className: 'kymon-action-footer',
+          rawText: data.closingLine || data.action || '',
+          seenParagraphs,
+        }));
+
+        return sections;
+      }
+
+      pushSection(createKimonTextSection({
+        label: 'Mở bài',
+        className: 'kymon-lead',
+        rawText: data.lead || data.summary || data.quickTake || '',
+        seenParagraphs,
+      }));
+
+      pushSection(createKimonTextSection({
+        label: 'Thời điểm',
+        className: 'kymon-time-hint',
+        rawText: data.timeHint || '',
+        seenParagraphs,
+      }));
+
+      pushSection(createKimonTextSection({
+        label: 'Phân tích',
+        className: 'kymon-analysis-flow',
+        rawText: data.message || data.analysis || '',
+        seenParagraphs,
+      }));
+
+      pushSection(createKimonTextSection({
+        label: 'Chốt',
+        className: 'kymon-action-footer',
+        rawText: data.closingLine || data.action || '',
+        seenParagraphs,
+      }));
+
+      return sections;
+    }
+
+    function buildKimonPlainText(data) {
+      return buildKimonRenderModel(data).map(section => {
+        const label = section.label ? section.label + ':\\n' : '';
+        if (section.type === 'list') {
+          return label + section.items.map((step, index) => (index + 1) + '. ' + step).join('\\n');
+        }
+        return label + section.text;
+      }).filter(Boolean).join('\\n\\n').trim();
     }
 
     function buildKimonPrintHtml(data) {
-      if (!data || typeof data !== 'object') return '';
-      if (data.schema === 'deep-dive' && data.tongQuan) {
-        const sections = [];
-        sections.push('<div class="print-block print-lead">' + formatKimonRichText(data.tongQuan) + '</div>');
-        const tamLyText = [data.tamLy?.trangThai, data.tamLy?.dongChay].filter(Boolean).join('\\n\\n');
-        if (tamLyText) sections.push('<div class="print-block">' + formatKimonRichText(tamLyText) + '</div>');
-        if (data.chienLuoc?.noiDung) sections.push('<div class="print-block">' + formatKimonRichText(data.chienLuoc.noiDung) + '</div>');
-        if (Array.isArray(data.hanhDong) && data.hanhDong.length) {
-          sections.push('<ol class="print-list">' + data.hanhDong
-            .filter(Boolean)
-            .map(step => '<li>' + formatKimonRichText(step) + '</li>')
-            .join('') + '</ol>');
+      return buildKimonRenderModel(data).map(section => {
+        const titleHtml = section.label
+          ? '<div class="print-mini-title">' + escapeHTML(section.label) + '</div>'
+          : '';
+        if (section.type === 'list') {
+          return '<section class="print-kymon-section">' +
+            titleHtml +
+            '<ol class="print-list">' + section.items
+              .map(step => '<li>' + formatKimonRichText(step) + '</li>')
+              .join('') + '</ol>' +
+          '</section>';
         }
-        if (data.kimonQuote) sections.push('<div class="print-block print-quote">' + formatKimonRichText(data.kimonQuote) + '</div>');
-        return sections.join('');
-      }
-
-      const parts = [];
-      if (data.lead || data.summary || data.quickTake) {
-        parts.push('<div class="print-block print-lead">' + formatKimonRichText(data.lead || data.summary || data.quickTake || '') + '</div>');
-      }
-      if (data.timeHint) {
-        parts.push('<div class="print-block"><strong>Thời điểm:</strong> ' + formatKimonRichText(data.timeHint) + '</div>');
-      }
-      if (data.message || data.analysis) {
-        parts.push('<div class="print-block">' + formatKimonRichText(data.message || data.analysis || '') + '</div>');
-      }
-      if (data.closingLine || data.action) {
-        parts.push('<div class="print-block print-quote">' + formatKimonRichText(data.closingLine || data.action || '') + '</div>');
-      }
-      return parts.join('');
+        const blockClass = section.className === 'kymon-action-footer'
+          ? 'print-block print-quote'
+          : section.className === 'kymon-lead'
+            ? 'print-block print-lead'
+            : 'print-block';
+        return '<section class="print-kymon-section">' +
+          titleHtml +
+          '<div class="' + blockClass + '">' + formatKimonRichText(section.text) + '</div>' +
+        '</section>';
+      }).join('');
     }
 
     function buildKimonDisplayHtml(data) {
@@ -3665,9 +4139,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         '.print-entry-user{background:#eff6ff;}' +
         '.print-entry-ai{background:#fff;}' +
         '.print-role{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#475569;margin-bottom:10px;}' +
+        '.print-kymon-section{margin:0 0 18px;}' +
+        '.print-mini-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#334155;margin:0 0 8px;}' +
         '.print-block{margin:0 0 14px;}' +
         '.print-block:last-child{margin-bottom:0;}' +
-        '.print-lead{font-weight:700;color:#0f172a;}' +
+        '.print-lead{font-weight:400;color:#0f172a;line-height:1.7;}' +
         '.print-quote{color:#475569;font-style:italic;}' +
         '.print-list{margin:0;padding-left:1.2em;}' +
         '@media print{body{padding:18px;}.print-entry{break-inside:avoid;}}' +
@@ -4201,6 +4677,52 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         };
       }
 
+      // ── Detect Strategy schema (verdict/analysis/adversary/tactics/closingLine) ──
+      const hasStrategyVerdict = typeof rawData.verdict === 'string' && rawData.verdict.trim();
+      const hasStrategyTactics = rawData.tactics && typeof rawData.tactics === 'object' && !Array.isArray(rawData.tactics);
+
+      if (hasStrategyVerdict || hasStrategyTactics) {
+        const verdict = typeof rawData.verdict === 'string' ? rawData.verdict.trim() : '';
+        const analysis = typeof rawData.analysis === 'string'
+          ? rawData.analysis.trim()
+          : (typeof rawData.message === 'string' ? rawData.message.trim() : '');
+        const adversary = typeof rawData.adversary === 'string'
+          ? rawData.adversary.trim()
+          : null;
+        const tacticsRaw = (rawData.tactics && typeof rawData.tactics === 'object' && !Array.isArray(rawData.tactics))
+          ? rawData.tactics
+          : {};
+        const tactics = {
+          do: Array.isArray(tacticsRaw.do)
+            ? tacticsRaw.do.filter(item => typeof item === 'string' && item.trim())
+            : [],
+          avoid: Array.isArray(tacticsRaw.avoid)
+            ? tacticsRaw.avoid.filter(item => typeof item === 'string' && item.trim())
+            : [],
+          timing: typeof tacticsRaw.timing === 'string'
+            ? tacticsRaw.timing.trim()
+            : (typeof rawData.timeHint === 'string' ? rawData.timeHint.trim() : ''),
+        };
+        const closingLine = typeof rawData.closingLine === 'string'
+          ? rawData.closingLine.trim()
+          : (typeof rawData.action === 'string' ? rawData.action.trim() : '');
+
+        return {
+          mode: typeof rawData.mode === 'string' && rawData.mode.trim() ? rawData.mode.trim() : 'strategy',
+          schema: 'strategy',
+          verdict,
+          analysis,
+          adversary: adversary || null,
+          tactics,
+          closingLine,
+          // Legacy compatibility only; renderer must prefer schema-aware sections.
+          lead: verdict || KYMON_PARTIAL_LEAD,
+          timeHint: tactics.timing || '',
+          message: analysis || verdict || '',
+          action: closingLine,
+        };
+      }
+
       // ── Legacy schema (lead/timeHint/message/closingLine) ──
       const lead = typeof rawData.lead === 'string'
         ? rawData.lead.trim()
@@ -4219,6 +4741,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
       const normalized = {
         mode: typeof rawData.mode === 'string' && rawData.mode.trim() ? rawData.mode.trim() : 'interpretation',
+        schema: 'legacy',
         lead,
         timeHint,
         message,
@@ -4585,103 +5108,48 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       container.className = 'kymon-clean-layout';
       const fragment = document.createDocumentFragment();
       const typewriterSections = [];
+      const renderSections = buildKimonRenderModel(data);
 
-      // ── Deep Dive schema (tongQuan/tamLy/chienLuoc/hanhDong/kimonQuote) ──
-      if (data?.schema === 'deep-dive' && data?.tongQuan) {
-        // tongQuan → lead section (no label)
-        const tongQuanEntry = createTypewriterSectionEntry('kymon-lead', data.tongQuan);
-        if (tongQuanEntry) {
-          fragment.appendChild(tongQuanEntry.element);
-          typewriterSections.push(tongQuanEntry);
-        }
+      renderSections.forEach(section => {
+        if (section.type === 'list') {
+          const listContainer = document.createElement('div');
+          listContainer.className = section.className + ' kymon-section-block';
+          listContainer.hidden = true;
 
-        // tamLy → tâm lý section
-        const tamLyText = [data.tamLy?.trangThai, data.tamLy?.dongChay].filter(Boolean).join('\\n\\n');
-        if (tamLyText) {
-          const tamLyEntry = createTypewriterSectionEntry('kymon-analysis-flow', tamLyText);
-          if (tamLyEntry) {
-            fragment.appendChild(tamLyEntry.element);
-            typewriterSections.push(tamLyEntry);
+          if (section.label) {
+            const labelEl = document.createElement('strong');
+            labelEl.className = 'kimon-section-title';
+            labelEl.textContent = section.label;
+            listContainer.appendChild(labelEl);
           }
-        }
 
-        // chienLuoc → chiến lược section
-        if (data.chienLuoc?.noiDung) {
-          const clEntry = createTypewriterSectionEntry('kymon-analysis-flow', data.chienLuoc.noiDung);
-          if (clEntry) {
-            fragment.appendChild(clEntry.element);
-            typewriterSections.push(clEntry);
-          }
-        }
-
-        // hanhDong → ordered list
-        if (data.hanhDong?.length) {
-          const hdContainer = document.createElement('div');
-          hdContainer.className = 'kymon-action-list';
-          hdContainer.hidden = true;
           const ol = document.createElement('ol');
           ol.style.cssText = 'margin:0; padding-left:1.2em; list-style-type:decimal;';
-          const hdUnits = [];
-          data.hanhDong.forEach(step => {
+          const listUnits = [];
+          section.items.forEach(step => {
             const li = document.createElement('li');
             li.className = 'kimon-message-text';
             const prepared = buildTypewriterRichTextFragment(step);
             li.appendChild(prepared.fragment);
-            hdUnits.push(...prepared.units);
+            listUnits.push(...prepared.units);
             ol.appendChild(li);
           });
-          hdContainer.appendChild(ol);
-          fragment.appendChild(hdContainer);
-          typewriterSections.push({ element: hdContainer, units: hdUnits, unitIndex: 0 });
+          listContainer.appendChild(ol);
+          fragment.appendChild(listContainer);
+          typewriterSections.push({ element: listContainer, units: listUnits, unitIndex: 0 });
+          return;
         }
 
-        // kimonQuote → closing footer
-        if (data.kimonQuote) {
-          const quoteEntry = createTypewriterSectionEntry('kymon-action-footer', data.kimonQuote);
-          if (quoteEntry) {
-            fragment.appendChild(quoteEntry.element);
-            typewriterSections.push(quoteEntry);
-          }
+        const sectionEntry = createTypewriterSectionEntry(
+          section.className + ' kymon-section-block',
+          section.text,
+          { labelText: section.label || '' }
+        );
+        if (sectionEntry) {
+          fragment.appendChild(sectionEntry.element);
+          typewriterSections.push(sectionEntry);
         }
-      } else {
-        // ── Legacy schema (lead/timeHint/message/closingLine) ──
-        const leadText = data?.lead || data?.summary || data?.quickTake || '';
-        const timeHintText = data?.timeHint || '';
-        const messageText = data?.message || data?.analysis || '';
-        const closingText = data?.closingLine || data?.action || '';
-
-        if (leadText) {
-          const leadEntry = createTypewriterSectionEntry('kymon-lead', leadText);
-          if (leadEntry) {
-            fragment.appendChild(leadEntry.element);
-            typewriterSections.push(leadEntry);
-          }
-        }
-
-        if (timeHintText) {
-          const timeHintEntry = createTypewriterSectionEntry('kymon-time-hint', timeHintText, { labelText: 'Thời điểm:' });
-          if (timeHintEntry) {
-            fragment.appendChild(timeHintEntry.element);
-            typewriterSections.push(timeHintEntry);
-          }
-        }
-
-        if (messageText) {
-          const analysisEntry = createTypewriterSectionEntry('kymon-analysis-flow', messageText);
-          if (analysisEntry) {
-            fragment.appendChild(analysisEntry.element);
-            typewriterSections.push(analysisEntry);
-          }
-        }
-
-        if (closingText) {
-          const closingEntry = createTypewriterSectionEntry('kymon-action-footer', closingText);
-          if (closingEntry) {
-            fragment.appendChild(closingEntry.element);
-            typewriterSections.push(closingEntry);
-          }
-        }
-      }
+      });
 
       container.replaceChildren(fragment);
       smartScroll();
@@ -4959,6 +5427,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     if (kimonDownloadBtn) {
       kimonDownloadBtn.addEventListener('click', exportKimonConversationPdf);
+    }
+    if (expertCopyBtn) {
+      expertCopyBtn.addEventListener('click', async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        await copyExpertModeData();
+      });
     }
 
     // (Topic chips have been removed)

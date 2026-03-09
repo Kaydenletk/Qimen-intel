@@ -47,7 +47,7 @@ export const WEB1_SECTION_LABELS = {
   'Thiên Can': 'Thiên Can',
   'Địa Can': 'Địa Can',
   'Flags': 'Cờ',
-  'Developer / Expert Mode (Raw Tables)': 'Chế Độ Chuyên Gia (Đối Chiếu Web1)',
+  'Developer / Expert Mode (Raw Tables)': 'Chế Độ Chuyên Gia',
 };
 
 const STAR_LABELS = createEntityMap({
