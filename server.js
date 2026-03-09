@@ -13,6 +13,7 @@ dotenv.config({ path: '.env.local' });
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { analyze } from './src/index.js';
 import { generateDeterministicEnergyFlow } from './src/logic/dungThan/index.js';
+import { getAIHints } from './src/logic/dungThan/injector.js';
 import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
 import { parseKimonJsonResponse, toKimonResponseSchema } from './src/logic/kimon/jsonResponse.js';
 import { detectDeepDive, detectTopicHybrid } from './src/logic/kimon/detectTopic.js';
@@ -56,6 +57,13 @@ const GEMINI_RATE_LIMIT = {
   cooldownUntil: 0       // when cooldown expires
 };
 
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
+const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io';
+const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5';
+const ELEVENLABS_OUTPUT_FORMAT = process.env.ELEVENLABS_OUTPUT_FORMAT || 'mp3_44100_128';
+let elevenLabsResolvedVoiceId = process.env.ELEVENLABS_VOICE_ID || '';
+let elevenLabsResolvedVoiceName = '';
+
 function canCallGemini() {
   const now = Date.now();
 
@@ -86,6 +94,140 @@ function recordGeminiRequest() {
 function triggerGeminiCooldown() {
   GEMINI_RATE_LIMIT.cooldownUntil = Date.now() + GEMINI_RATE_LIMIT.cooldownMs;
   console.log('[Rate Limit] Cooldown triggered for 30 seconds');
+}
+
+function normalizeLookupText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function scoreElevenLabsVoice(voice = {}) {
+  const labels = voice?.labels && typeof voice.labels === 'object' ? voice.labels : {};
+  const verifiedLanguages = Array.isArray(voice?.verified_languages) ? voice.verified_languages : [];
+  const languageTokens = [
+    voice?.name,
+    voice?.description,
+    labels.language,
+    labels.locale,
+    labels.accent,
+    ...verifiedLanguages.map(item => [item?.name, item?.language, item?.locale, item?.model_id].filter(Boolean).join(' ')),
+  ]
+    .filter(Boolean)
+    .map(normalizeLookupText);
+
+  let score = 0;
+  if (verifiedLanguages.length) score += 8;
+  if (voice?.category === 'premade') score += 4;
+  if (labels.use_case === 'narration') score += 2;
+  if (voice?.preview_url) score += 1;
+
+  for (const token of languageTokens) {
+    if (!token) continue;
+    if (/\b(vietnamese|viet nam|vietname|vi-vn|vi vn| vie )\b/.test(' ' + token + ' ')) score += 80;
+    if (/\bvi\b/.test(' ' + token + ' ')) score += 50;
+    if (/\b(multilingual|multi lingual)\b/.test(' ' + token + ' ')) score += 12;
+    if (/\b(native|local)\b/.test(' ' + token + ' ')) score += 4;
+  }
+
+  return score;
+}
+
+async function resolveElevenLabsVoice() {
+  if (elevenLabsResolvedVoiceId) {
+    return {
+      voiceId: elevenLabsResolvedVoiceId,
+      voiceName: elevenLabsResolvedVoiceName || 'configured',
+    };
+  }
+
+  if (!ELEVENLABS_API_KEY) {
+    throw new Error('ELEVENLABS_API_KEY chưa được cấu hình.');
+  }
+
+  const response = await fetch(ELEVENLABS_BASE_URL + '/v2/voices?include_total_count=false', {
+    method: 'GET',
+    headers: {
+      'xi-api-key': ELEVENLABS_API_KEY,
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const raw = await response.text();
+    throw new Error('Không lấy được danh sách giọng ElevenLabs: ' + raw.slice(0, 160));
+  }
+
+  const payload = await response.json();
+  const voices = Array.isArray(payload?.voices) ? payload.voices : [];
+  if (!voices.length) {
+    throw new Error('Tài khoản ElevenLabs chưa có voice khả dụng.');
+  }
+
+  const preferred = voices
+    .map(voice => ({ voice, score: scoreElevenLabsVoice(voice) }))
+    .sort((a, b) => b.score - a.score)[0]?.voice || voices[0];
+
+  elevenLabsResolvedVoiceId = preferred?.voice_id || preferred?.voiceId || '';
+  elevenLabsResolvedVoiceName = preferred?.name || '';
+
+  if (!elevenLabsResolvedVoiceId) {
+    throw new Error('Không resolve được voice_id từ ElevenLabs.');
+  }
+
+  console.log('[Kymon][ElevenLabs] voice=' + elevenLabsResolvedVoiceName + ' id=' + elevenLabsResolvedVoiceId);
+  return {
+    voiceId: elevenLabsResolvedVoiceId,
+    voiceName: elevenLabsResolvedVoiceName || 'resolved',
+  };
+}
+
+async function synthesizeElevenLabsSpeech(rawText = '') {
+  const text = String(rawText || '').trim().replace(/\s+/g, ' ');
+  if (!text) {
+    throw new Error('Thiếu nội dung để đọc.');
+  }
+  if (text.length > 4500) {
+    throw new Error('Đoạn hội thoại quá dài để đọc một lần.');
+  }
+
+  const { voiceId, voiceName } = await resolveElevenLabsVoice();
+  const response = await fetch(
+    ELEVENLABS_BASE_URL + '/v1/text-to-speech/' + encodeURIComponent(voiceId) + '?output_format=' + encodeURIComponent(ELEVENLABS_OUTPUT_FORMAT),
+    {
+      method: 'POST',
+      headers: {
+        'xi-api-key': ELEVENLABS_API_KEY,
+        Accept: 'audio/mpeg',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text,
+        model_id: ELEVENLABS_MODEL_ID,
+        voice_settings: {
+          stability: 0.42,
+          similarity_boost: 0.8,
+          style: 0.18,
+          use_speaker_boost: true,
+          speed: 0.96,
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const raw = await response.text();
+    throw new Error('ElevenLabs TTS lỗi: ' + raw.slice(0, 200));
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  return {
+    buffer: Buffer.from(arrayBuffer),
+    voiceId,
+    voiceName,
+  };
 }
 
 function escapeHTML(raw) {
@@ -133,32 +275,76 @@ function resolveTopicDetailLookup(qmdjData = {}) {
   return {};
 }
 
+function normalizeHintTopicKey(topicKey = '') {
+  if (topicKey === 'thi-cu') return 'hoc-tap';
+  if (topicKey === 'tinh-yeu') return 'tinh-duyen';
+  if (topicKey === 'dien-trach') return 'bat-dong-san';
+  if (topicKey === 'chien-luoc') return 'muu-luoc';
+  if (topicKey === 'gia-dinh') return 'gia-dao';
+  return topicKey;
+}
+
+function extractHintElementsFromPalace(palace = {}, chart = {}) {
+  const elements = [];
+  const doorName = palace?.mon?.name || palace?.mon?.displayName || palace?.mon?.displayShort || '';
+  const starName = palace?.star?.name || palace?.star?.displayName || palace?.star?.displayShort || '';
+  const deityName = palace?.than?.name || palace?.than?.displayName || '';
+  const stemName = palace?.can?.name || '';
+
+  if (doorName) elements.push(doorName);
+  if (starName) elements.push(starName);
+  if (deityName) elements.push(deityName);
+  if (stemName) elements.push(stemName);
+  if (palace?.dichMa) elements.push('Dịch Mã');
+  if (palace?.khongVong) elements.push('Không Vong');
+  if (chart?.isPhucAm) elements.push('Phục Ngâm');
+  if (chart?.isPhanNgam) elements.push('Phản Ngâm');
+
+  return elements;
+}
+
+function buildTopicAiHints(topicKey = '', palace = null, chart = {}) {
+  const normalizedTopicKey = normalizeHintTopicKey(topicKey);
+  if (!normalizedTopicKey || normalizedTopicKey === 'chung' || !palace) return '';
+  return getAIHints(normalizedTopicKey, extractHintElementsFromPalace(palace, chart));
+}
+
+function extractTopicFlagsFromPalace(palace = {}, chart = {}) {
+  return extractHintElementsFromPalace(palace, chart)
+    .filter(element => ['Dịch Mã', 'Không Vong', 'Phục Ngâm', 'Phản Ngâm'].includes(element));
+}
+
 function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '') {
   if (!topicKey || topicKey === 'chung') return qmdjData;
 
   const topicLookup = resolveTopicDetailLookup(qmdjData);
-  const fallbackKey = topicKey === 'hoc-tap'
+  const normalizedTopicKey = normalizeHintTopicKey(topicKey);
+  const fallbackKey = normalizedTopicKey === 'hoc-tap'
     ? 'thi-cu'
-    : topicKey === 'tinh-yeu'
-      ? 'tinh-duyen'
-      : topicKey === 'dien-trach'
-        ? 'bat-dong-san'
+    : normalizedTopicKey === 'tinh-duyen'
+      ? 'tinh-yeu'
+      : normalizedTopicKey === 'bat-dong-san'
+        ? 'dien-trach'
         : '';
-  const detail = topicLookup[topicKey] || (fallbackKey ? topicLookup[fallbackKey] : null);
+  const detail = topicLookup[normalizedTopicKey] || (fallbackKey ? topicLookup[fallbackKey] : null);
 
   if (!detail) {
     return {
       ...qmdjData,
-      selectedTopicKey: topicKey,
+      selectedTopicKey: normalizedTopicKey,
     };
   }
 
   return {
     ...qmdjData,
-    selectedTopicKey: topicKey,
-    selectedTopic: detail.chipLabel || detail.topic || qmdjData.selectedTopic || topicKey,
+    selectedTopicKey: normalizedTopicKey,
+    selectedTopic: detail.chipLabel || detail.topic || qmdjData.selectedTopic || normalizedTopicKey,
     selectedTopicResult: detail.promptTopicResult || qmdjData.selectedTopicResult || '',
     insight: detail.promptInsight || qmdjData.insight || '',
+    aiHints: detail.aiHints || qmdjData.aiHints || '',
+    selectedTopicFlags: Array.isArray(detail.flags) ? detail.flags : (Array.isArray(qmdjData.selectedTopicFlags) ? qmdjData.selectedTopicFlags : []),
+    selectedTopicUsefulPalace: detail.usefulGodPalace || qmdjData.selectedTopicUsefulPalace || '',
+    selectedTopicUsefulPalaceName: detail.usefulGodPalaceName || qmdjData.selectedTopicUsefulPalaceName || '',
   };
 }
 
@@ -174,7 +360,17 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     'Đang căn lại Môn - Tinh - Thần...',
     'Đang gom tín hiệu cho Kymon...',
   ];
+  const kimonPlaceholderSuggestions = [
+    'Suy nghĩ vừa thôi, hỏi Kymon đi.',
+    'Có gì lấn cấn, hỏi Kymon một câu.',
+    'Đừng ngẫm một mình, hỏi Kymon đi.',
+    'Tắc ở đâu thì hỏi Kymon ở đó.',
+    'Muốn chốt nhanh hơn, hỏi Kymon đi.',
+    'Rối quá thì hỏi Kymon một nhịp.',
+    'Nghĩ ít thôi, hỏi Kymon nhiều hơn.',
+  ];
   const initialLoaderPhrase = loaderPhrases[Math.floor(Math.random() * loaderPhrases.length)];
+  const initialKimonPlaceholder = kimonPlaceholderSuggestions[Math.floor(Math.random() * kimonPlaceholderSuggestions.length)];
 
   // Generate Energy Flow Summary
   const energyFlow = generateDeterministicEnergyFlow(chart);
@@ -216,6 +412,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     'tai-van': 'Tiền bạc / Đầu tư',
     'su-nghiep': 'Công việc / Sự nghiệp',
     'tinh-duyen': 'Tình cảm / Mối quan hệ',
+    'gia-dao': 'Gia đạo / Gia đình',
     'tinh-yeu': 'Tình yêu / Mối quan hệ',
     'kinh-doanh': 'Kinh doanh',
     'suc-khoe': 'Sức khỏe',
@@ -504,6 +701,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const usefulGodDir = Number.isFinite(usefulPalaceNum)
       ? palaceLabelFromNum(usefulPalaceNum)
       : t.usefulGodDir;
+    const aiHints = buildTopicAiHints(t.key, usefulPalace, chart);
+    const usefulGodFlags = extractTopicFlagsFromPalace(usefulPalace, chart);
     const actionLabel = strategic ? mapStrategicAction(strategic.score) : (insight?.actionLabel || fallbackActionLabel(t.score));
     const oneLiner = strategic?.coreMessage || insight?.oneLiner || t.actionAdvice || '';
     const counselorNarrative = buildCounselorNarrative({
@@ -525,6 +724,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       usefulGodDir,
       usefulGodPalace: t.usefulGodPalace,
       usefulGodPalaceName: t.usefulGodPalaceName,
+      flags: usefulGodFlags,
       actionAdvice: t.actionAdvice || '',
       actionLabel,
       oneLiner,
@@ -532,6 +732,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       narrative: counselorNarrative,
       confidence: insightConfidence,
       confidencePct: Math.round(insightConfidence * 100),
+      aiHints,
       formationEvidence,
       insightEvidence,
       insightEvidenceText: insightEvidence.map(line => `// ${line}`).join('\n'),
@@ -541,6 +742,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       promptTopicResult: [
         strategic?.headline ? `Headline: ${strategic.headline}` : '',
         oneLiner ? `Core: ${oneLiner}` : '',
+        usefulGodFlags.length ? `Flags: ${usefulGodFlags.join(' | ')}` : '',
         counselorNarrative ? `Narrative: ${counselorNarrative}` : '',
         strategic && Array.isArray(strategic.do) && strategic.do.length ? `Do: ${strategic.do.join(' | ')}` : '',
         strategic && Array.isArray(strategic.avoid) && strategic.avoid.length ? `Avoid: ${strategic.avoid.join(' | ')}` : '',
@@ -2098,6 +2300,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     .kymon-clean-layout {
       color: var(--text-soft);
+      font-family: inherit;
     }
 
     .kymon-summary-box {
@@ -2112,26 +2315,40 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     .kymon-lead {
       margin: 0 0 14px;
-      color: var(--surface-highlight-text);
-      font-size: 1.02rem;
+      color: var(--text);
+      font-size: 0.9375rem;
       line-height: 1.75;
-      font-weight: 600;
+      font-weight: 700;
+      letter-spacing: 0;
+      font-family: inherit;
     }
 
     .kymon-time-hint {
       margin: 0 0 16px;
       color: var(--muted);
-      font-size: 0.96rem;
-      line-height: 1.7;
+      font-size: 0.9375rem;
+      line-height: 1.75;
+      font-weight: 500;
+      font-family: inherit;
     }
 
     .kymon-analysis-flow {
-      line-height: 1.8;
-      letter-spacing: 0.02em;
-      font-size: 1.05rem;
+      line-height: 1.75;
+      letter-spacing: 0;
+      font-size: 0.9375rem;
+      font-weight: 400;
       color: var(--text-soft);
-      text-align: justify;
+      text-align: left;
       white-space: normal;
+      font-family: inherit;
+    }
+
+    .kymon-analysis-flow strong,
+    .kymon-analysis-flow b,
+    .kymon-action-footer strong,
+    .kymon-action-footer b {
+      font-weight: 600;
+      color: var(--text);
     }
 
     .kymon-analysis-flow br {
@@ -2144,9 +2361,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       margin-top: 18px;
       padding-top: 12px;
       border-top: 1px solid var(--border);
-      color: var(--muted);
-      font-weight: 600;
+      color: var(--text-soft);
+      font-size: 0.9375rem;
+      font-weight: 400;
       line-height: 1.75;
+      font-family: inherit;
     }
 
     .kymon-footer-action {
@@ -2179,9 +2398,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     @media (max-width: 720px) {
       .kymon-analysis-flow {
         text-align: left;
-        font-size: 1rem;
-        line-height: 1.78;
-        letter-spacing: 0.01em;
+        font-size: 0.9375rem;
+        line-height: 1.75;
+        letter-spacing: 0;
       }
     }
 
@@ -2299,6 +2518,36 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-size: 0.72rem;
       color: var(--kimon-meta-text);
       font-weight: 400;
+    }
+    .kimon-download-btn {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      color: var(--text);
+      border-radius: 999px;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+    .kimon-download-btn svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .kimon-download-btn:hover:not(:disabled) {
+      background: var(--surface-highlight);
+      border-color: var(--surface-highlight-border);
+      color: var(--surface-highlight-text);
+    }
+    .kimon-download-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
     .kimon-messages {
       padding: 8px 0;
@@ -2442,6 +2691,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       border: none;
       background: transparent;
     }
+    .kimon-disclaimer {
+      margin: 10px 4px 0;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.5;
+    }
     .kimon-input {
       flex: 1;
       background: var(--input-bg);
@@ -2477,6 +2732,57 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       transform: scale(1.05);
     }
     .kimon-send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .kimon-message-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--kimon-tip-border);
+    }
+    .kimon-audio-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .kimon-audio-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      border-radius: 999px;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+    .kimon-audio-btn svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+    }
+    .kimon-audio-btn:hover:not(:disabled),
+    .kimon-audio-btn.is-active,
+    .kimon-audio-btn.is-speaking {
+      color: var(--text);
+      border-color: var(--border-strong);
+      background: var(--surface-soft);
+    }
+    .kimon-audio-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .kimon-audio-status {
+      font-size: 0.78rem;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
 
     /* Error */
     .kimon-error {
@@ -2492,6 +2798,22 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       color: var(--error-text); font-size: 0.82rem; margin: 0;
       background: var(--error-bg); padding: 10px 14px;
       border-radius: 12px; border: 1px solid var(--error-border);
+    }
+    @media (max-width: 720px) {
+      .kimon-terminal-header {
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .kimon-download-btn {
+        margin-left: 0;
+      }
+      .kimon-input-area {
+        align-items: stretch;
+      }
+      .kimon-disclaimer {
+        margin-left: 0;
+        margin-right: 0;
+      }
     }
 
     /* Old unused styles kept for compatibility */
@@ -2561,9 +2883,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             <img src="/favicon.png" alt="Kimon" style="width:24px;height:24px;border-radius:4px;object-fit:contain;">
             <div class="kimon-status-dot"></div>
             <h2 class="kimon-terminal-title">Kymon nè</h2>
-            <div class="kimon-meta-tags">
-              <span>${escapeHTML(chart.solarTerm?.name || '')} · ${escapeHTML(structureModeLabel)}</span>
-            </div>
+            <button type="button" id="kimonDownloadBtn" class="kimon-download-btn" title="Tải PDF" aria-label="Tải PDF">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v10"></path>
+                <path d="m8 9 4 4 4-4"></path>
+                <path d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"></path>
+              </svg>
+            </button>
           </div>
           <div id="kimonError" class="kimon-error"></div>
           <div class="kimon-messages" id="kimonMessages">
@@ -2580,11 +2906,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           </div>
           <!-- Claude-like: no suggestions, just clean chat -->
           <form id="kimonChatForm" class="kimon-input-area" novalidate autocomplete="off">
-            <input type="text" id="kimonContext" name="kimon_context_input" class="kimon-input" placeholder="Hỏi Kymon bất cứ điều gì..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" data-lpignore="true" enterkeyhint="send">
+            <input type="text" id="kimonContext" name="kimon_context_input" class="kimon-input" placeholder="${escapeHTML(initialKimonPlaceholder)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" data-lpignore="true" enterkeyhint="send">
             <button id="kimonBtn" class="kimon-send-btn" title="Gửi" type="submit">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
           </form>
+          <p class="kimon-disclaimer">Kymon là AI, có thể luận sai hoặc thiếu ý. Hãy dùng như một gợi ý tham khảo.</p>
         </section>
         </div>
 
@@ -2606,7 +2933,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             data-display-palaces="${escapeHTML(JSON.stringify(displayChart.palaces || {}))}"
             data-palace-summaries="${escapeHTML(JSON.stringify(palaceSummaries || {}).replace(/</g, '\\u003c'))}"
             data-all-topics="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ topic: t.topic, score: t.score, action: t.actionAdvice, verdict: t.verdict }))))}"
-            data-all-topic-details="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ key: t.key, topic: t.topic, chipLabel: t.chipLabel, promptTopicResult: t.promptTopicResult, promptInsight: t.promptInsight }))).replace(/</g, '\\u003c'))}"
+            data-all-topic-details="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ key: t.key, topic: t.topic, chipLabel: t.chipLabel, promptTopicResult: t.promptTopicResult, promptInsight: t.promptInsight, aiHints: t.aiHints || '', flags: Array.isArray(t.flags) ? t.flags : [], usefulGodPalace: t.usefulGodPalace || '', usefulGodPalaceName: t.usefulGodPalaceName || '' }))).replace(/</g, '\\u003c'))}"
             data-mon="${escapeHTML(energyFlow.metadata?.door || '')}"
             data-than="${escapeHTML(energyFlow.metadata?.deity || '')}"
             data-tinh="${escapeHTML(energyFlow.metadata?.star || '')}"
@@ -2717,6 +3044,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const dateInputEl = document.getElementById('dateInput');
     const hourInputEl = document.getElementById('hourInput');
     const themeToggleEl = document.getElementById('themeToggle');
+    const KYMON_PLACEHOLDER_SUGGESTIONS = ${JSON.stringify(kimonPlaceholderSuggestions)};
     
     const LOADER_PHRASES = ${JSON.stringify(loaderPhrases)};
 
@@ -3015,11 +3343,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const kimonContext = document.getElementById('kimonContext');
     const kimonForm = document.getElementById('kimonChatForm');
     const kimonMessages = document.getElementById('kimonMessages');
+    const kimonDownloadBtn = document.getElementById('kimonDownloadBtn');
     const kimonSuggestions = null; // Removed: Claude-like clean UI
     const kimonError = document.getElementById('kimonError');
     const kimonAutoData = document.getElementById('kimonAutoData');
     const kimonThinking = document.getElementById('kimonThinking');
     const kimonThinkingText = document.getElementById('kimonThinkingText');
+    const kimonConversationStore = [];
     let currentTopic = null; // set by renderTopic
     let thinkingMessageTimeout = null;
     let kimonErrorTimeout = null;
@@ -3028,7 +3358,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     let activeKimonRequestId = 0;
     let activeKimonRequestSource = '';
     let activeKimonTypingSession = null;
+    let activeKimonAudioSession = null;
+    const kimonAudioCache = new Map();
     const KYMON_REQUEST_TIMEOUT_MS = 45000;
+    const KYMON_TTS_ENDPOINT = '/api/kimon/tts';
     const TYPEWRITER_CHUNK_SIZE = 3;
     const TYPEWRITER_TICK_MS = 18;
     const TYPEWRITER_SECTION_PAUSE_MS = 110;
@@ -3109,6 +3442,471 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     // Reset scroll tracking when new message starts
     function resetScrollTracking() {
       userScrolledUp = false;
+    }
+
+    function pickRandomKimonPlaceholder(excludeValue = '') {
+      const suggestions = Array.isArray(KYMON_PLACEHOLDER_SUGGESTIONS)
+        ? KYMON_PLACEHOLDER_SUGGESTIONS.filter(Boolean)
+        : [];
+      if (!suggestions.length) return 'Hỏi Kymon bất cứ điều gì...';
+      const eligible = excludeValue
+        ? suggestions.filter(item => item !== excludeValue)
+        : suggestions.slice();
+      const pool = eligible.length ? eligible : suggestions;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function refreshKimonPlaceholder() {
+      if (!kimonContext) return;
+      if (document.activeElement === kimonContext) return;
+      if (String(kimonContext.value || '').trim()) return;
+      kimonContext.placeholder = pickRandomKimonPlaceholder(kimonContext.placeholder || '');
+    }
+
+    function registerConversationEntry(entry) {
+      if (!entry || typeof entry !== 'object') return null;
+      const normalized = {
+        role: entry.role === 'user' ? 'user' : 'ai',
+        kind: entry.kind || 'message',
+        plainText: String(entry.plainText || '').trim(),
+        displayHtml: String(entry.displayHtml || '').trim(),
+        createdAt: entry.createdAt || new Date().toISOString(),
+      };
+      if (!normalized.plainText && !normalized.displayHtml) return null;
+      kimonConversationStore.push(normalized);
+      updateKimonDownloadState();
+      return normalized;
+    }
+
+    function hasTranscriptContent() {
+      return kimonConversationStore.some(entry => ['user', 'ai'].includes(entry.role) && entry.kind !== 'error');
+    }
+
+    function updateKimonDownloadState() {
+      if (!kimonDownloadBtn) return;
+      const enabled = hasTranscriptContent();
+      kimonDownloadBtn.disabled = !enabled;
+      kimonDownloadBtn.setAttribute('aria-disabled', String(!enabled));
+    }
+
+    function stripMarkdownForSpeech(rawText) {
+      let text = String(rawText || '');
+      while (text.includes('[') && text.includes('](') && text.includes(')')) {
+        const start = text.indexOf('[');
+        const mid = text.indexOf('](', start);
+        const end = text.indexOf(')', mid + 2);
+        if (start === -1 || mid === -1 || end === -1) break;
+        const label = text.slice(start + 1, mid);
+        text = text.slice(0, start) + label + text.slice(end + 1);
+      }
+      const backtick = String.fromCharCode(96);
+      text = text.split(backtick + backtick + backtick).join('');
+      text = text.split(backtick).join('');
+      text = text.split('**').join('');
+      text = text.split('__').join('');
+      text = text.split('~~').join('');
+      text = text.split('*').join('');
+      text = text.split('_').join('');
+      text = text.split('\\n').map(line => {
+        let normalized = String(line || '').trimStart();
+        while (normalized.startsWith('#')) {
+          normalized = normalized.slice(1).trimStart();
+        }
+        if (normalized.startsWith('- ') || normalized.startsWith('* ') || normalized.startsWith('• ')) {
+          normalized = normalized.slice(2);
+        }
+        let idx = 0;
+        while (idx < normalized.length && normalized[idx] >= '0' && normalized[idx] <= '9') idx += 1;
+        if (idx > 0 && normalized.slice(idx, idx + 2) === '. ') {
+          normalized = normalized.slice(idx + 2);
+        }
+        return normalized;
+      }).join('\\n');
+      text = text.replace(/<br[^>]*>/gi, '\\n');
+      text = text.replace(/<[^>]+>/g, ' ');
+      text = text.split('\\n').map(line => line.trimEnd()).join('\\n');
+      while (text.includes('\\n\\n\\n')) {
+        text = text.split('\\n\\n\\n').join('\\n\\n');
+      }
+      text = text.replace(/[ \t]{2,}/g, ' ');
+      return text.trim();
+    }
+
+    function buildKimonPlainText(data) {
+      if (!data || typeof data !== 'object') return '';
+      if (data.schema === 'deep-dive' && data.tongQuan) {
+        return [
+          data.tongQuan,
+          [data.tamLy?.trangThai, data.tamLy?.dongChay].filter(Boolean).join('\\n\\n'),
+          data.chienLuoc?.noiDung || '',
+          Array.isArray(data.hanhDong) ? data.hanhDong.map((step, index) => (step ? (index + 1) + '. ' + step : '')).filter(Boolean).join('\\n') : '',
+          data.kimonQuote || '',
+        ].filter(Boolean).join('\\n\\n').trim();
+      }
+      return [
+        data.lead || data.summary || data.quickTake || '',
+        data.timeHint || '',
+        data.message || data.analysis || '',
+        data.closingLine || data.action || '',
+      ].filter(Boolean).join('\\n\\n').trim();
+    }
+
+    function buildKimonPrintHtml(data) {
+      if (!data || typeof data !== 'object') return '';
+      if (data.schema === 'deep-dive' && data.tongQuan) {
+        const sections = [];
+        sections.push('<div class="print-block print-lead">' + formatKimonRichText(data.tongQuan) + '</div>');
+        const tamLyText = [data.tamLy?.trangThai, data.tamLy?.dongChay].filter(Boolean).join('\\n\\n');
+        if (tamLyText) sections.push('<div class="print-block">' + formatKimonRichText(tamLyText) + '</div>');
+        if (data.chienLuoc?.noiDung) sections.push('<div class="print-block">' + formatKimonRichText(data.chienLuoc.noiDung) + '</div>');
+        if (Array.isArray(data.hanhDong) && data.hanhDong.length) {
+          sections.push('<ol class="print-list">' + data.hanhDong
+            .filter(Boolean)
+            .map(step => '<li>' + formatKimonRichText(step) + '</li>')
+            .join('') + '</ol>');
+        }
+        if (data.kimonQuote) sections.push('<div class="print-block print-quote">' + formatKimonRichText(data.kimonQuote) + '</div>');
+        return sections.join('');
+      }
+
+      const parts = [];
+      if (data.lead || data.summary || data.quickTake) {
+        parts.push('<div class="print-block print-lead">' + formatKimonRichText(data.lead || data.summary || data.quickTake || '') + '</div>');
+      }
+      if (data.timeHint) {
+        parts.push('<div class="print-block"><strong>Thời điểm:</strong> ' + formatKimonRichText(data.timeHint) + '</div>');
+      }
+      if (data.message || data.analysis) {
+        parts.push('<div class="print-block">' + formatKimonRichText(data.message || data.analysis || '') + '</div>');
+      }
+      if (data.closingLine || data.action) {
+        parts.push('<div class="print-block print-quote">' + formatKimonRichText(data.closingLine || data.action || '') + '</div>');
+      }
+      return parts.join('');
+    }
+
+    function buildKimonDisplayHtml(data) {
+      return buildKimonPrintHtml(data);
+    }
+
+    function getKimonExportMeta() {
+      const base = getBaseQmdjData();
+      const date = String(dateInputEl?.value || INITIAL_CHART_TIME.date || '').trim();
+      const hour = parseInt(hourInputEl?.value, 10);
+      const minute = parseInt(minuteInputEl?.value, 10);
+      const timeLabel = Number.isFinite(hour) && Number.isFinite(minute)
+        ? pad2(hour) + ':' + pad2(minute)
+        : '';
+      const canChi = [base.dayStem, base.hourStem].filter(Boolean).join(' · ');
+      return {
+        date,
+        timeLabel,
+        canChi,
+        solarTerm: base.solarTerm || '',
+        cuc: base.cucSo ? 'Cục ' + base.cucSo : '',
+        structure: base.isDuong ? 'Dương Độn' : 'Âm Độn',
+      };
+    }
+
+    function exportKimonConversationPdf() {
+      if (!hasTranscriptContent()) {
+        showKimonError('Chưa có hội thoại nào để tải.');
+        return;
+      }
+      const exportMeta = getKimonExportMeta();
+      const boardSection = document.querySelector('.palace-grid-board-section');
+      const boardHtml = boardSection
+        ? '<section class="print-board-shell">' + boardSection.outerHTML + '</section>'
+        : '';
+      const transcriptHtml = kimonConversationStore
+        .filter(entry => ['user', 'ai'].includes(entry.role) && entry.kind !== 'error')
+        .map(entry => {
+          const roleLabel = entry.role === 'user' ? 'Bạn' : 'Kymon';
+          const bodyHtml = entry.displayHtml || ('<div class="print-block">' + formatKimonRichText(entry.plainText) + '</div>');
+          return '<article class="print-entry print-entry-' + roleLabel.toLowerCase() + '">' +
+            '<div class="print-role">' + escapeHTML(roleLabel) + '</div>' +
+            '<div class="print-body">' + bodyHtml + '</div>' +
+          '</article>';
+        })
+        .join('');
+
+      const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=960,height=780');
+      if (!printWindow) {
+        showKimonError('Trình duyệt đang chặn cửa sổ in PDF.');
+        return;
+      }
+
+      const metaLines = [
+        exportMeta.date ? '<span><strong>Ngày:</strong> ' + escapeHTML(exportMeta.date) + '</span>' : '',
+        exportMeta.timeLabel ? '<span><strong>Giờ:</strong> ' + escapeHTML(exportMeta.timeLabel) + '</span>' : '',
+        exportMeta.canChi ? '<span><strong>Can Chi:</strong> ' + escapeHTML(exportMeta.canChi) + '</span>' : '',
+        exportMeta.solarTerm ? '<span><strong>Tiết khí:</strong> ' + escapeHTML(exportMeta.solarTerm) + '</span>' : '',
+        exportMeta.cuc ? '<span><strong>' + escapeHTML(exportMeta.cuc) + '</strong></span>' : '',
+        exportMeta.structure ? '<span>' + escapeHTML(exportMeta.structure) + '</span>' : '',
+      ].filter(Boolean).join('');
+      const inlineStyles = Array.from(document.querySelectorAll('style'))
+        .map(styleEl => styleEl.textContent || '')
+        .join('\\n');
+
+      const printHtml = '<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Kymon Conversation</title>' +
+        '<style>' + inlineStyles + '</style>' +
+        '<style>' +
+        'body{font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;background:#fff;margin:0;padding:32px;line-height:1.65;}' +
+        '.print-shell{max-width:860px;margin:0 auto;}' +
+        '.print-title{font-size:28px;font-weight:800;margin:0 0 8px;}' +
+        '.print-subtitle{font-size:14px;color:#475569;margin:0 0 24px;}' +
+        '.print-meta{display:flex;flex-wrap:wrap;gap:10px 18px;font-size:13px;color:#334155;margin:0 0 28px;padding:14px 16px;border:1px solid #cbd5e1;border-radius:16px;background:#f8fafc;}' +
+        '.print-section-title{font-size:18px;font-weight:700;margin:0 0 14px;color:#0f172a;}' +
+        '.print-board-shell{margin:0 0 28px;}' +
+        '.print-board-shell .card{box-shadow:none !important;border-color:#cbd5e1 !important;background:#fff !important;color:#0f172a !important;}' +
+        '.print-board-shell .palace-grid-toolbar,.print-board-shell .kimon-message-actions,.print-board-shell .signal-info-btn,.print-board-shell .link-btn{display:none !important;}' +
+        '.print-board-shell .palace-card,.print-board-shell .palace-grid{break-inside:avoid;}' +
+        '.print-entry{border:1px solid #e2e8f0;border-radius:18px;padding:18px 20px;margin-bottom:18px;page-break-inside:avoid;}' +
+        '.print-entry-user{background:#eff6ff;}' +
+        '.print-entry-ai{background:#fff;}' +
+        '.print-role{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#475569;margin-bottom:10px;}' +
+        '.print-block{margin:0 0 14px;}' +
+        '.print-block:last-child{margin-bottom:0;}' +
+        '.print-lead{font-weight:700;color:#0f172a;}' +
+        '.print-quote{color:#475569;font-style:italic;}' +
+        '.print-list{margin:0;padding-left:1.2em;}' +
+        '@media print{body{padding:18px;}.print-entry{break-inside:avoid;}}' +
+        '</style></head><body><div class="print-shell">' +
+        '<h1 class="print-title">Kymon Conversation</h1>' +
+        '<p class="print-subtitle">Bản lưu cuộc hội thoại và bối cảnh trận đồ hiện tại.</p>' +
+        '<div class="print-meta">' + metaLines + '</div>' +
+        (boardHtml ? '<h2 class="print-section-title">Thiên Bàn</h2>' + boardHtml : '') +
+        '<h2 class="print-section-title">Hội thoại</h2>' +
+        transcriptHtml +
+        '</div></body></html>';
+
+      printWindow.document.open();
+      printWindow.document.write(printHtml);
+      printWindow.document.close();
+      printWindow.addEventListener('load', () => {
+        printWindow.focus();
+        printWindow.print();
+      }, { once: true });
+    }
+
+    function createKimonAudioIcon(iconName) {
+      const iconMap = {
+        play: '<path d="M8 5v14l11-7Z"></path>',
+        pause: '<path d="M8 5h3v14H8z"></path><path d="M13 5h3v14h-3z"></path>',
+        back: '<path d="M11 17 5 12l6-5v10Z"></path><path d="M19 17 13 12l6-5v10Z"></path>',
+        forward: '<path d="m13 17 6-5-6-5v10Z"></path><path d="m5 17 6-5-6-5v10Z"></path>',
+      };
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (iconMap[iconName] || iconMap.play) + '</svg>';
+    }
+
+    function setKimonAudioStatus(session, statusText) {
+      if (!session?.statusEl) return;
+      session.statusEl.textContent = statusText || '';
+    }
+
+    function syncKimonAudioUi(session) {
+      if (!session?.playBtn) return;
+      const state = session.state || 'idle';
+      session.playBtn.innerHTML = createKimonAudioIcon(state === 'playing' ? 'pause' : 'play');
+      session.playBtn.title = state === 'playing' ? 'Tạm dừng' : state === 'paused' ? 'Tiếp tục' : 'Nghe';
+      session.playBtn.setAttribute('aria-label', session.playBtn.title);
+      session.playBtn.classList.toggle('is-active', state === 'playing' || state === 'paused');
+      session.backBtn.disabled = !session.audio || !Number.isFinite(session.audio.duration);
+      session.forwardBtn.disabled = !session.audio || !Number.isFinite(session.audio.duration);
+      if (state === 'loading') {
+        setKimonAudioStatus(session, 'Đang tải giọng đọc...');
+      } else if (state === 'playing') {
+        setKimonAudioStatus(session, 'Đang phát');
+      } else if (state === 'paused') {
+        setKimonAudioStatus(session, 'Đã tạm dừng');
+      } else {
+        setKimonAudioStatus(session, '');
+      }
+    }
+
+    function stopActiveKimonSpeech({ reset = true } = {}) {
+      if (!activeKimonAudioSession?.audio) {
+        activeKimonAudioSession = null;
+        return;
+      }
+      activeKimonAudioSession.audio.pause();
+      if (reset) {
+        try {
+          activeKimonAudioSession.audio.currentTime = 0;
+        } catch {}
+      }
+      activeKimonAudioSession.state = 'idle';
+      syncKimonAudioUi(activeKimonAudioSession);
+      activeKimonAudioSession = null;
+    }
+
+    async function ensureKimonAudioSource(session) {
+      if (session.audioUrl) return session.audioUrl;
+      const cacheKey = session.plainText;
+      const cached = kimonAudioCache.get(cacheKey);
+      if (typeof cached === 'string') {
+        session.audioUrl = cached;
+      } else if (cached && typeof cached.then === 'function') {
+        session.audioUrl = await cached;
+      } else {
+        const loadPromise = fetch(KYMON_TTS_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: session.plainText }),
+        })
+          .then(async response => {
+            if (!response.ok) {
+              let message = 'Kymon chưa đọc được câu này.';
+              try {
+                const data = await response.json();
+                if (data?.error) message = data.error;
+              } catch {}
+              throw new Error(message);
+            }
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            kimonAudioCache.set(cacheKey, objectUrl);
+            return objectUrl;
+          })
+          .catch(error => {
+            kimonAudioCache.delete(cacheKey);
+            throw error;
+          });
+        kimonAudioCache.set(cacheKey, loadPromise);
+        session.audioUrl = await loadPromise;
+      }
+
+      if (!session.audio) {
+        session.audio = new Audio();
+        session.audio.preload = 'auto';
+        session.audio.addEventListener('ended', () => {
+          session.state = 'idle';
+          if (activeKimonAudioSession === session) activeKimonAudioSession = null;
+          syncKimonAudioUi(session);
+        });
+        session.audio.addEventListener('loadedmetadata', () => syncKimonAudioUi(session));
+        session.audio.addEventListener('error', () => {
+          session.state = 'idle';
+          if (activeKimonAudioSession === session) activeKimonAudioSession = null;
+          syncKimonAudioUi(session);
+          showKimonError('Kymon chưa đọc được câu này. Bạn thử lại nhé.');
+        });
+      }
+
+      if (session.audio.src !== session.audioUrl) {
+        session.audio.src = session.audioUrl;
+      }
+
+      return session.audioUrl;
+    }
+
+    async function toggleKimonAudioPlayback(session) {
+      if (!session?.plainText) return;
+
+      if (activeKimonAudioSession && activeKimonAudioSession !== session) {
+        stopActiveKimonSpeech();
+      }
+
+      if (session.state === 'playing') {
+        session.audio?.pause();
+        session.state = 'paused';
+        activeKimonAudioSession = session;
+        syncKimonAudioUi(session);
+        return;
+      }
+
+      try {
+        session.state = 'loading';
+        syncKimonAudioUi(session);
+        await ensureKimonAudioSource(session);
+        await session.audio.play();
+        session.state = 'playing';
+        activeKimonAudioSession = session;
+        syncKimonAudioUi(session);
+      } catch (error) {
+        session.state = 'idle';
+        syncKimonAudioUi(session);
+        showKimonError(error?.message || 'Kymon chưa đọc được câu này.');
+      }
+    }
+
+    function seekKimonAudioSession(session, deltaSeconds) {
+      if (!session?.audio || !Number.isFinite(session.audio.duration)) return;
+      const nextTime = Math.min(
+        Math.max(0, (session.audio.currentTime || 0) + deltaSeconds),
+        session.audio.duration
+      );
+      session.audio.currentTime = nextTime;
+    }
+
+    function createKimonSpeechHandler(session) {
+      return () => toggleKimonAudioPlayback(session);
+    }
+
+    function attachKimonBubbleActions(bubble, plainText) {
+      if (!bubble) return;
+      const cleanText = stripMarkdownForSpeech(plainText);
+      if (!cleanText) return;
+
+      const actions = document.createElement('div');
+      actions.className = 'kimon-message-actions';
+
+      const controls = document.createElement('div');
+      controls.className = 'kimon-audio-controls';
+
+      const session = {
+        plainText: cleanText,
+        state: 'idle',
+        audio: null,
+        audioUrl: '',
+        playBtn: null,
+        backBtn: null,
+        forwardBtn: null,
+        statusEl: null,
+      };
+
+      const backBtn = document.createElement('button');
+      backBtn.type = 'button';
+      backBtn.className = 'kimon-audio-btn';
+      backBtn.innerHTML = createKimonAudioIcon('back');
+      backBtn.title = 'Lùi 10 giây';
+      backBtn.setAttribute('aria-label', 'Lùi 10 giây');
+      backBtn.disabled = true;
+      backBtn.addEventListener('click', () => seekKimonAudioSession(session, -10));
+
+      const playBtn = document.createElement('button');
+      playBtn.type = 'button';
+      playBtn.className = 'kimon-audio-btn';
+      playBtn.innerHTML = createKimonAudioIcon('play');
+      playBtn.title = 'Nghe';
+      playBtn.setAttribute('aria-label', 'Nghe');
+      playBtn.addEventListener('click', createKimonSpeechHandler(session));
+
+      const forwardBtn = document.createElement('button');
+      forwardBtn.type = 'button';
+      forwardBtn.className = 'kimon-audio-btn';
+      forwardBtn.innerHTML = createKimonAudioIcon('forward');
+      forwardBtn.title = 'Tới 10 giây';
+      forwardBtn.setAttribute('aria-label', 'Tới 10 giây');
+      forwardBtn.disabled = true;
+      forwardBtn.addEventListener('click', () => seekKimonAudioSession(session, 10));
+
+      const statusEl = document.createElement('span');
+      statusEl.className = 'kimon-audio-status';
+      statusEl.textContent = '';
+
+      session.playBtn = playBtn;
+      session.backBtn = backBtn;
+      session.forwardBtn = forwardBtn;
+      session.statusEl = statusEl;
+
+      controls.appendChild(backBtn);
+      controls.appendChild(playBtn);
+      controls.appendChild(forwardBtn);
+      actions.appendChild(controls);
+      actions.appendChild(statusEl);
+      bubble.appendChild(actions);
+      syncKimonAudioUi(session);
     }
 
     function getBaseQmdjData() {
@@ -3859,12 +4657,21 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     function appendKimonResponseBubble(data) {
       const bubble = createMessageBubble(true);
       kimonMessages?.appendChild(bubble);
+      const plainText = buildKimonPlainText(data);
+      const displayHtml = buildKimonDisplayHtml(data);
       logKimonDebug('render start', {
         mode: data?.mode || 'unknown',
         leadLength: data?.lead?.length || 0,
         messageLength: data?.message?.length || 0,
       });
       renderParsedSections(bubble, data);
+      attachKimonBubbleActions(bubble, plainText);
+      registerConversationEntry({
+        role: 'ai',
+        kind: data?.mode || 'message',
+        plainText,
+        displayHtml,
+      });
       logKimonDebug('render end');
       return bubble;
     }
@@ -4014,6 +4821,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       const userBubble = createMessageBubble(false);
       userBubble.innerHTML = '<p class="kimon-message-text">' + escapeHTML(question) + '</p>';
       kimonMessages.appendChild(userBubble);
+      registerConversationEntry({
+        role: 'user',
+        kind: 'question',
+        plainText: question,
+        displayHtml: '<div class="print-block">' + escapeHTML(question) + '</div>',
+      });
       smartScroll();
 
       kimonContext.value = '';
@@ -4034,6 +4847,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           selectedTopicKey: currentTopic.key || 'chung',
           selectedTopicResult: currentTopic.promptTopicResult || '',
           insight: currentTopic.promptInsight || '',
+          aiHints: currentTopic.aiHints || '',
+          selectedTopicFlags: Array.isArray(currentTopic.flags) ? currentTopic.flags : [],
+          selectedTopicUsefulPalace: currentTopic.usefulGodPalace || '',
+          selectedTopicUsefulPalaceName: currentTopic.usefulGodPalaceName || '',
         } : base;
 
         const data = await sendKymonRequest({
@@ -4046,6 +4863,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           return;
         }
         appendKimonResponseBubble(data);
+        refreshKimonPlaceholder();
       } catch (error) {
         if (!isSameActiveKimonRequest(requestContext)) {
           logKimonDebug('stale manual error ignored', { requestId: requestContext.requestId });
@@ -4074,6 +4892,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     if (kimonForm) {
       kimonForm.addEventListener('submit', handleKymonSend);
     }
+    if (kimonDownloadBtn) {
+      kimonDownloadBtn.addEventListener('click', exportKimonConversationPdf);
+    }
 
     // (Topic chips have been removed)
 
@@ -4088,6 +4909,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       greeting.classList.add('kimon-greeting');
       greeting.innerHTML = '<p class="kimon-paragraph">Chào bạn! Tôi là Kymon. Hãy hỏi tôi bất cứ điều gì về năng lượng hiện tại, công việc, tình cảm, hay quyết định bạn đang cân nhắc.</p>';
       kimonMessages.appendChild(greeting);
+      registerConversationEntry({
+        role: 'ai',
+        kind: 'greeting',
+        plainText: 'Chào bạn! Tôi là Kymon. Hãy hỏi tôi bất cứ điều gì về năng lượng hiện tại, công việc, tình cảm, hay quyết định bạn đang cân nhắc.',
+        displayHtml: '<div class="print-block">Chào bạn! Tôi là Kymon. Hãy hỏi tôi bất cứ điều gì về năng lượng hiện tại, công việc, tình cảm, hay quyết định bạn đang cân nhắc.</div>',
+      });
 
       // Add tip about how to ask questions
       const tip = document.createElement('div');
@@ -4098,6 +4925,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     if (kimonMessages) {
       initChat();
+      refreshKimonPlaceholder();
+      updateKimonDownloadState();
       setTimeout(() => {
         if (!kimonMessages.querySelector('.kimon-greeting')) initChat();
       }, 120);
@@ -4189,6 +5018,33 @@ export default function handler(req, res) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('File not found: ' + url.pathname);
     }
+  } else if (url.pathname === '/api/kimon/tts' && req.method === 'POST') {
+    let bodyData = '';
+    req.on('data', chunk => { bodyData += chunk.toString(); });
+    req.on('end', async () => {
+      try {
+        const body = JSON.parse(bodyData || '{}');
+        const text = String(body?.text || '').trim();
+        if (!text) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Thiếu text để đọc.' }));
+          return;
+        }
+
+        const { buffer, voiceId, voiceName } = await synthesizeElevenLabsSpeech(text);
+        res.writeHead(200, {
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': String(buffer.length),
+          'Cache-Control': 'no-store',
+          'X-Kymon-Tts-Voice-Id': voiceId,
+          'X-Kymon-Tts-Voice-Name': encodeURIComponent(voiceName || ''),
+        });
+        res.end(buffer);
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error?.message || 'Không tạo được giọng đọc ElevenLabs.' }));
+      }
+    });
   } else if (url.pathname === '/api/analyze') {
     const resolvedChartTime = getEffectiveChartTime(url.searchParams);
     const { date, hour, minute, mode, dateInputValue } = resolvedChartTime;
@@ -4243,13 +5099,15 @@ export default function handler(req, res) {
           : await detectTopicHybrid(userContext, apiKey);
         const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
         const { topic, tier, confidence } = detection;
-        const effectiveTier = isDeepDive ? 'strategy' : tier;
         const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
+        const hasCriticalTopicFlags = Array.isArray(enrichedQmdjData?.selectedTopicFlags) && enrichedQmdjData.selectedTopicFlags.length > 0;
+        const forceStrategyTopic = topic === 'tai-van';
+        const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
           tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
         });
-        console.log(`[Kimon][stream] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} maxTokens=${maxTokens} format=${responseFormat}`);
+        console.log(`[Kimon][stream] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} flags=${hasCriticalTopicFlags ? enrichedQmdjData.selectedTopicFlags.join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat}`);
 
         const genAI = new GoogleGenerativeAI(apiKey);
 
@@ -4260,8 +5118,10 @@ export default function handler(req, res) {
         if (responseFormat === 'json') {
           generationConfig.responseMimeType = 'application/json';
         }
-        // Disable thinking for Flash to prevent token budget exhaustion
-        if (effectiveTier !== 'strategy') {
+        if (effectiveTier === 'strategy') {
+          generationConfig.thinkingConfig = { thinkingBudget: 1024 };
+        } else {
+          // Disable thinking for Flash to prevent token budget exhaustion
           generationConfig.thinkingConfig = { thinkingBudget: 0 };
         }
 
@@ -4362,13 +5222,15 @@ export default function handler(req, res) {
           : await detectTopicHybrid(userContext, apiKey);
         const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
         const { topic, tier, confidence } = detection;
-        const effectiveTier = isDeepDive ? 'strategy' : tier;
         const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
+        const hasCriticalTopicFlags = Array.isArray(enrichedQmdjData?.selectedTopicFlags) && enrichedQmdjData.selectedTopicFlags.length > 0;
+        const forceStrategyTopic = topic === 'tai-van';
+        const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
           tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
         });
-        console.log(`[Kimon][json] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} maxTokens=${maxTokens} format=${responseFormat}`);
+        console.log(`[Kimon][json] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} flags=${hasCriticalTopicFlags ? enrichedQmdjData.selectedTopicFlags.join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat}`);
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const generationConfig = {
@@ -4378,8 +5240,10 @@ export default function handler(req, res) {
         if (responseFormat === 'json') {
           generationConfig.responseMimeType = 'application/json';
         }
-        // Disable thinking for Flash to prevent token budget exhaustion
-        if (effectiveTier !== 'strategy') {
+        if (effectiveTier === 'strategy') {
+          generationConfig.thinkingConfig = { thinkingBudget: 1024 };
+        } else {
+          // Disable thinking for Flash to prevent token budget exhaustion
           generationConfig.thinkingConfig = { thinkingBudget: 0 };
         }
 

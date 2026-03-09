@@ -12,8 +12,8 @@ function testTopicMapping() {
     'ky-hop-dong': 'MONEY_INVEST',
     'dam-phan': 'MONEY_INVEST',
     'doi-no': 'MONEY_INVEST',
-    'bat-dong-san': 'MONEY_INVEST',
-    'dien-trach': 'MONEY_INVEST',
+    'bat-dong-san': 'PROPERTY_ASSET',
+    'dien-trach': 'PROPERTY_ASSET',
     'su-nghiep': 'CAREER_INTERVIEW',
     'xin-viec': 'CAREER_INTERVIEW',
     'muu-luoc': 'CAREER_INTERVIEW',
@@ -153,6 +153,7 @@ function testAnalyzeBackCompatAndInsightPresent() {
 function testAnalyzeDefaultsUseCanonicalTopicKeys() {
   const { topicResults } = analyze(DATE, HOUR);
   assert.ok(topicResults['tinh-duyen'], 'Default analyze should include tinh-duyen');
+  assert.ok(topicResults['gia-dao'], 'Default analyze should include gia-dao');
   assert.ok(topicResults['bat-dong-san'], 'Default analyze should include bat-dong-san');
   assert.ok(topicResults['hoc-tap'], 'Default analyze should include hoc-tap');
   assert.ok(!topicResults['tinh-yeu'], 'Default analyze should not duplicate alias tinh-yeu');

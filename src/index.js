@@ -36,7 +36,7 @@ import { generateStrategicInsight } from './logic/dungThan/index.js';
 import { buildDisplayChart, getSectionLabel, getVisualPalaceEntries } from './ui/displayMappings.js';
 
 const DEFAULT_TOPIC_KEYS = [
-  'tai-van', 'suc-khoe', 'tinh-duyen', 'su-nghiep', 'kinh-doanh',
+  'tai-van', 'suc-khoe', 'tinh-duyen', 'gia-dao', 'su-nghiep', 'kinh-doanh',
   'thi-cu', 'hoc-tap', 'ky-hop-dong', 'dam-phan', 'doi-no', 'kien-tung',
   'xuat-hanh', 'xin-viec', 'bat-dong-san', 'muu-luoc',
 ];

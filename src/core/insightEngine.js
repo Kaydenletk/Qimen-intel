@@ -10,8 +10,8 @@ const TOPIC_KEY_MAP = {
   'ky-hop-dong': { libraryKey: 'MONEY_INVEST', strength: 'strong' },
   'dam-phan': { libraryKey: 'MONEY_INVEST', strength: 'strong' },
   'doi-no': { libraryKey: 'MONEY_INVEST', strength: 'strong' },
-  'bat-dong-san': { libraryKey: 'MONEY_INVEST', strength: 'strong' },
-  'dien-trach': { libraryKey: 'MONEY_INVEST', strength: 'strong' },
+  'bat-dong-san': { libraryKey: 'PROPERTY_ASSET', strength: 'strong' },
+  'dien-trach': { libraryKey: 'PROPERTY_ASSET', strength: 'strong' },
   'su-nghiep': { libraryKey: 'CAREER_INTERVIEW', strength: 'strong' },
   'xin-viec': { libraryKey: 'CAREER_INTERVIEW', strength: 'strong' },
   'muu-luoc': { libraryKey: 'CAREER_INTERVIEW', strength: 'medium' },
@@ -19,6 +19,7 @@ const TOPIC_KEY_MAP = {
   'thi-cu': { libraryKey: 'EXAM_STUDY', strength: 'strong' },
   'hoc-tap': { libraryKey: 'EXAM_STUDY', strength: 'strong' },
   'suc-khoe': { libraryKey: 'HEALTH_CHECK', strength: 'strong' },
+  'gia-dao': { libraryKey: 'MONEY_INVEST', strength: 'weak' },
   'tinh-duyen': { libraryKey: 'MONEY_INVEST', strength: 'weak' },
   'tinh-yeu': { libraryKey: 'MONEY_INVEST', strength: 'weak' },
   'xuat-hanh': { libraryKey: 'MONEY_INVEST', strength: 'weak' },
@@ -200,6 +201,7 @@ function collectFlags(chart, pal, globalFlags, mappingNotes) {
   };
 
   if (pal?.khongVong) markFlag('VOID', 'local');
+  if (pal?.dichMa) markFlag('DICH_MA', 'local');
   if (pal?.trucSu) {
     markFlag('DOOR_COMPELLING', 'derived');
     mappingNotes.push('DOOR_COMPELLING được suy ra từ palace.trucSu.');
@@ -220,10 +222,6 @@ function collectFlags(chart, pal, globalFlags, mappingNotes) {
       continue;
     }
     markFlag(flag, 'global');
-  }
-
-  if (pal?.dichMa) {
-    mappingNotes.push('Dịch Mã có mặt tại cung dụng thần, chưa áp multiplier confidence.');
   }
 
   // Current core does not expose GRAVE/Nhập Mộ detection.
@@ -310,11 +308,11 @@ function buildEvidence({ topicResult, topicProfile, activeFlags, confidence, map
     );
   }
 
-  const redFlags = activeFlags.map(f => `${f.label} x${f.multiplier}`);
-  if (redFlags.length) {
-    lines.push(`Flags ảnh hưởng confidence: ${redFlags.join(', ')}.`);
+  const activeFlagSummary = activeFlags.map(f => `${f.label} x${f.multiplier}`);
+  if (activeFlagSummary.length) {
+    lines.push(`Flags đang chi phối nhịp/cường độ: ${activeFlagSummary.join(', ')}.`);
   } else {
-    lines.push('Không có red-flag multiplier đang active ở cung dụng thần.');
+    lines.push('Không có flag trọng yếu nào đang active ở cung dụng thần.');
   }
 
   lines.push(`Confidence sau điều chỉnh: ${confidence}.`);

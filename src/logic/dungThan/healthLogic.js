@@ -5,6 +5,7 @@ import {
   makeOutput,
   scoreToSignal,
 } from './sharedRules.js';
+import { getPrimaryCombo, getComboTopicAdvice } from './flagCombos.js';
 
 const PALACE_HEALTH_MAP = {
   1: { bodyZone: 'Thận - Tiết niệu', department: 'Thận - Tiết niệu' },
@@ -54,12 +55,21 @@ export function evaluateDoctor(context) {
 }
 
 export function buildHealthInsight(context) {
+  const combo = getPrimaryCombo(context.flags);
+  const comboAdvice = combo ? getComboTopicAdvice(combo.id, 'suc-khoe') : null;
   let rawScore = context.topicResult?.score || 0;
-  if (context.door === 'Tử' || context.flags.VOID || context.flags.FAN_YIN) rawScore -= 5;
+
   if (context.star === 'Tâm' || context.door === 'Sinh') rawScore += 4;
   if (context.flags.DOOR_COMPELLING || context.flags.PALACE_COMPELLING) rawScore += 1;
 
-  const scoreSignal = scoreToSignal(rawScore);
+  if (combo) {
+    rawScore += combo.scoreAdjust;
+  } else {
+    if (context.door === 'Tử' || context.flags.VOID || context.flags.FAN_YIN) rawScore -= 5;
+  }
+
+  let scoreSignal = scoreToSignal(rawScore);
+  if (combo && (combo.severity === 'critical' || combo.severity === 'high')) scoreSignal = -1;
   const confidenceCalc = computeConfidence(context.flags);
   const flagEvidence = createFlagEvidence(context.flags);
 
@@ -70,6 +80,7 @@ export function buildHealthInsight(context) {
   let urgency = 'LOW';
   if (scoreSignal < 0) urgency = 'MED';
   if (context.door === 'Tử' || context.flags.FAN_YIN || context.flags.FU_YIN) urgency = 'HIGH';
+  if (combo && combo.severity === 'critical') urgency = 'CRITICAL';
 
   let recommendedDepartment = palaceMap.department;
   if (context.star === 'Nhuế' && context.palaceName === 'Khôn') {

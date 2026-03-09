@@ -5,16 +5,26 @@
 
 import { PALACE_META } from './tables.js';
 import { getElementState } from './states.js';
+import { getPrimaryCombo, getComboAdviceForDungThan } from '../logic/dungThan/flagCombos.js';
+import { deriveFlags } from '../logic/dungThan/normalizeChart.js';
 
 function normalizeTopicKey(topicKey) {
   if (topicKey === 'tinh-yeu') return 'tinh-duyen';
   if (topicKey === 'dien-trach') return 'bat-dong-san';
-  if (topicKey === 'hoc-tap') return 'thi-cu';
+  if (topicKey === 'gia-dinh') return 'gia-dao';
   return topicKey;
 }
 
 const LOVE_TOPIC = { label: 'Tình Duyên / Hôn Nhân', primaryDoors: ['Hưu Môn', 'Sinh Môn'], primaryDeities: ['Lục Hợp', 'Thái Âm', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Chu Tước'], usefulStars: ['Thiên Phụ', 'Thiên Nhậm'] };
 const PROPERTY_TOPIC = { label: 'Bất Động Sản / Mua Bán Nhà Đất', primaryDoors: ['Sinh Môn', 'Khai Môn'], primaryDeities: ['Cửu Địa', 'Lục Hợp'], avoidDoors: ['Tử Môn'], avoidDeities: ['Câu Trận', 'Chu Tước'], usefulStars: ['Thiên Phụ', 'Thiên Tâm'] };
+const FAMILY_TOPIC = { label: 'Gia Đạo / Gia Đình', primaryDoors: ['Hưu Môn', 'Sinh Môn', 'Khai Môn'], primaryDeities: ['Lục Hợp', 'Trực Phù', 'Cửu Địa'], avoidDoors: ['Thương Môn', 'Đỗ Môn', 'Tử Môn'], avoidDeities: ['Đằng Xà', 'Chu Tước'], usefulStars: ['Thiên Phụ', 'Thiên Nhậm', 'Thiên Tâm'] };
+const STUDY_TOPIC_BASE = {
+  primaryDoors: ['Cảnh Môn', 'Khai Môn', 'Hưu Môn'],
+  primaryDeities: ['Trực Phù', 'Cửu Thiên', 'Thái Âm', 'Lục Hợp'],
+  avoidDoors: ['Tử Môn', 'Đỗ Môn', 'Kinh Môn'],
+  avoidDeities: ['Đằng Xà', 'Câu Trận'],
+  usefulStars: ['Thiên Phụ', 'Thiên Tâm', 'Thiên Nhậm', 'Thiên Anh'],
+};
 
 // ── Topic definitions (compact 4-line format) ─────────────────────────────────
 export const TOPICS = {
@@ -22,9 +32,11 @@ export const TOPICS = {
   'suc-khoe': { label: 'Sức Khỏe / Khám Bệnh', primaryDoors: ['Sinh Môn'], primaryDeities: ['Lục Hợp', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Đằng Xà'], usefulStars: ['Thiên Tâm'] },
   'tinh-duyen': LOVE_TOPIC,
   'tinh-yeu': LOVE_TOPIC,
+  'gia-dao': FAMILY_TOPIC,
   'su-nghiep': { label: 'Sự Nghiệp / Thăng Tiến', primaryDoors: ['Khai Môn', 'Sinh Môn'], primaryDeities: ['Cửu Thiên', 'Trực Phù'], avoidDoors: ['Tử Môn'], avoidDeities: ['Câu Trận', 'Chu Tước'], usefulStars: ['Thiên Tâm', 'Thiên Xung'] },
   'kinh-doanh': { label: 'Kinh Doanh / Khai Trương', primaryDoors: ['Sinh Môn', 'Khai Môn'], primaryDeities: ['Lục Hợp', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Đằng Xà', 'Chu Tước', 'Cửu Địa'], usefulStars: ['Thiên Tâm', 'Thiên Nhậm', 'Thiên Xung'] },
-  'thi-cu': { label: 'Thi Cử / Phỏng Vấn', primaryDoors: ['Khai Môn', 'Hưu Môn'], primaryDeities: ['Thái Âm', 'Cửu Thiên', 'Lục Hợp'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Đằng Xà'], usefulStars: ['Thiên Phụ', 'Thiên Nhậm', 'Thiên Anh'] },
+  'hoc-tap': { label: 'Học Tập / Tài Liệu', ...STUDY_TOPIC_BASE },
+  'thi-cu': { label: 'Thi Cử / Phỏng Vấn', ...STUDY_TOPIC_BASE },
   'ky-hop-dong': { label: 'Ký Hợp Đồng', primaryDoors: ['Khai Môn', 'Sinh Môn'], primaryDeities: ['Lục Hợp', 'Cửu Thiên'], avoidDoors: ['Tử Môn'], avoidDeities: ['Câu Trận', 'Đằng Xà', 'Cửu Địa'], usefulStars: ['Thiên Tâm', 'Thiên Phụ'] },
   'dam-phan': { label: 'Đàm Phán / Thương Lượng', primaryDoors: ['Khai Môn', 'Sinh Môn'], primaryDeities: ['Lục Hợp', 'Thái Âm'], avoidDoors: ['Kinh Môn', 'Tử Môn'], avoidDeities: ['Cửu Địa', 'Câu Trận'], usefulStars: ['Thiên Phụ'] },
   'doi-no': { label: 'Đòi Nợ / Thu Hồi', primaryDoors: ['Khai Môn', 'Thương Môn'], primaryDeities: ['Câu Trận', 'Cửu Thiên'], avoidDoors: ['Hưu Môn'], avoidDeities: ['Chu Tước'], usefulStars: ['Thiên Xung', 'Thiên Bồng'] },
@@ -35,6 +47,111 @@ export const TOPICS = {
   'dien-trach': PROPERTY_TOPIC,
   'muu-luoc': { label: 'Mưu Lược / Chiến Lược', primaryDoors: ['Khai Môn', 'Sinh Môn'], primaryDeities: ['Thái Âm', 'Cửu Thiên'], avoidDoors: ['Tử Môn'], avoidDeities: ['Đằng Xà', 'Cửu Địa'], usefulStars: ['Thiên Phụ', 'Thiên Tâm', 'Thiên Nhậm'] },
 };
+
+function scoreStudyPalace(topicKey, palaceNum, palace, tkName) {
+  let score = 0;
+  const reasons = [];
+  const doorName = palace?.mon?.name || '';
+  const starName = palace?.star?.name || '';
+  const deityName = palace?.than?.name || '';
+  const stemName = palace?.can?.name || '';
+  const isExam = topicKey === 'thi-cu';
+
+  // Shared study scorer: "học tập" và "thi cử" phải neo cùng một trục tài liệu / đề cương,
+  // chỉ khác ở lớp diễn giải phía sau chứ không được chọn lệch cung.
+  if (doorName === 'Cảnh Môn') { score += 14; reasons.push('✅ Cảnh Môn (đề cương/tài liệu)'); }
+  if (doorName === 'Khai Môn') { score += 7; reasons.push('✅ Khai Môn (mở bài/mở ý)'); }
+  if (doorName === 'Hưu Môn') { score += 6; reasons.push('✅ Hưu Môn (ôn lại/củng cố)'); }
+  if (doorName === 'Sinh Môn') { score += 2; reasons.push('✅ Sinh Môn (tiếp thu/hồi đáp tốt)'); }
+  if (doorName === 'Đỗ Môn') { score -= 6; reasons.push('❌ Đỗ Môn (đóng tài liệu/chưa công bố)'); }
+  if (doorName === 'Tử Môn') { score -= 8; reasons.push('❌ Tử Môn (áp lực/kết quả xấu)'); }
+  if (doorName === 'Kinh Môn') { score -= 5; reasons.push('⚠️ Kinh Môn (nhiễu loạn/lịch biến động)'); }
+
+  if (starName === 'Thiên Phụ') { score += 10; reasons.push('✅ Thiên Phụ (giáo viên/tài liệu chuẩn)'); }
+  if (starName === 'Thiên Tâm') { score += 5; reasons.push('✅ Thiên Tâm (logic ôn tập)'); }
+  if (starName === 'Thiên Nhậm') { score += 5; reasons.push('✅ Thiên Nhậm (bền nhịp học)'); }
+  if (starName === 'Thiên Anh') { score += 5; reasons.push('✅ Thiên Anh (đề/điểm lộ diện)'); }
+
+  if (deityName === 'Trực Phù') { score += 5; reasons.push('✅ Trực Phù (được chỉ đường)'); }
+  if (deityName === 'Cửu Thiên') { score += 4; reasons.push('✅ Cửu Thiên (mở nhanh/thông nhanh)'); }
+  if (deityName === 'Lục Hợp') { score += 3; reasons.push('✅ Lục Hợp (khớp bài/khớp nhịp)'); }
+  if (deityName === 'Thái Âm') { score += 2; reasons.push('✅ Thái Âm (tự học/nghiên cứu)'); }
+  if (deityName === 'Đằng Xà') {
+    if (doorName === 'Cảnh Môn') {
+      score += 1;
+      reasons.push('⚠️ Đằng Xà (đề cương có twist/lắt léo)');
+    } else {
+      score -= 3;
+      reasons.push('❌ Đằng Xà (rối thông tin/bẫy đánh đố)');
+    }
+  }
+
+  if (isExam && doorName === 'Hưu Môn') {
+    score += 1;
+    reasons.push('✅ Hưu Môn (giữ bình tĩnh trong phòng thi)');
+  }
+
+  const es = getElementState(PALACE_META[palaceNum].element, tkName);
+  if (es.isStrong) { score += 1; reasons.push(`✅ ${es.state}`); }
+  if (es.isWeak) { score -= 1; reasons.push(`⚠️ ${es.state}`); }
+
+  if (palace?.dichMa) {
+    score += 6;
+    reasons.push('✅ Dịch Mã (nhịp nhanh/biến động sát giờ)');
+  }
+  if (palace?.khongVong) { score -= 7; reasons.push('⚠️ Không Vong'); }
+  if (palace?.trucPhu) { score += 3; reasons.push('✅ Trực Phù'); }
+  if (palace?.trucSu) { score += 2; reasons.push('✅ Trực Sử'); }
+  if (['Ất', 'Bính', 'Đinh'].includes(stemName)) { score += 2; reasons.push(`✅ Tam Kỳ ${stemName}`); }
+
+  return { score, reasons };
+}
+
+function scoreWealthPalace(palaceNum, palace, tkName) {
+  let score = 0;
+  const reasons = [];
+  const doorName = palace?.mon?.name || '';
+  const starName = palace?.star?.name || '';
+  const deityName = palace?.than?.name || '';
+  const stemName = palace?.can?.name || '';
+
+  if (doorName === 'Sinh Môn') { score += 12; reasons.push('✅ Sinh Môn (lợi nhuận/ROI)'); }
+  if (doorName === 'Khai Môn') { score += 6; reasons.push('✅ Khai Môn (mở vị thế/thanh khoản)'); }
+  if (doorName === 'Hưu Môn') { score += 4; reasons.push('✅ Hưu Môn (giữ tiền/chờ vùng đẹp)'); }
+  if (doorName === 'Kinh Môn') { score -= 4; reasons.push('⚠️ Kinh Môn (biến động mạnh)'); }
+  if (doorName === 'Tử Môn') { score -= 8; reasons.push('❌ Tử Môn (rủi ro đốt vốn)'); }
+  if (doorName === 'Thương Môn') { score -= 5; reasons.push('❌ Thương Môn (hao tổn/tổn thương vốn)'); }
+
+  if (stemName === 'Mậu') { score += 10; reasons.push('✅ Mậu (vốn/tiền mặt/thanh khoản)'); }
+  if (stemName === 'Kỷ') { score += 4; reasons.push('✅ Kỷ (gom lại vốn, hệ thống hóa dòng tiền)'); }
+
+  if (doorName === 'Sinh Môn' && stemName === 'Mậu') {
+    score += 8;
+    reasons.push('✅ Trục Mậu + Sinh (vốn gặp lợi nhuận)');
+  }
+
+  if (starName === 'Thiên Tâm') { score += 4; reasons.push('✅ Thiên Tâm (kỷ luật vào/ra)'); }
+  if (starName === 'Thiên Nhậm') { score += 3; reasons.push('✅ Thiên Nhậm (giữ thesis dài hơi)'); }
+  if (starName === 'Thiên Phụ') { score += 3; reasons.push('✅ Thiên Phụ (cố vấn/thesis chuẩn)'); }
+  if (starName === 'Thiên Xung') { score += 2; reasons.push('✅ Thiên Xung (nhịp trading nhanh)'); }
+
+  if (deityName === 'Lục Hợp') { score += 3; reasons.push('✅ Lục Hợp (khớp lệnh/khớp deal)'); }
+  if (deityName === 'Thái Âm') { score += 3; reasons.push('✅ Thái Âm (giữ bài, tích lũy kín)'); }
+  if (deityName === 'Cửu Thiên') { score += 3; reasons.push('✅ Cửu Thiên (tốc độ/thanh khoản nhanh)'); }
+  if (deityName === 'Bạch Hổ') { score -= 5; reasons.push('❌ Bạch Hổ (sát vốn/rủi ro cao)'); }
+  if (deityName === 'Đằng Xà') { score -= 4; reasons.push('❌ Đằng Xà (bẫy giá/bẫy dữ liệu)'); }
+
+  const es = getElementState(PALACE_META[palaceNum].element, tkName);
+  if (es.isStrong) { score += 1; reasons.push(`✅ ${es.state}`); }
+  if (es.isWeak) { score -= 1; reasons.push(`⚠️ ${es.state}`); }
+
+  if (palace?.dichMa) { score += 3; reasons.push('✅ Dịch Mã (thanh khoản nhanh/nhịp gấp)'); }
+  if (palace?.khongVong) { score -= 8; reasons.push('⚠️ Không Vong'); }
+  if (palace?.trucPhu) { score += 2; reasons.push('✅ Trực Phù'); }
+  if (palace?.trucSu) { score += 2; reasons.push('✅ Trực Sử'); }
+
+  return { score, reasons };
+}
 
 /**
  * findUsefulGod(topicKey, chart)
@@ -52,6 +169,22 @@ export function findUsefulGod(topicKey, chart) {
     if (p === 5) continue;
     const pal = chart.palaces[p];
     let score = 0; const reasons = [];
+
+    if (normalizedTopicKey === 'hoc-tap' || normalizedTopicKey === 'thi-cu') {
+      const studyScore = scoreStudyPalace(normalizedTopicKey, p, pal, tkName);
+      score = studyScore.score;
+      reasons.push(...studyScore.reasons);
+      candidates.push({ palace: p, score, reasons });
+      continue;
+    }
+
+    if (normalizedTopicKey === 'tai-van') {
+      const wealthScore = scoreWealthPalace(p, pal, tkName);
+      score = wealthScore.score;
+      reasons.push(...wealthScore.reasons);
+      candidates.push({ palace: p, score, reasons });
+      continue;
+    }
 
     if (pal.mon && topic.primaryDoors.includes(pal.mon.name)) { score += 5; reasons.push(`✅ ${pal.mon.name} (cổng cát)`); }
     if (pal.mon && topic.avoidDoors.includes(pal.mon.name)) { score -= 6; reasons.push(`❌ ${pal.mon.name} (cổng hung)`); }
@@ -91,11 +224,41 @@ export function generateAdvice(topicKey, best, chart) {
   const mon = pal?.mon?.name || '—', than = pal?.than?.name || '—';
   const star = pal?.star?.name || '—', can = pal?.can?.name || '—';
   const ok = best.score >= 5 ? '✅' : '⚠️', cat = best.score >= 5;
+  const wealthFast = Boolean(pal?.dichMa || chart?.isPhanNgam || star === 'Thiên Xung' || than === 'Cửu Thiên' || mon === 'Khai Môn' || mon === 'Kinh Môn');
+  const wealthSlow = Boolean(chart?.isPhucAm || than === 'Cửu Địa' || star === 'Thiên Nhậm' || mon === 'Sinh Môn' || mon === 'Đỗ Môn' || mon === 'Hưu Môn');
+
+  // Combo dispatch: detect flag combos and return topic-specific advice
+  const flags = deriveFlags(chart, pal);
+  const combo = getPrimaryCombo(flags);
+  if (combo) {
+    const comboAdvice = getComboAdviceForDungThan(combo.id, normalizedTopicKey, { dir, pNm, mon, than, star, can, ok });
+    if (comboAdvice) return comboAdvice;
+  }
+
+  if (pal?.khongVong) {
+    const voidAdviceMap = {
+      'hoc-tap': `${ok} Học tập hướng ${dir}. ${star} × ${mon} — Cẩn thận, trục này dính Không Vong: đề cương hoặc thông báo có thể còn là ảo ảnh, lời hứa suông, hoặc bị treo vô thời hạn. Đừng dồn toàn bộ sức vào thứ chưa xác minh; hãy ôn theo khung chắc trước và chỉ tăng lực khi có tài liệu thật.`,
+      'thi-cu': `${ok} Nhập thi hướng ${dir}. ${can} hỗ trợ — Cẩn thận, cung này dính Không Vong: lịch, thông báo hoặc kỳ vọng kết quả có thể rỗng hoặc chậm hơn dự tính. Đừng all-in vào một kịch bản duy nhất; phải giữ phương án dự phòng.`,
+      'tinh-duyen': `${ok} Hẹn hò hướng ${dir} (${pNm}). ${than} hỗ trợ — Cẩn thận, tín hiệu này dính Không Vong: lời hứa hoặc kỳ vọng rất dễ là ảo ảnh, nói được mà chưa chắc làm được. Đừng dồn hết tim sức vào lúc này; cần nhìn hành động thật trước khi tin.`,
+      'gia-dao': `${ok} Giữ nhà hướng ${dir}. ${than} × ${mon} — Cung này dính Không Vong: điều vừa nghe có thể chưa phải sự thật trọn vẹn, hoặc lời hứa sửa đổi còn rất rỗng. Hãy xác minh và tách cảm xúc khỏi dữ kiện trước khi quyết định.`,
+      'tai-van': `${ok} Hướng tài lộc: ${dir} (Cung ${pNm}). ${mon} × ${than} — Cẩn thận, đây là ảo ảnh, lời hứa suông (Void). Đừng dồn tiền vào lúc này; phải kiểm chứng dòng tiền, giấy tờ và khả năng thực thi trước.`,
+      'kinh-doanh': `${ok} Kinh doanh hướng ${dir}. ${mon} × ${than} — Cung này dính Không Vong: deal, nhu cầu thị trường hoặc cam kết đối tác có thể đang rỗng hơn vẻ ngoài. Đừng bung lực lớn ngay; hãy thử nhỏ và kiểm chứng thật nhanh.`,
+      'bat-dong-san': `${ok} Giao dịch nhà đất hướng ${dir}. ${than} × ${mon} — Cẩn thận, tín hiệu này dính Không Vong: hồ sơ, lời hứa hoặc tiến độ rất dễ treo. Đừng dồn tiền/cọc vào lúc này nếu chưa soi pháp lý và xác minh thực địa.`,
+      'su-nghiep': `${ok} Hành động hướng ${dir}. ${can} × ${mon} — Cung này dính Không Vong: lời hứa, vị trí hoặc cam kết từ phía trên có thể chưa thành hình. Đừng dồn toàn lực theo kỳ vọng miệng; phải đòi xác nhận rõ ràng bằng hành động hoặc văn bản.`,
+      'muu-luoc': `${ok} Lập chiến lược hướng ${dir}. ${can} × ${than} — Cung này dính Không Vong: giả định cốt lõi có thể đang rỗng hoặc sai dữ kiện. Tạm thời đừng đẩy toàn bộ lực, hãy xác minh lại premise trước rồi mới triển khai.`,
+    };
+    return voidAdviceMap[normalizedTopicKey]
+      || `${ok} Hướng ${dir} (${pNm}). ${mon} × ${than} — Cẩn thận, cung này dính Không Vong: tín hiệu dễ là ảo ảnh hoặc bị delay dài. Đừng dồn tiền/sức vào lúc này nếu chưa xác minh bằng dữ kiện thật.`;
+  }
 
   const map = {
     'tai-van': `${ok} Hướng tài lộc: ${dir} (Cung ${pNm}). ${mon} × ${than} — ${cat
-      ? `Dòng chảy tiền tệ đang tìm về đúng mạch. Đây là thời điểm vàng để "kéo lưới", các khoản đầu tư bắt đầu sinh sôi mạnh mẽ. Đừng chần chừ, hãy để dòng vốn của bạn vận động.`
-      : `Mạch tiền hiện đang gặp vật cản hoặc chảy vào vùng trũng. Hãy kiểm soát chặt chẽ chi tiêu, tránh các quyết định xuống tiền cảm tính. Lúc này, "thủ" chính là "công".`}`,
+      ? wealthFast
+        ? `Đây là nhịp tiền nhanh: hợp đánh theo thanh khoản, vào-ra dứt điểm và chốt khi đạt mục tiêu. Tuyệt đối không biến một lệnh tốc độ thành khoản gồng dài hạn.`
+        : wealthSlow
+          ? `Đây là bài toán kiên nhẫn: hợp tích lũy theo thesis, chia vốn thành nhiều nhịp và chịu dao động ngắn hạn có kiểm soát.`
+          : `Có cửa sinh lời nhưng phải đi bằng kỷ luật vốn, không được all-in chỉ vì thấy tín hiệu đẹp.`
+      : `Mạch tiền đang dễ hụt nhịp hoặc sai kỳ vọng. Ưu tiên giữ tiền mặt, hạ khối lượng và chỉ hành động khi thanh khoản cùng dữ kiện đều sáng.`}`,
 
     'suc-khoe': `${ok} Khám bệnh hướng ${dir}. ${star} × ${mon} — ${star === 'Thiên Tâm' && mon === 'Sinh Môn'
       ? `🌟 Thiên thời đang bảo hộ sinh mệnh bạn. Bạn sẽ gặp được chuyên gia đầu ngành (quý nhân) và phương pháp điều trị "trúng đích". Cơ thể đang tự chữa lành rất mạnh mẽ.`
@@ -117,9 +280,21 @@ export function generateAdvice(topicKey, best, chart) {
       ? `Thị trường đang đón nhận bạn với "thảm đỏ". Mọi chiến dịch tung ra đều dễ dàng tạo hiệu ứng lan tỏa và thu hút tệp khách hàng tiềm năng. Thiên thời, địa lợi đã sẵn sàng.`
       : `Tín hiệu thị trường đang không rõ ràng. Việc bung sức lúc này có thể dẫn đến lãng phí nguồn lực. Hãy điều chỉnh mô hình kinh doanh nhỏ gọn và thực tế hơn.`}`,
 
+    'hoc-tap': `${ok} Học tập hướng ${dir}. ${star} × ${mon} — ${cat
+      ? pal?.dichMa
+        ? `Trục đề cương đang cưỡi Dịch Mã: tài liệu hoặc thông báo có thể bật ra rất nhanh và khá bất ngờ. Đừng ngồi chờ; hãy chuẩn bị sẵn khung ôn để đón đầu ngay khi nó xuất hiện.`
+        : `Trục tài liệu và người chỉ bài đang mở. Nếu bám đúng đề cương, đúng thầy, đúng nhịp ôn thì kiến thức vào rất nhanh và không bị học lan man.`
+      : `Việc học đang bị rối nhịp hoặc lệch trọng tâm. Đừng ôm quá nhiều thứ một lúc; hãy quay lại phần nền, phần giáo viên đã nhấn mạnh và phần đề cương đang lộ ra.`}`,
+
     'thi-cu': `${ok} Nhập thi hướng ${dir}. ${can} hỗ trợ — ${cat
-      ? `Trí tuệ đang ở trạng thái minh mẫn nhất. Khả năng ứng biến và tư duy logic của bạn sẽ giúp bạn "vượt vũ môn" một cách thuyết phục. Hãy tin vào sự chuẩn bị của mình.`
+      ? pal?.dichMa
+        ? `Nhịp thi đang rất nhanh và dễ có biến động sát giờ. Hãy chuẩn bị trước các phương án ứng biến, vì khi đề hoặc lịch xoay chiều bạn sẽ phải phản ứng ngay.`
+        : `Trí tuệ đang ở trạng thái minh mẫn nhất. Khả năng ứng biến và tư duy logic của bạn sẽ giúp bạn "vượt vũ môn" một cách thuyết phục. Hãy tin vào sự chuẩn bị của mình.`
       : `Tâm lý có chút xao nhãng hoặc áp lực quá tải. Hãy dành thời gian để hệ thống lại kiến thức cốt lõi thay vì học dàn trải. Sự điềm tĩnh sẽ là vũ khí lớn nhất của bạn.`}`,
+
+    'gia-dao': `${ok} Giữ nhà hướng ${dir}. ${than} × ${mon} — ${cat
+      ? `Gia đạo vẫn còn cửa hòa. Chỉ cần có một người hạ giọng trước và nói đúng vấn đề, không khí trong nhà có thể dịu đi rất nhanh.`
+      : `Nhà đang dễ bật thành chiến tranh lạnh hoặc lời qua tiếng lại. Nếu còn cố thắng thua bằng miệng, mâu thuẫn sẽ ăn sâu thêm thay vì được gỡ ra.`}`,
 
     'ky-hop-dong': `${ok} Ký kết hướng ${dir}. ${than} × ${mon} — ${cat
       ? `Một liên minh bền vững đang được thiết lập. Các điều khoản đang nghiêng về phía có lợi cho đôi bên, tạo tiền đề cho sự phát triển dài hạn. Hãy đặt bút với sự tin tưởng.`
@@ -146,8 +321,8 @@ export function generateAdvice(topicKey, best, chart) {
       : `Tỉ lệ cạnh tranh đang rất cao hoặc yêu cầu công việc chưa thực sự khớp với bạn. Hãy làm nổi bật những giá trị khác biệt (USP) của bản thân để gây ấn tượng mạnh.`}`,
 
     'bat-dong-san': `${ok} Giao dịch nhà đất hướng ${dir}. ${than} × ${mon} — ${cat
-      ? `Đây là một "bất động sản vàng" với pháp lý minh bạch và tiềm năng tăng giá lớn. Năng lượng của đất đang tương sinh với bạn, giao dịch sẽ diễn ra nhanh chóng.`
-      : `Cần đặc biệt lưu ý về quy hoạch hoặc tranh chấp ngầm. Đừng để vẻ ngoài hào nhoáng đánh lừa, hãy kiểm tra thực địa và hồ sơ pháp lý thật kỹ trước khi đặt cọc.`}`,
+      ? `Cung này mở cửa giao dịch, nhưng chỉ nên đi tiếp sau khi đã soi đủ pháp lý, người đứng tên, quy hoạch và điều kiện thoát deal. Đẹp trên giấy chưa đủ; phải sạch ở thực địa.`
+      : `Cần đặc biệt lưu ý về quy hoạch, tranh chấp ngầm hoặc tiến độ treo. Đừng để vẻ ngoài hào nhoáng đánh lừa, hãy kiểm tra thực địa và hồ sơ pháp lý thật kỹ trước khi đặt cọc.`}`,
 
     'muu-luoc': `${ok} Lập chiến lược hướng ${dir}. ${can} × ${than} — ${cat
       ? `Tầm nhìn của bạn đang đi trước thời đại. Một kế hoạch sắc bén, khả thi và có tính đột phá cao. Hãy bắt tay vào hiện thực hóa, thành công chỉ là vấn đề thời gian.`

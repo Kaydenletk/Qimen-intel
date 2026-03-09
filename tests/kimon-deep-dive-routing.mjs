@@ -9,14 +9,35 @@ const modelRouterSource = readFileSync(new URL('../src/logic/kimon/modelRouter.j
 
 assert.match(serverSource, /import \{ detectDeepDive, detectTopicHybrid \} from '\.\/src\/logic\/kimon\/detectTopic\.js';/);
 assert.match(serverSource, /const isDeepDive = !isAutoLoad && detectDeepDive\(userContext\);/);
-assert.match(serverSource, /const effectiveTier = isDeepDive \? 'strategy' : tier;/);
+assert.match(serverSource, /const hasCriticalTopicFlags = Array\.isArray\(enrichedQmdjData\?\.selectedTopicFlags\) && enrichedQmdjData\.selectedTopicFlags\.length > 0;/);
+assert.match(serverSource, /const effectiveTier = \(isDeepDive \|\| hasCriticalTopicFlags \|\| forceStrategyTopic\) \? 'strategy' : tier;/);
 assert.match(serverSource, /const enrichedQmdjData = enrichQmdjDataWithDetectedTopic\(qmdjData, topic \|\| 'chung'\);/);
+assert.match(serverSource, /selectedTopicFlags: Array\.isArray\(detail\.flags\)/);
+assert.match(serverSource, /data-all-topic-details=.*flags: Array\.isArray\(t\.flags\) \? t\.flags : \[\]/s);
+assert.match(serverSource, /generationConfig\.thinkingConfig = \{ thinkingBudget: 1024 \ }|generationConfig\.thinkingConfig = \{ thinkingBudget: 1024 \};/);
+assert.match(serverSource, /generationConfig\.thinkingConfig = \{ thinkingBudget: 0 \};/);
 assert.match(detectTopicSource, /const DEEP_DIVE_KEYWORDS = \[/);
 assert.match(detectTopicSource, /export function detectDeepDive\(userMessage\)/);
 assert.match(promptBuilderSource, /\[INTERNAL INSIGHTS\]/);
 assert.match(promptBuilderSource, /\[PHÂN TÍCH CHỦ ĐỀ:/);
+assert.match(promptBuilderSource, /\[FLAGS DỤNG THẦN/);
+assert.match(promptBuilderSource, /\[ƯU TIÊN FLAGS\]/);
+assert.match(promptBuilderSource, /Dịch Mã.*Không Vong.*Phục Ngâm.*Phản Ngâm/s);
 assert.match(promptBuilderSource, /Cảnh Môn và Thiên Phụ/);
+assert.match(promptBuilderSource, /Logic, Data, Memory, Processing/);
+assert.match(promptBuilderSource, /tránh ẩn dụ sức khỏe, tiêu hóa, hồi phục/i);
 assert.match(strategyPromptSource, /\[INTERNAL INSIGHTS\]/);
-assert.match(modelRouterSource, /topic:\s+\{ model: MODELS\.pro,\s+maxTokens: 3072 \}/);
+assert.match(strategyPromptSource, /\[FLAGS DỤNG THẦN/);
+assert.match(strategyPromptSource, /const aiHints = qmdjData\?\.aiHints \|\| '';/);
+assert.match(strategyPromptSource, /\[BẮT BUỘC QUÉT FLAGS - ƯU TIÊN HÀNG ĐẦU\]/);
+assert.match(strategyPromptSource, /\[QUY TẮC RIÊNG CHO HỌC TẬP \/ THI CỬ\]/);
+assert.match(strategyPromptSource, /Logic, Data, Memory, Processing/);
+assert.match(strategyPromptSource, /Thiên Phụ hoặc Cảnh Môn/);
+assert.match(strategyPromptSource, /Target Status & Speed/);
+assert.match(strategyPromptSource, /User's Psychology/);
+assert.match(strategyPromptSource, /bước 2 PHẢI/i);
+assert.match(strategyPromptSource, /bước 4 PHẢI/i);
+assert.match(modelRouterSource, /topic:\s+\{ model: MODELS\.flash,\s+maxTokens: 3072 \}/);
+assert.match(modelRouterSource, /strategy:\s+\{ model: MODELS\.pro,\s+maxTokens: 3072 \}/);
 
 console.log('kimon-deep-dive-routing.mjs: OK');

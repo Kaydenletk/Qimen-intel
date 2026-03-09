@@ -427,6 +427,195 @@ export const TOPIC_DICTIONARIES = {
   },
 };
 
+Object.assign(TOPIC_DICTIONARIES, {
+  'thi-cu': {
+    label: 'Thi Cử / Kiểm Tra',
+    mon: {
+      'Khai': 'đúng thời điểm chốt chiến lược thi và vào bài có cấu trúc',
+      'Hưu': 'nên hạ nhịp để giữ đầu óc tỉnh thay vì cuống lên phút chót',
+      'Cảnh': 'đề thi, tiêu chí chấm hoặc tín hiệu từ giáo viên đang lộ rõ hơn',
+      'Kinh': 'thi cử dễ có biến số hoặc tâm lý bất an tăng mạnh',
+      'Tử': 'đang bị áp lực kết quả khá nặng, cần tránh tự dọa mình',
+    },
+    tinh: {
+      'Thiên Phụ': 'gặp đúng tài liệu hoặc người chỉ bài chuẩn',
+      'Thiên Nhậm': 'muốn qua được phải ôn bền và đều',
+      'Thiên Anh': 'có thể làm bài nổi bật, nhưng nóng quá là trượt nhịp',
+    },
+    than: {
+      'Cửu Thiên': 'có cửa bứt tốc mạnh trong giai đoạn nước rút',
+      'Thái Âm': 'hợp học kín, ôn sâu, tránh ồn ào ngoài lề',
+      'Lục Hợp': 'dễ được bạn bè hoặc người hướng dẫn hỗ trợ',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về thi cử, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+  'gia-dao': {
+    label: 'Gia Đạo / Gia Đình',
+    mon: {
+      'Hưu': 'gia đạo cần hạ nhiệt, nghỉ chiến và vun lại sự bình yên',
+      'Sinh': 'nhà vẫn còn lực để hàn gắn, miễn là có người chịu mở lòng trước',
+      'Thương': 'lời nói đang làm nhau đau, mâu thuẫn rất dễ bật lại',
+      'Đỗ': 'chiến tranh lạnh hoặc im lặng kéo dài đang làm nhà ngột ngạt',
+      'Cảnh': 'chuyện trong nhà đã lộ ra ngoài hoặc không còn giấu được nữa',
+      'Kinh': 'không khí gia đình dễ chao đảo, ai cũng nhạy và khó giữ bình tĩnh',
+    },
+    tinh: {
+      'Thiên Phụ': 'có người lớn hoặc người hiểu chuyện đủ sức đứng ra thu xếp',
+      'Thiên Nhậm': 'chuyện nhà cần kiên nhẫn, không thể gỡ trong một cuộc nói chuyện',
+      'Thiên Tâm': 'cần nói đúng vấn đề, đúng thứ tự, không nói tràn cảm xúc',
+    },
+    than: {
+      'Lục Hợp': 'vẫn còn cửa hòa giải và ngồi lại với nhau',
+      'Đằng Xà': 'bằng mặt không bằng lòng, rất dễ suy diễn nhau',
+      'Cửu Địa': 'nhà cần người giữ nền, giữ nhịp thay vì tranh phần thắng',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về gia đạo, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+  'ky-hop-dong': {
+    label: 'Ký Hợp Đồng',
+    mon: {
+      'Khai': 'đang có cửa mở để chốt điều khoản và đặt bút ký',
+      'Cảnh': 'mọi thứ phải đọc trên giấy, đừng tin miệng',
+      'Đỗ': 'hồ sơ đang mắc ở một nút thắt hoặc điều khoản chưa thông',
+      'Kinh': 'có biến số pháp lý hoặc điều khoản dễ gây giật mình',
+    },
+    tinh: {
+      'Thiên Tâm': 'phải soi kỹ cấu trúc điều khoản và quyền lợi thực',
+      'Thiên Phụ': 'nên nhờ người hiểu luật hoặc hợp đồng đứng cùng',
+    },
+    than: {
+      'Lục Hợp': 'đôi bên còn muốn đi đến chốt cuối',
+      'Thái Âm': 'phần quan trọng nằm ở dòng chữ nhỏ và điều khoản ngầm',
+      'Đằng Xà': 'cẩn thận bẫy chữ nghĩa hoặc lời hứa không thành văn',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về hợp đồng, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+  'dam-phan': {
+    label: 'Đàm Phán / Thương Lượng',
+    mon: {
+      'Khai': 'đang có cửa mở để đẩy bàn thương lượng đi xa hơn',
+      'Sinh': 'đàm phán có lợi ích thật để kéo về, không chỉ là nói cho xong',
+      'Hưu': 'nên giữ bình tĩnh, để đối phương tự lộ bài trước',
+      'Kinh': 'bàn đàm phán dễ bị kéo vào lo âu hoặc lật kèo',
+    },
+    tinh: {
+      'Thiên Tâm': 'cần chiến thuật và mốc nhượng bộ thật rõ',
+      'Thiên Phụ': 'nên để người có uy hoặc có chuyên môn lên tiếng',
+    },
+    than: {
+      'Lục Hợp': 'vẫn còn đất cho phương án đôi bên cùng chấp nhận',
+      'Thái Âm': 'giữ bài và nói ít ý chính sẽ có lợi hơn',
+      'Câu Trận': 'đối phương muốn trói bạn bằng điều kiện hoặc thủ tục',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về đàm phán, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+  'doi-no': {
+    label: 'Đòi Nợ / Thu Hồi',
+    mon: {
+      'Khai': 'có cửa mở để buộc đối phương nói chuyện nghiêm túc',
+      'Thương': 'đòi tiền lúc này dễ thành va chạm nếu không có khung rõ ràng',
+      'Đỗ': 'đối phương vẫn cố ngâm hoặc né mặt',
+      'Kinh': 'tình hình căng, dễ lật giọng hoặc chối trách nhiệm',
+    },
+    tinh: {
+      'Thiên Xung': 'cần lực đẩy mạnh và deadline rõ',
+      'Thiên Bồng': 'đối phương có thể chơi liều hoặc lẩn tránh khó đoán',
+    },
+    than: {
+      'Câu Trận': 'phải bám chứng cứ, không thể nói suông',
+      'Cửu Thiên': 'đánh nhanh đúng lúc có thể kéo được kết quả về',
+      'Chu Tước': 'nói sai một câu là căng thẳng leo thang rất nhanh',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về đòi nợ, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+  'kien-tung': {
+    label: 'Kiện Tụng / Pháp Lý',
+    mon: {
+      'Khai': 'hồ sơ hoặc cửa pháp lý vẫn có chỗ mở nếu đi đúng trình tự',
+      'Kinh': 'áp lực pháp lý đang tăng, không thể xử lý kiểu cảm tính',
+      'Đỗ': 'thủ tục hoặc chứng cứ đang vướng nút khó thông',
+      'Tử': 'vụ việc có nguy cơ đi vào thế bế hoặc hao tổn kéo dài',
+    },
+    tinh: {
+      'Thiên Tâm': 'mọi thứ phải đi theo logic chứng cứ và cấu trúc hồ sơ',
+      'Thiên Xung': 'đúng lúc cần ra đòn quyết và chốt bằng văn bản',
+    },
+    than: {
+      'Câu Trận': 'thế tranh chấp rõ rệt, phải chuẩn bị đường dài',
+      'Bạch Hổ': 'tính đối đầu cao, sai một nhịp là trả giá nặng',
+      'Chu Tước': 'miệng lưỡi hoặc phát ngôn sai có thể phản đòn ngay',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về pháp lý, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+  'xuat-hanh': {
+    label: 'Xuất Hành / Di Chuyển',
+    mon: {
+      'Khai': 'đường đi có cửa mở, thủ tục hoặc phương án di chuyển khá thông',
+      'Hưu': 'nên đi nhịp vừa phải, chừa sức và thời gian đệm',
+      'Sinh': 'chuyến đi có lợi ích thực, không chỉ đi cho có',
+      'Kinh': 'lịch trình dễ phát sinh biến động bất ngờ',
+    },
+    tinh: {
+      'Thiên Nhậm': 'đi chậm chắc sẽ an hơn đi gấp',
+      'Thiên Tâm': 'nên kiểm tra kỹ giấy tờ và phương án dự phòng',
+    },
+    than: {
+      'Cửu Thiên': 'đúng nhịp bứt đi nhanh, hợp chuyến đi cần tốc độ',
+      'Lục Hợp': 'dễ có người hỗ trợ trên đường hoặc đầu bên kia',
+      'Đằng Xà': 'cẩn thận đổi lịch, đổi cổng, đổi phương án phút chót',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về xuất hành, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+  'xin-viec': {
+    label: 'Xin Việc / Phỏng Vấn',
+    mon: {
+      'Khai': 'đang có cửa mở để bước vào vòng phỏng vấn hoặc nhận offer',
+      'Sinh': 'cơ hội nhận việc có lực nảy lên thật',
+      'Đỗ': 'hồ sơ hoặc phản hồi tuyển dụng đang bị ngâm',
+      'Kinh': 'tâm lý phỏng vấn hoặc kết quả tuyển dụng dễ biến động',
+    },
+    tinh: {
+      'Thiên Phụ': 'có người giới thiệu, chỉnh CV hoặc hướng dẫn đúng kiểu nhà tuyển dụng muốn',
+      'Thiên Nhậm': 'phải đi đều từng vòng, đừng nóng ruột quá sớm',
+    },
+    than: {
+      'Cửu Thiên': 'có cửa bật lên nhanh nếu biết chớp đúng cơ hội',
+      'Lục Hợp': 'hợp nói chuyện và kết nối với người tuyển dụng',
+      'Thái Âm': 'nên chuẩn bị kỹ câu chuyện cá nhân, đừng phô quá tay',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về xin việc, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+  'muu-luoc': {
+    label: 'Mưu Lược / Chiến Lược',
+    mon: {
+      'Khai': 'đúng cửa mở kế hoạch, tung phương án hoặc xoay thế cục',
+      'Sinh': 'chiến lược này có lực nuôi dài hơi nếu đi đúng nhịp',
+      'Đỗ': 'bản kế hoạch đang mắc chỗ mù hoặc điểm nghẽn chưa bóc tách xong',
+      'Kinh': 'cần tính tới kịch bản đảo chiều và biến động hai đầu',
+    },
+    tinh: {
+      'Thiên Tâm': 'đây là bài toán của cấu trúc, không phải cảm hứng',
+      'Thiên Phụ': 'nên có người phản biện hoặc cố vấn đủ cứng đọc cùng',
+      'Thiên Nhậm': 'chiến lược hợp đường dài, không hợp sốt ruột muốn thắng ngay',
+    },
+    than: {
+      'Thái Âm': 'có những quân bài nên giữ kín tới phút cần lật',
+      'Cửu Thiên': 'thế nhìn xa, đánh rộng, hợp làm bàn lớn hơn là vá chuyện nhỏ',
+      'Đằng Xà': 'điểm mù nằm ở thứ quá đẹp hoặc quá thuận tai',
+    },
+    template: (monText, tinhText, thanText) =>
+      `Về mưu lược, ${monText}. ${capitalize(tinhText)}${thanText ? `. ${capitalize(thanText)}` : ''}.`,
+  },
+});
+
 // ══════════════════════════════════════════════════════════════════════════════
 // PHẦN 3: HÀM "NGƯỜI THÔNG DỊCH"
 // ══════════════════════════════════════════════════════════════════════════════
@@ -482,6 +671,39 @@ const TOPIC_MUU_KE = {
   'thi-cu': {
     'Cảnh': 'Ưu tiên đọc kỹ cấu trúc đề, tiêu chí chấm và các tín hiệu từ giáo viên để ôn đúng trọng tâm.',
     'Khai': 'Chốt checklist thi cử rõ ràng: tài liệu, lịch ôn, khung giờ làm bài và phương án dự phòng.',
+  },
+  'gia-dao': {
+    'Hưu': 'Ngừng tranh luận thắng thua một nhịp, tạo khoảng nghỉ rồi mới nói vào chuyện chính.',
+    'Thương': 'Cắt bớt lời nặng và chỉ giữ một vấn đề cần giải quyết trong mỗi cuộc nói chuyện.',
+    'Đỗ': 'Phải có một người chủ động mở cửa đối thoại, nếu không cả nhà sẽ tiếp tục đóng băng.',
+  },
+  'ky-hop-dong': {
+    'Khai': 'Đưa checklist điều khoản lên bàn ngay, không ký trước rồi mới hỏi sau.',
+    'Cảnh': 'Đọc kỹ từng dòng chữ và phụ lục; điểm đau thường nằm ở phần giấy tờ.',
+  },
+  'dam-phan': {
+    'Khai': 'Mở bài bằng điều kiện cốt lõi bạn muốn giữ, đừng vòng vo rồi mất nhịp.',
+    'Hưu': 'Giữ thế im đúng lúc để ép đối phương nói thêm và lộ vùng nhượng bộ.',
+  },
+  'doi-no': {
+    'Thương': 'Đòi tiền bằng mốc cụ thể và chứng cứ cụ thể, không tranh cãi lan man.',
+    'Khai': 'Mở bằng hạn chót rõ ràng và phương án xử lý nếu họ tiếp tục dây dưa.',
+  },
+  'kien-tung': {
+    'Khai': 'Khóa luận điểm bằng chứng cứ mạnh nhất thay vì trải đều quá nhiều ý.',
+    'Kinh': 'Chuẩn bị sẵn kịch bản đối phương quay xe hoặc công kích ngược.',
+  },
+  'xuat-hanh': {
+    'Khai': 'Chốt trước giấy tờ, tuyến đi và phương án dự phòng rồi mới xuất phát.',
+    'Hưu': 'Đi nhịp vừa, chừa dư thời gian thay vì ép lịch quá sát.',
+  },
+  'xin-viec': {
+    'Khai': 'Mở bài phỏng vấn bằng thành tích có số đo thật để chốt vị thế ngay từ đầu.',
+    'Sinh': 'Biến kinh nghiệm thành giá trị cụ thể doanh nghiệp có thể dùng được ngay.',
+  },
+  'muu-luoc': {
+    'Khai': 'Đưa ra bản kế hoạch có mốc, người chịu trách nhiệm và chỉ số đo ngay từ đầu.',
+    'Sinh': 'Nuôi phương án có dòng tăng trưởng thật, đừng chỉ chọn ý tưởng nghe hay.',
   },
   'dien-trach': {
     'Sinh': 'Ưu tiên tài sản có dòng tiền hoặc giá trị sử dụng rõ ràng, đừng chỉ mua theo kỳ vọng kể lại.',

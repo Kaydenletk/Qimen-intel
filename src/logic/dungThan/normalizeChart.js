@@ -1,4 +1,4 @@
-import { PALACE_META } from '../../core/tables.js';
+import { PALACE_META, STEMS_BY_NAME } from '../../core/tables.js';
 
 const DOOR_NORMALIZE = {
   'Khai Môn': 'Khai',
@@ -65,14 +65,30 @@ export function getDirectionLabel(palaceNum) {
   return PALACE_META[palaceNum]?.dir || `Cung ${palaceNum}`;
 }
 
+function findPalaceByStemName(chart, stemName) {
+  if (!chart?.palaces || !stemName) return { palaceNum: null, palace: null };
+  for (const [key, palace] of Object.entries(chart.palaces)) {
+    if (Number(key) === 5) continue;
+    if (palace?.can?.name === stemName) {
+      return { palaceNum: Number(key), palace };
+    }
+  }
+  return { palaceNum: null, palace: null };
+}
+
 export function normalizeTopicContext({ chart, topicResult }) {
   const usefulPalaceNum = Number(topicResult?.usefulGodPalace) || 1;
   const palace = chart?.palaces?.[usefulPalaceNum] || {};
   const door = normalizeDoor(palace?.mon?.name || palace?.mon?.short || '');
   const star = normalizeStar(palace?.star?.name || palace?.star?.short || '');
   const deity = normalizeDeity(palace?.than?.name || '');
+  const dayStemName = chart?.dayPillar?.stemName || '';
+  const dayStemElement = STEMS_BY_NAME[dayStemName]?.element || '';
+  const capitalStemName = 'Mậu';
+  const { palaceNum: capitalPalaceNum, palace: capitalPalace } = findPalaceByStemName(chart, capitalStemName);
 
   return {
+    chart,
     usefulPalaceNum,
     palace,
     palaceName: PALACE_META[usefulPalaceNum]?.name || topicResult?.usefulGodPalaceName || '',
@@ -82,6 +98,13 @@ export function normalizeTopicContext({ chart, topicResult }) {
     deity,
     heavenStem: palace?.can?.name || '',
     earthStem: palace?.earthStem || '',
+    dayStemName,
+    dayStemElement,
+    capitalStemName,
+    capitalPalaceNum,
+    capitalPalaceName: PALACE_META[capitalPalaceNum]?.name || '',
+    capitalPalace,
+    capitalFlags: deriveFlags(chart, capitalPalace),
     flags: deriveFlags(chart, palace),
   };
 }

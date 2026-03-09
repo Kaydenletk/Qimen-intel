@@ -14,7 +14,7 @@ assert.equal(t3.tier, 'companion', 'Empty → companion');
 // ── Topic tier (domain-specific) ──
 const t4 = detectTopic('nên mua vàng không');
 assert.equal(t4.topic, 'tai-van', 'Vàng → tai-van');
-assert.equal(t4.tier, 'topic');
+assert.equal(t4.tier, 'strategy');
 
 const t5 = detectTopic('crush có thích mình không');
 assert.equal(t5.topic, 'tinh-duyen', 'Crush → tinh-duyen');
@@ -38,6 +38,21 @@ assert.equal(t8b.topic, 'hoc-tap', 'Đề cương → hoc-tap');
 const t8c = detectTopic('bao giờ mình tốt nghiệp');
 assert.equal(t8c.topic, 'thi-cu', 'Tốt nghiệp → thi-cu');
 
+const t8d = detectTopic('môn này test lúc nào');
+assert.equal(t8d.topic, 'hoc-tap', 'môn + test → hoc-tap');
+
+const t8e = detectTopic('giáo viên chưa gửi bài tập');
+assert.equal(t8e.topic, 'hoc-tap', 'giáo viên + bài tập → hoc-tap');
+
+const t8f = detectTopic('thi cử dạo này sao');
+assert.equal(t8f.topic, 'hoc-tap', 'thi cử → hoc-tap');
+
+const t8g = detectTopic('mẹ chồng với con dâu đang bất hòa');
+assert.equal(t8g.topic, 'gia-dao', 'mẹ chồng + bất hòa → gia-dao');
+
+const t8h = detectTopic('gia đình dạo này hay cãi nhau');
+assert.equal(t8h.topic, 'gia-dao', 'gia đình + cãi nhau → gia-dao');
+
 // ── Strategy tier ──
 const t9 = detectTopic('chiến lược Q2 cho công ty');
 assert.equal(t9.topic, 'muu-luoc', 'Chiến lược → muu-luoc');
@@ -45,11 +60,15 @@ assert.equal(t9.tier, 'strategy');
 
 const t10 = detectTopic('đàm phán lương');
 assert.equal(t10.topic, 'dam-phan', 'Đàm phán → dam-phan');
-assert.equal(t10.tier, 'strategy');
+assert.equal(t10.tier, 'topic');
 
 const t11 = detectTopic('nên pivot hay giữ nguyên');
 assert.equal(t11.topic, 'muu-luoc', 'Pivot → muu-luoc');
 assert.equal(t11.tier, 'strategy');
+
+const t11b = detectTopic('mưu lược giá cho quý tới');
+assert.equal(t11b.topic, 'muu-luoc', 'Mưu lược → muu-luoc');
+assert.equal(t11b.tier, 'strategy');
 
 // ── Kinh doanh keywords (new additions) ──
 const t12 = detectTopic('mở quán trà sữa được không');
@@ -72,6 +91,9 @@ assert.equal(t16.topic, 'tai-van', 'Bắt đáy → tai-van');
 const t17 = detectTopic('tiền');
 assert.equal(t17.topic, 'tai-van', '1 từ tiền → tai-van');
 
+const t17b = detectTopic('tiền đạo đội này hay quá');
+assert.equal(t17b.topic, null, 'tiền đạo không được false-positive sang tai-van');
+
 const t18 = detectTopic('yêu');
 assert.equal(t18.topic, 'tinh-duyen', '1 từ yêu → tinh-duyen');
 
@@ -88,6 +110,12 @@ const t24 = detectTopic('Tình hình đất đai dạo này sao?');
 assert.equal(t24.topic, 'bat-dong-san', 'Đất đai → bat-dong-san');
 assert.equal(t24.tier, 'topic');
 
+const t25 = detectTopic('deadline dự án đang dí quá');
+assert.equal(t25.topic, 'su-nghiep', 'deadline dự án → su-nghiep');
+
+const t26 = detectTopic('thủ môn bắt hay quá');
+assert.equal(t26.topic, null, 'thủ môn không được false-positive sang hoc-tap');
+
 // ── AI fallback threshold regression ──
 const t22 = await detectTopicHybrid('thất nghiệp', '');
 assert.equal(t22.topic, 'chung', '2 từ không match + không API key → fallback chung');
@@ -97,8 +125,11 @@ const t23 = await detectTopicHybrid('alo', '');
 assert.equal(t23.topic, 'chung', '1 từ casual → companion');
 assert.equal(t23.confidence, 'fallback', '1 từ vẫn fallback ngay');
 
-assert.equal(detectDeepDive('tại sao lại chọn hướng này'), true, 'Tại sao → deep dive');
-assert.equal(detectDeepDive('giải thích kỹ hơn giúp mình'), true, 'Giải thích kỹ → deep dive');
+assert.equal(detectDeepDive('tại sao lại chọn hướng này'), true, 'Tại sao lại chọn → deep dive');
+assert.equal(detectDeepDive('giải thích kỹ hơn giúp mình'), false, 'Giải thích kỹ chung chung không được đẩy lên Pro');
+assert.equal(detectDeepDive('giải thích chi tiết giúp mình'), true, 'Giải thích chi tiết → deep dive');
+assert.equal(detectDeepDive('cho mình chiến lược cụ thể'), true, 'Chiến lược → deep dive');
+assert.equal(detectDeepDive('tại sao nay trời nóng vậy'), false, 'Tại sao đời thường không được đẩy lên Pro');
 assert.equal(detectDeepDive('chốt nhanh đi'), false, 'Câu thường không phải deep dive');
 
 console.log('ASSERTIONS: OK');

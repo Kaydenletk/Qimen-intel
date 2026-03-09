@@ -10,6 +10,7 @@
     "GRAVE": { "label": "Nhập Mộ", "severity": 0.28, "confidenceMultiplier": 0.72 },
     "FU_YIN": { "label": "Phục (Fu Yin)", "severity": 0.35, "confidenceMultiplier": 0.6 },
     "FAN_YIN": { "label": "Phản (Fan Yin)", "severity": 0.35, "confidenceMultiplier": 0.6 },
+    "DICH_MA": { "label": "Dịch Mã", "severity": 0.12, "confidenceMultiplier": 1.05 },
     "DOOR_COMPELLING": { "label": "Bách Môn", "severity": 0.2, "confidenceMultiplier": 0.75 },
     "PALACE_COMPELLING": { "label": "Bách Cung", "severity": 0.2, "confidenceMultiplier": 0.75 }
   },
@@ -95,6 +96,34 @@
       }
     },
 
+    "PROPERTY_ASSET": {
+      "title": "Bất động sản / Tài sản hữu hình",
+      "primaryUseful": [
+        { "type": "Door", "name": "Sinh", "weight": 0.5 },
+        { "type": "Door", "name": "Khai", "weight": 0.25 },
+        { "type": "Door", "name": "Huu", "weight": 0.15 },
+        { "type": "Deity", "name": "CuuDia", "weight": 0.45 },
+        { "type": "Deity", "name": "LucHop", "weight": 0.25 },
+        { "type": "Star", "name": "ThienPhu", "weight": 0.25 },
+        { "type": "Star", "name": "ThienTam", "weight": 0.2 }
+      ],
+      "secondaryUseful": [
+        { "type": "Flag", "name": "VOID", "weight": 0.35 },
+        { "type": "Flag", "name": "FU_YIN", "weight": 0.25 },
+        { "type": "Flag", "name": "FAN_YIN", "weight": 0.2 }
+      ],
+      "oneLiners": {
+        "GO": "Deal có cửa đi, nhưng phải soi giấy tờ và người đứng tên trước khi chốt.",
+        "GO_LIGHT": "Có thể đi từng bước nhỏ: xem thực địa, rà pháp lý, rồi mới tính tới cọc.",
+        "HOLD": "Hợp rà hồ sơ và giữ quyền chọn, chưa hợp xuống tiền vội.",
+        "WAIT": "Khí nhà đất đang mờ, giấy tờ hoặc tiến độ chưa sáng; chờ xác minh thật rồi hẵng đi tiếp."
+      },
+      "tactics": {
+        "do": ["soi pháp lý", "kiểm tra quy hoạch", "chia giao dịch theo từng mốc xác minh"],
+        "avoid": ["đặt cọc vội", "tin hoàn toàn lời môi giới", "bỏ qua bước xem thực địa"]
+      }
+    },
+
     "CAREER_INTERVIEW": {
       "title": "Sự nghiệp / Phỏng vấn",
       "primaryUseful": [
@@ -120,15 +149,19 @@
     "EXAM_STUDY": {
       "title": "Thi cử / Học tập",
       "primaryUseful": [
+        { "type": "Door", "name": "Canh", "weight": 0.45 },
         { "type": "Star", "name": "ThienPhu", "weight": 0.55 },
+        { "type": "Star", "name": "ThienAnh", "weight": 0.35 },
         { "type": "Door", "name": "Khai", "weight": 0.25 },
         { "type": "Door", "name": "Huu", "weight": 0.2 }
       ],
       "secondaryUseful": [
+        { "type": "Flag", "name": "DICH_MA", "weight": 0.4 },
         { "type": "Flag", "name": "VOID", "weight": 0.35 },
         { "type": "Flag", "name": "FU_YIN", "weight": 0.25 }
       ],
       "oneLiners": {
+        "GO": "Đề cương hoặc thông báo có thể bật ra rất nhanh, ôn theo trục chính và chuẩn bị xoay bài ngay.",
         "GO_LIGHT": "Nên làm đề + rà lỗi — thắng bằng độ chắc, không phải tốc độ.",
         "HOLD": "Hợp ôn nền — vá lỗ hổng trước, rồi hãy tăng độ khó.",
         "WAIT": "Đầu óc dễ nhiễu — đổi giờ học, học theo checklist thay vì cảm hứng."

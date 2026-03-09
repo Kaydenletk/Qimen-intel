@@ -1,3 +1,5 @@
+import { getPrimaryCombo } from './flagCombos.js';
+
 export const CONFIDENCE_BASE = 0.72;
 
 export const FLAG_MULTIPLIERS = {
@@ -7,6 +9,7 @@ export const FLAG_MULTIPLIERS = {
   FAN_YIN: 0.6,
   DOOR_COMPELLING: 0.75,
   PALACE_COMPELLING: 0.75,
+  DICH_MA: 1.05,
 };
 
 export const FLAG_SEVERITY = {
@@ -30,6 +33,18 @@ export function scoreToSignal(score) {
 }
 
 export function computeConfidence(flags, base = CONFIDENCE_BASE) {
+  // Combo-aware: use override multiplier instead of compounding individual flags
+  const combo = getPrimaryCombo(flags);
+  if (combo) {
+    const final = clamp(base * combo.conf, 0.1, 0.99);
+    return {
+      base,
+      multipliers: [{ name: combo.id, value: combo.conf }],
+      final: Math.round(final * 1000) / 1000,
+    };
+  }
+
+  // No combo: compound individual flag multipliers
   const multipliers = [];
   let final = base;
 

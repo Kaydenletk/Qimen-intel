@@ -11,16 +11,16 @@
 
 const KEYWORD_MAP = {
   'tai-van': [
-    'tiền', 'tài chính', 'tài sản',
+    'tiền', 'thủng ví', 'lương', 'thưởng', 'tài chính', 'tài sản',
     // Kênh đầu tư & thị trường
-    'chứng khoán', 'cổ phiếu', 'trái phiếu', 'crypto', 'coin', 'vàng', 'gold', 'forex',
+    'chứng khoán', 'cổ phiếu', 'trái phiếu', 'crypto', 'coin', 'tiền ảo', 'vàng', 'gold', 'forex',
     // Hành động trading
     'đầu tư', 'xuống tiền', 'rút tiền', 'bơm vốn', 'trade', 'mua vào', 'bán ra',
     // Từ lóng trading
     'đu đỉnh', 'bắt đáy', 'cắt lỗ', 'chốt lời', 'gồng lỗ', 'gồng lãi', 'bơm xả',
     // Kết quả tài chính
-    'lời', 'lỗ', 'lãi', 'thua lỗ', 'cháy tài khoản', 'về bờ',
-    'vốn', 'trading',
+    'lời', 'lỗ', 'lãi', 'thua lỗ', 'cháy tài khoản', 'phá sản', 'về bờ',
+    'vốn', 'trading', 'thu nhập',
   ],
   'suc-khoe': [
     'bệnh', 'đau', 'khám', 'thuốc', 'bác sĩ', 'viện', 'sức khỏe', 'sức khoẻ',
@@ -29,11 +29,13 @@ const KEYWORD_MAP = {
   'tinh-duyen': [
     'crush', 'người yêu', 'bạn gái', 'bạn trai', 'yêu', 'hẹn hò', 'cưới',
     'hôn nhân', 'chia tay', 'tình cảm', 'thả thính', 'tán', 'ngoại tình',
-    'vợ', 'chồng', 'người ấy', 'tình yêu',
+    'vợ', 'chồng', 'người ấy', 'tình yêu', 'cắm sừng', 'nyc', 'người yêu cũ',
+    'mập mờ', 'lạnh nhạt', 'tán đổ', 'tiểu tam', 'bắt cá hai tay', 'vợ chồng', 'tỏ tình',
   ],
   'su-nghiep': [
     'công việc', 'thăng chức', 'sếp', 'đồng nghiệp', 'lương', 'career',
     'nghỉ việc', 'chuyển việc', 'thuyên chuyển', 'sa thải', 'tăng lương',
+    'deadline', 'ot', 'nhảy việc', 'bị đuổi', 'lên chức', 'đồng nghiệp toxic', 'dự án',
   ],
   'kinh-doanh': [
     'kinh doanh', 'doanh thu', 'khách hàng', 'mở shop', 'startup', 'khai trương', 'bán hàng',
@@ -49,12 +51,17 @@ const KEYWORD_MAP = {
   ],
   'thi-cu': [
     'thi', 'điểm', 'điểm số', 'phỏng vấn', 'interview', 'exam',
-    'đỗ', 'trượt', 'thi cử', 'kỳ thi', 'đề thi', 'tốt nghiệp', 'thi lại',
+    'đỗ', 'trượt', 'kỳ thi', 'đề thi', 'tốt nghiệp', 'thi lại',
   ],
   'hoc-tap': [
     'học', 'học tập', 'học hành', 'đề cương', 'ôn thi', 'ôn bài',
-    'bài tập', 'deadline', 'luận văn', 'đồ án', 'tự học', 'giáo trình',
+    'bài tập', 'môn', 'test', 'giáo viên', 'thi cử',
+    'deadline', 'luận văn', 'đồ án', 'tự học', 'giáo trình',
     'môn học', 'khóa học',
+  ],
+  'gia-dao': [
+    'cãi nhau', 'mẹ chồng', 'gia đạo', 'bố mẹ', 'con cái', 'anh em',
+    'họ hàng', 'gia đình', 'nhà chồng', 'nhà vợ', 'bất hòa',
   ],
   'ky-hop-dong': [
     'hợp đồng', 'ký', 'contract', 'thỏa thuận', 'deal', 'ký kết',
@@ -79,11 +86,14 @@ const KEYWORD_MAP = {
   ],
   'bat-dong-san': [
     'nhà', 'đất', 'đất đai', 'BĐS', 'bất động sản', 'thuê', 'mua nhà', 'căn hộ',
-    'chung cư', 'biệt thự', 'sổ đỏ', 'sang tên',
+    'chung cư', 'biệt thự', 'sổ đỏ', 'sang tên', 'bán đất', 'chốt cọc', 'thuê trọ',
   ],
   'muu-luoc': [
     'mưu', 'chiến lược', 'strategy', 'kế hoạch dài hạn', 'tầm nhìn',
     'roadmap', 'pivot', 'mưu lược',
+  ],
+  'chien-luoc': [
+    'chiến lược', 'mưu lược', 'phân tích sâu', 'giải thích chi tiết',
   ],
 };
 
@@ -91,17 +101,32 @@ const KEYWORD_MAP = {
 // TIER MAP — topic key → tier
 // ══════════════════════════════════════════════════════════════════════════════
 
-const STRATEGY_TOPICS = new Set(['muu-luoc', 'dam-phan', 'doi-no', 'kien-tung']);
+const STRATEGY_TOPICS = new Set(['tai-van', 'muu-luoc', 'chien-luoc']);
 const COMPANION_TOPICS = new Set(['chung']);
 
 const TOPIC_ALIASES = {
   'tinh-yeu': 'tinh-duyen',
   'dien-trach': 'bat-dong-san',
+  'chien-luoc': 'muu-luoc',
+  'gia-dinh': 'gia-dao',
+};
+
+const KEYWORD_CONTEXT_EXCLUSIONS = {
+  'tai-van': {
+    'tiền': ['tiền đạo'],
+  },
+  'hoc-tap': {
+    'môn': ['thủ môn'],
+  },
+  'doi-no': {
+    'đòi': ['đội'],
+  },
 };
 
 const DEEP_DIVE_KEYWORDS = [
-  'tại sao', 'vì sao', 'giải thích', 'cơ sở nào', 'tính sao ra',
-  'luận kỹ', 'phân tích sâu', 'chi tiết hơn', 'tại sao lại chọn',
+  'cơ sở nào', 'tính sao ra', 'luận kỹ', 'phân tích sâu',
+  'chi tiết hơn', 'tại sao lại chọn', 'vì sao lại chọn',
+  'chiến lược', 'mưu lược', 'giải thích chi tiết',
 ];
 
 export function canonicalizeTopicKey(topic) {
@@ -124,6 +149,11 @@ function hasKeywordMatch(text, keyword) {
   return pattern.test(text);
 }
 
+function isKeywordBlocked(topic, keyword, normalizedMessage) {
+  const blockedPhrases = KEYWORD_CONTEXT_EXCLUSIONS[topic]?.[keyword] || [];
+  return blockedPhrases.some(phrase => normalizedMessage.includes(normalize(phrase)));
+}
+
 function getTier(topic) {
   const canonicalTopic = canonicalizeTopicKey(topic);
   if (!canonicalTopic || COMPANION_TOPICS.has(canonicalTopic)) return 'companion';
@@ -137,8 +167,8 @@ function getTier(topic) {
 
 const VALID_TOPICS = new Set([
   'tai-van', 'suc-khoe', 'tinh-duyen', 'su-nghiep', 'kinh-doanh',
-  'thi-cu', 'hoc-tap', 'ky-hop-dong', 'dam-phan', 'doi-no', 'kien-tung',
-  'xuat-hanh', 'xin-viec', 'bat-dong-san', 'muu-luoc', 'chung',
+  'thi-cu', 'hoc-tap', 'gia-dao', 'ky-hop-dong', 'dam-phan', 'doi-no', 'kien-tung',
+  'xuat-hanh', 'xin-viec', 'bat-dong-san', 'muu-luoc', 'chien-luoc', 'chung',
 ]);
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -188,6 +218,7 @@ export function detectTopic(userMessage) {
     for (let i = 0; i < keywords.length; i++) {
       // Try exact Vietnamese match first
       if (hasKeywordMatch(msgLower, keywords[i].toLowerCase())) {
+        if (isKeywordBlocked(topic, keywords[i], msgNorm)) continue;
         const score = keywords[i].length; // Longer keyword = more specific
         if (score > bestScore) {
           bestScore = score;
@@ -196,6 +227,7 @@ export function detectTopic(userMessage) {
       }
       // Fallback to normalized match
       else if (hasKeywordMatch(msgNorm, normKeywords[i])) {
+        if (isKeywordBlocked(topic, keywords[i], msgNorm)) continue;
         const score = normKeywords[i].length;
         if (score > bestScore) {
           bestScore = score;
@@ -226,7 +258,7 @@ export function detectTopic(userMessage) {
 export async function classifyWithAI(userMessage, apiKey) {
   const classifyPrompt = `Phân loại câu hỏi sau vào 1 trong các category. Chỉ trả về KEY, không giải thích.
 
-Categories: tai-van, suc-khoe, tinh-duyen, su-nghiep, kinh-doanh, thi-cu, hoc-tap, ky-hop-dong, dam-phan, doi-no, kien-tung, xuat-hanh, xin-viec, bat-dong-san, muu-luoc, chung
+Categories: tai-van, suc-khoe, tinh-duyen, su-nghiep, kinh-doanh, thi-cu, hoc-tap, gia-dao, ky-hop-dong, dam-phan, doi-no, kien-tung, xuat-hanh, xin-viec, bat-dong-san, muu-luoc, chung
 
 Câu hỏi: "${userMessage}"
 

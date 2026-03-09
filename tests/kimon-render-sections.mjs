@@ -16,10 +16,15 @@ assert.match(serverSource, /<div class="kimon-message kimon-message-ai kimon-gre
 assert.match(serverSource, /<form id="kimonChatForm" class="kimon-input-area" novalidate autocomplete="off">/, 'Chat form phải là form sạch, không inline submit logic');
 assert.doesNotMatch(serverSource, /<form id="kimonChatForm"[\s\S]*onsubmit=/, 'Chat form không được còn inline onsubmit chắp vá');
 assert.match(serverSource, /<button id="kimonBtn" class="kimon-send-btn" title="Gửi" type="submit">/, 'Nút gửi phải là submit button');
+assert.match(serverSource, /<button type="button" id="kimonDownloadBtn" class="kimon-download-btn" title="Tải PDF" aria-label="Tải PDF">/, 'Header chat phải có nút tải PDF icon-only');
+assert.doesNotMatch(serverSource, /<div class="kimon-meta-tags">[\s\S]*Kinh Trập[\s\S]*Dương Độn/, 'Header chat không được còn hardcode cụm meta cũ');
+assert.match(serverSource, /<p class="kimon-disclaimer">Kymon là AI, có thể luận sai hoặc thiếu ý\. Hãy dùng như một gợi ý tham khảo\.<\/p>/, 'Chatbox phải có disclaimer mềm dưới input');
 
 assert.match(serverSource, /const kimonForm = document\.getElementById\('kimonChatForm'\);/, 'Frontend phải bind trực tiếp form chat');
+assert.match(serverSource, /const kimonDownloadBtn = document\.getElementById\('kimonDownloadBtn'\);/, 'Frontend phải bind nút tải PDF');
 assert.match(serverSource, /function handleKymonSend\(event\)/, 'Phải có một submit handler duy nhất cho chat');
 assert.match(serverSource, /if \(kimonForm\) \{\s*kimonForm\.addEventListener\('submit', handleKymonSend\);\s*\}/, 'Form submit phải là entry point duy nhất');
+assert.match(serverSource, /if \(kimonDownloadBtn\) \{\s*kimonDownloadBtn\.addEventListener\('click', exportKimonConversationPdf\);\s*\}/, 'Nút tải PDF phải bind vào exporter');
 assert.doesNotMatch(serverSource, /window\.__kymonSend = handleKymonSend;/, 'Không nên còn expose send handler toàn cục kiểu cũ');
 assert.doesNotMatch(serverSource, /document\.addEventListener\('click', event => \{[\s\S]*#kimonBtn/, 'Không nên còn delegated click listener cho nút gửi');
 assert.doesNotMatch(serverSource, /document\.addEventListener\('keydown', event => \{[\s\S]*kimonContext/, 'Không nên còn delegated keydown listener cho Enter');
@@ -29,9 +34,14 @@ assert.match(serverSource, /let activeKimonAbortController = null;/, 'Phải lư
 assert.match(serverSource, /let activeKimonRequestId = 0;/, 'Phải có request id để chống stale cleanup');
 assert.match(serverSource, /let activeKimonRequestSource = '';/, 'Phải track source của request đang chạy');
 assert.match(serverSource, /let activeKimonTypingSession = null;/, 'Phải có typing session state duy nhất');
+assert.match(serverSource, /const kimonConversationStore = \[];/, 'Frontend phải có transcript store cho PDF và audio');
+assert.match(serverSource, /let activeKimonAudioSession = null;/, 'Frontend phải track audio session đang phát');
+assert.match(serverSource, /const kimonAudioCache = new Map\(\);/, 'Frontend nên cache audio blob để tránh gọi TTS lặp lại');
+assert.match(serverSource, /const KYMON_TTS_ENDPOINT = '\/api\/kimon\/tts';/, 'Frontend phải gọi đúng TTS endpoint server-side');
 assert.match(serverSource, /const KYMON_PARTIAL_LEAD = \$\{JSON\.stringify\(KYMON_PARTIAL_LEAD\)\};/, 'Client script phải inject fallback lead từ server');
 assert.match(serverSource, /const KYMON_PARTIAL_ACTION = \$\{JSON\.stringify\(KYMON_PARTIAL_ACTION\)\};/, 'Client script phải inject fallback action từ server');
 assert.match(serverSource, /const KYMON_REQUEST_TIMEOUT_MS = 45000;/, 'Phải có hard timeout rõ ràng cho Kymon');
+assert.match(serverSource, /const KYMON_PLACEHOLDER_SUGGESTIONS = \$\{JSON\.stringify\(kimonPlaceholderSuggestions\)\};/, 'Client script phải inject danh sách placeholder random');
 assert.match(serverSource, /const TYPEWRITER_CHUNK_SIZE = 3;/, 'Typewriter phải reveal theo chunk 3 ký tự');
 assert.match(serverSource, /const TYPEWRITER_TICK_MS = 18;/, 'Typewriter phải dùng interval mượt, không quá chậm');
 assert.match(serverSource, /const TYPEWRITER_SECTION_PAUSE_MS = 110;/, 'Typewriter phải có pause ngắn giữa các section');
@@ -74,6 +84,9 @@ assert.match(serverSource, /function appendKimonResponseBubble\(data\)/, 'Respon
 assert.match(serverSource, /function appendKimonErrorBubble\(message\)/, 'Error final phải render qua helper duy nhất');
 assert.match(serverSource, /appendKimonResponseBubble\(data\);/, 'Active chat path phải render response final đúng một lần');
 assert.match(serverSource, /appendKimonErrorBubble\(errMsg\);/, 'Lỗi phải hiện lên UI sạch');
+assert.match(serverSource, /attachKimonBubbleActions\(bubble, plainText\);/, 'Bubble AI phải được gắn action row cho speaker');
+assert.match(serverSource, /registerConversationEntry\(\{\s*role: 'ai'/s, 'Response AI phải được ghi vào transcript store');
+assert.match(serverSource, /registerConversationEntry\(\{\s*role: 'user'/s, 'User message phải được ghi vào transcript store');
 
 assert.match(serverSource, /function renderParsedSections\(container, data\) \{[\s\S]*container\.className = 'kymon-clean-layout';/, 'Renderer phải dùng clean layout');
 assert.match(serverSource, /const fragment = document\.createDocumentFragment\(\);/, 'Renderer nên dùng fragment để giảm DOM churn');
@@ -102,6 +115,10 @@ assert.match(serverSource, /\.kymon-lead \{/, 'Lead phải có style riêng');
 assert.match(serverSource, /\.kymon-time-hint \{/, 'Time hint phải có style riêng');
 assert.match(serverSource, /\.kymon-analysis-flow \{/, 'Analysis flow phải có style riêng');
 assert.match(serverSource, /\.kymon-action-footer \{/, 'Closing/action footer phải có style riêng');
+assert.match(serverSource, /\.kimon-download-btn \{/, 'Nút tải PDF phải có style riêng');
+assert.match(serverSource, /\.kimon-disclaimer \{/, 'Disclaimer phải có style riêng');
+assert.match(serverSource, /\.kimon-message-actions \{/, 'Action row dưới bubble AI phải có style riêng');
+assert.match(serverSource, /\.kimon-audio-btn \{/, 'Nút speaker phải có style riêng');
 
 assert.match(serverSource, /const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 3072;/, 'Phải giữ dấu vết giá trị token cũ để debug');
 assert.match(serverSource, /const KYMON_MAX_OUTPUT_TOKENS = 5120;/, 'Backend Kymon phải tăng output length để giảm truncation');
@@ -109,11 +126,21 @@ assert.match(serverSource, /maxOutputTokens: maxTokens/, 'Backend phải dùng d
 assert.match(serverSource, /function logKimonModelMeta\(route, response, rawText = ''\)/, 'Backend phải log finish reason và raw response length');
 assert.match(serverSource, /logKimonModelMeta\('\/api\/kimon', result\.response, rawText\);/, 'Route non-stream phải log meta model');
 assert.match(serverSource, /logKimonModelMeta\('\/api\/kimon\/stream', finalResponse, fullText\);/, 'Route stream phải log meta model');
+assert.match(serverSource, /url\.pathname === '\/api\/kimon\/tts' && req\.method === 'POST'/, 'Server phải có route ElevenLabs TTS');
 assert.match(serverSource, /import \{ parseKimonJsonResponse, toKimonResponseSchema \} from '\.\/src\/logic\/kimon\/jsonResponse\.js';/, 'Server phải import helper schema public mới');
 assert.match(serverSource, /import \{ [^}]*detectTopicHybrid[^}]*\} from '\.\/src\/logic\/kimon\/detectTopic\.js';/, 'Server phải import detectTopicHybrid từ detectTopic.js');
 assert.match(serverSource, /import \{ selectModel, buildPromptByTier \} from '\.\/src\/logic\/kimon\/modelRouter\.js';/, 'Server phải import tiered router');
 assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(rawText\), rawText\)/, 'Route non-stream phải trả về đúng schema mới');
 assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(fullText\), fullText\)/, 'Route stream phải shape parsed payload về schema mới');
 assert.match(serverSource, /const fallback = toKimonResponseSchema\(parseKimonJsonResponse\(fullText\), fullText\);/, 'Fallback route stream cũng phải giữ schema mới');
+assert.match(serverSource, /function stripMarkdownForSpeech\(rawText\)/, 'Phải có helper làm sạch markdown trước khi đọc');
+assert.match(serverSource, /function ensureKimonAudioSource\(session\)/, 'Phải có helper tải audio từ ElevenLabs');
+assert.match(serverSource, /function createKimonSpeechHandler\(session\)/, 'Phải có play\/pause handler theo audio session');
+assert.match(serverSource, /function seekKimonAudioSession\(session, deltaSeconds\)/, 'Phải có seek handler \+\/-10 giây');
+assert.match(serverSource, /function exportKimonConversationPdf\(\)/, 'Phải có exporter print-to-PDF');
+assert.match(serverSource, /window\.open\('', '_blank', 'noopener,noreferrer,width=960,height=780'\)/, 'Exporter phải dùng window.print path');
+assert.match(serverSource, /function pickRandomKimonPlaceholder\(excludeValue = ''\)/, 'Phải có random placeholder helper');
+assert.match(serverSource, /function refreshKimonPlaceholder\(\)/, 'Phải có helper refresh placeholder');
+assert.match(serverSource, /refreshKimonPlaceholder\(\);/, 'Placeholder phải được refresh trong lifecycle chat');
 
 console.log('ASSERTIONS: OK');
