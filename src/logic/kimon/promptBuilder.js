@@ -1,6 +1,5 @@
 import { enrichData } from '../../utils/qmdjHelper.js';
 import { getFutureHoursContext } from './futureHours.js';
-import { KYMON_PRO_SYSTEM_PROMPT } from './strategyPrompt.js';
 
 function parseTopics(qmdjData = {}) {
   const raw = qmdjData?.allTopics || '[]';
@@ -160,8 +159,32 @@ function buildUsefulGodFocusContext(qmdjData = {}) {
 
 export function buildKimonSystemInstruction({ tier = 'topic' } = {}) {
   void tier;
-  return KYMON_PRO_SYSTEM_PROMPT;
+  return KYMON_TOPIC_SYSTEM_PROMPT;
 }
+
+export const KYMON_TOPIC_SYSTEM_PROMPT = `[SYSTEM ROLE & PERSONA]
+Bạn là Kymon — nhà phân tích Kỳ Môn Độn Giáp cho các câu hỏi đời thực. Trả lời bằng tiếng Việt. Giọng văn rõ, chắc, có chiều sâu, không sáo ngữ, không lên gân vô ích.
+
+[CORE RULES]
+- Bám chặt Dụng Thần và các tín hiệu engine đã cung cấp. Không bỏ Dụng Thần để chạy theo một cung đẹp nhưng không phải trục chính.
+- Khi kết luận điều gì, phải nói rõ đang dựa vào mối tương tác nào giữa Môn, Tinh, Thần, Can hoặc Flags.
+- Nếu tín hiệu chồng lớp, phải bóc ít nhất 2-4 tầng nghĩa để người đọc thấy cả bức tranh, không chỉ một mẩu kết luận.
+- Có thể dùng hình ảnh, ẩn dụ hiện đại vừa phải, nhưng không được làm loãng dữ kiện của trận.
+- Không trả lời như note rời hay checklist khô cứng nếu người dùng đang hỏi một bài luận giải.
+
+[VERDICT AS THESIS]
+- Câu mở đầu phải có thesis/phán quyết rõ bằng 1-2 câu để người đọc biết thế trận đang nghiêng về đâu.
+- Nhưng thesis chỉ là mở bài, không phải toàn bộ câu trả lời. Sau hook mở đầu, bắt buộc phải triển khai thân bài đủ dày và giải thích vì sao trận dẫn tới nhận định đó.
+- Không được trả lời kiểu chốt một câu rồi dừng. Người dùng phải đọc ra được luận giải, mạch vận động và logic của trận.
+- Cách viết nên giống một bài văn ngắn: có mở bài, có triển khai, có chốt; rõ mà vẫn sâu.
+
+[OUTPUT FORMAT - TOPIC JSON]
+- Trả về đúng 1 JSON object với 3 key: "lead", "message", "closingLine".
+- "lead": 1-2 câu mở bài, nêu thesis/phán quyết rõ.
+- "message": phần thân chính của bài luận giải. Viết đủ dày, thường là 3-6 đoạn hoặc ít nhất 2-4 lớp nghĩa khi trận phức tạp. Không được co lại thành một đoạn ngắn chỉ lặp lại "lead".
+- "closingLine": 1 câu chốt riêng, khoảng 8-18 từ, không lặp nguyên văn thân bài.
+- Không nhét toàn bộ nội dung vào "lead". Trọng lượng phân tích phải nằm ở "message".
+- Ưu tiên văn xuôi liền mạch. Chỉ dùng bullet trong "message" nếu câu hỏi thật sự cần checklist hành động.`;
 
 export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoLoad = false }) {
   const overallScore = qmdjData?.overallScore ?? qmdjData?.score ?? 0;
@@ -227,8 +250,10 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
 - Cung Giờ chỉ là bối cảnh ngắn hạn.
 - Bám đúng dữ liệu trận đồ, flags và câu hỏi ngầm của nhịp thời gian sắp tới.
 - Câu mở đầu phải chốt rõ nhịp chính đang thuận, nghịch hay cần dè chừng ra sao; để AI tự chọn chữ theo trận, nhưng không được mở đầu mơ hồ.
+- Phán quyết mở đầu chỉ là hook/thesis. Phần thân phía sau vẫn phải giữ độ dày luận giải, không được co lại thành vài câu ngắn.
 - Nếu dữ liệu trận đồ đang mở nhiều lớp nghĩa, được phép viết dài hơn để diễn tả đủ bức tranh, không tự cắt ngắn vô lý.
 - Nếu các dấu hiệu đang chồng lớp, hãy giải thích theo 2-4 tầng nghĩa: tín hiệu bề mặt, lực cản, điểm sáng, và xu hướng kế tiếp.
+- Nếu trả JSON topic, ưu tiên: lead = mở bài ngắn; message = thân bài chính đủ dày; closingLine = câu chốt footer.
 - Nếu có trả JSON Kymon Pro, kết thúc bằng field "closingLine" riêng như một câu chốt footer.`;
   }
 
@@ -242,9 +267,12 @@ ${userContext}
 - Đối chiếu người hỏi qua Nhật Can hoặc Cung Giờ khi thật sự cần.
 - Bám đúng dữ liệu trận đồ, flags, câu hỏi và các block insight đã cung cấp.
 - Ngay phần mở đầu phải có một phán quyết đủ rõ để người hỏi biết nên nhìn trận theo hướng thuận, nghịch, còn cửa hay cần dè chừng; dùng chữ linh hoạt theo ngữ cảnh, không gắn nhãn máy móc.
+- Phán quyết mở đầu nên đóng vai trò hook/thesis 1-2 câu, rồi phải bung phần thân ra như một bài viết ngắn có luận giải thật sự.
 - Nếu trong trận có nhiều tín hiệu chồng lớp, hãy giải thích đủ sâu 2-4 lớp để người đọc thấy được toàn cảnh chứ không chỉ một mảnh cắt.
 - Mỗi câu trả lời nên làm rõ ít nhất 2 tín hiệu đang tương tác với nhau, từ đó mới dựng ra bức tranh lớn của trận.
 - Không được để phần phán quyết chìm nghỉm giữa các đoạn phân tích dài. Rõ kết luận trước, rồi mới đi sâu lý do.
+- Không được rút ngắn phần thân chỉ vì đã có phán quyết. Trọng lượng phân tích phải nằm ở message, với độ dài đủ để người đọc theo được logic trận.
+- Nếu trả JSON topic, dùng đúng 3 key: lead, message, closingLine. lead ngắn; message là thân bài chính; closingLine là câu chốt riêng.
 - Kết quả cuối cùng phải có thêm field "closingLine" riêng: 1 câu chốt ngắn, sắc, không lặp nguyên văn phần thân.`;
 }
 

@@ -5,7 +5,7 @@
  * Single entry point for server.js.
  */
 
-import { buildKimonPrompt, buildCompanionPrompt } from './promptBuilder.js';
+import { buildKimonPrompt, buildCompanionPrompt, buildKimonSystemInstruction } from './promptBuilder.js';
 import { buildStrategyPrompt, buildStrategySystemInstruction } from './strategyPrompt.js';
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -89,7 +89,7 @@ export function buildPromptByTier({ tier, topic, qmdjData, userContext, isAutoLo
 
   // Default: topic tier (uses existing Deep Dive prompt)
   return {
-    systemPrompt: buildStrategySystemInstruction(),
+    systemPrompt: buildKimonSystemInstruction(),
     userPrompt: buildKimonPrompt({ qmdjData, userContext, isAutoLoad }),
     responseFormat: 'json',
   };

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildKimonPrompt } from '../src/logic/kimon/promptBuilder.js';
+import { buildKimonPrompt, KYMON_TOPIC_SYSTEM_PROMPT } from '../src/logic/kimon/promptBuilder.js';
 import { buildStrategyPrompt, KYMON_PRO_SYSTEM_PROMPT } from '../src/logic/kimon/strategyPrompt.js';
 import { buildPromptByTier, selectModel } from '../src/logic/kimon/modelRouter.js';
 
@@ -77,9 +77,11 @@ assert.match(topicPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
 assert.match(topicPrompt, /Logic, Data, Memory, Processing/i);
 assert.match(topicPrompt, /\[ĐIỂM CẦN BÁM\]/);
 assert.match(topicPrompt, /phán quyết đủ rõ/i);
+assert.match(topicPrompt, /hook\/thesis 1-2 câu/i);
 assert.match(topicPrompt, /2-4 lớp để người đọc thấy được toàn cảnh/i);
 assert.match(topicPrompt, /ít nhất 2 tín hiệu đang tương tác/i);
 assert.match(topicPrompt, /field "closingLine" riêng/);
+assert.match(topicPrompt, /dùng đúng 3 key: lead, message, closingLine/i);
 assert.doesNotMatch(topicPrompt, /\[SYSTEM ROLE & PERSONA\]/);
 
 const wealthTopicPrompt = buildKimonPrompt({
@@ -97,7 +99,7 @@ const topicBuild = buildPromptByTier({
   userContext: 'Khi nào có đề cương?',
 });
 assert.equal(topicBuild.responseFormat, 'json');
-assert.equal(topicBuild.systemPrompt, KYMON_PRO_SYSTEM_PROMPT);
+assert.equal(topicBuild.systemPrompt, KYMON_TOPIC_SYSTEM_PROMPT);
 
 const generalTopicBuild = buildPromptByTier({
   tier: 'topic',
@@ -106,7 +108,7 @@ const generalTopicBuild = buildPromptByTier({
   userContext: 'Khanh bạn tôi đang làm gì?',
 });
 assert.equal(generalTopicBuild.responseFormat, 'json');
-assert.equal(generalTopicBuild.systemPrompt, KYMON_PRO_SYSTEM_PROMPT);
+assert.equal(generalTopicBuild.systemPrompt, KYMON_TOPIC_SYSTEM_PROMPT);
 
 assert.equal(selectModel('topic').model, 'gemini-2.5-flash');
 assert.equal(selectModel('strategy').model, 'gemini-2.5-pro');

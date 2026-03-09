@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildCompanionPrompt, buildKimonPrompt, buildKimonSystemInstruction } from '../src/logic/kimon/promptBuilder.js';
+import { buildCompanionPrompt, buildKimonPrompt, buildKimonSystemInstruction, KYMON_TOPIC_SYSTEM_PROMPT } from '../src/logic/kimon/promptBuilder.js';
 import { KYMON_PRO_SYSTEM_PROMPT, buildStrategySystemInstruction } from '../src/logic/kimon/strategyPrompt.js';
 import { enrichData } from '../src/utils/qmdjHelper.js';
 
@@ -45,21 +45,16 @@ const autoPrompt = buildKimonPrompt({ qmdjData, userContext: '__AUTO_LOAD__', is
 const companionPrompt = buildCompanionPrompt({ qmdjData, userContext: 'Nay có nên nhắn không?' });
 const enriched = enrichData(qmdjData);
 
-assert.equal(systemInstruction, KYMON_PRO_SYSTEM_PROMPT);
+assert.equal(systemInstruction, KYMON_TOPIC_SYSTEM_PROMPT);
 assert.equal(strategyInstruction, KYMON_PRO_SYSTEM_PROMPT);
 assert.match(systemInstruction, /\[SYSTEM ROLE & PERSONA\]/);
-assert.match(systemInstruction, /Chiến lược gia AI \(Pro-level\)/);
-assert.match(systemInstruction, /\[CORE METAPHORS - TỪ ĐIỂN ẨN DỤ BẮT BUỘC\]/);
-assert.match(systemInstruction, /\[STRICT CONSTRAINTS - RÀNG BUỘC NGHIÊM NGẶT\]/);
-assert.match(systemInstruction, /\[DEEP DIVE & CHAIN OF THOUGHT - CHUỖI TƯ DUY SÂU SẮC\]/);
-assert.match(systemInstruction, /\[VERDICT FIRST - PHÁN QUYẾT MỞ ĐẦU\]/);
-assert.match(systemInstruction, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
-assert.match(systemInstruction, /\[CLOSING LINE - CÂU CHỐT BẮT BUỘC\]/);
-assert.match(systemInstruction, /ít nhất 2-4 tầng nghĩa/i);
-assert.match(systemInstruction, /out trình/);
-assert.match(systemInstruction, /Đỗ Môn = Sự tắc nghẽn/);
-assert.match(systemInstruction, /Thiên Phụ = Ngôi sao học giả/);
-assert.match(systemInstruction, /field "closingLine" riêng/);
+assert.match(systemInstruction, /nhà phân tích Kỳ Môn Độn Giáp/i);
+assert.match(systemInstruction, /\[CORE RULES\]/);
+assert.match(systemInstruction, /\[VERDICT AS THESIS\]/);
+assert.match(systemInstruction, /\[OUTPUT FORMAT - TOPIC JSON\]/);
+assert.match(systemInstruction, /3 key: "lead", "message", "closingLine"/i);
+assert.match(systemInstruction, /3-6 đoạn/i);
+assert.match(systemInstruction, /Trọng lượng phân tích phải nằm ở "message"/i);
 
 assert.match(enriched, /\[TÍN HIỆU ĐÈN\]/);
 assert.match(enriched, /Khí giờ đang nghịch, nhưng hành động đúng cách vẫn có cửa/);
@@ -76,9 +71,11 @@ assert.match(prompt, /tone=very-bright; verdict=thuận/);
 assert.match(prompt, /THỜI GIAN HIỆN TẠI.*15:30/);
 assert.match(prompt, /Có nên gọi lúc này không\?/);
 assert.match(prompt, /phán quyết đủ rõ/i);
+assert.match(prompt, /hook\/thesis 1-2 câu/i);
 assert.match(prompt, /2-4 lớp để người đọc thấy được toàn cảnh/i);
 assert.match(prompt, /ít nhất 2 tín hiệu đang tương tác/i);
 assert.match(prompt, /field "closingLine" riêng/);
+assert.match(prompt, /dùng đúng 3 key: lead, message, closingLine/i);
 assert.doesNotMatch(prompt, /\[SYSTEM ROLE & PERSONA\]/);
 assert.doesNotMatch(prompt, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
 assert.doesNotMatch(prompt, /\[YÊU CẦU TRIỂN KHAI\]/);
@@ -86,6 +83,7 @@ assert.doesNotMatch(prompt, /\[YÊU CẦU TRIỂN KHAI\]/);
 assert.match(autoPrompt, /\[BỐI CẢNH TỰ ĐỘNG\]/);
 assert.match(autoPrompt, /\[ĐIỂM CẦN BÁM\]/);
 assert.match(autoPrompt, /Câu mở đầu phải chốt rõ nhịp chính/i);
+assert.match(autoPrompt, /lead = mở bài ngắn; message = thân bài chính đủ dày/i);
 assert.match(autoPrompt, /được phép viết dài hơn để diễn tả đủ bức tranh/i);
 assert.match(autoPrompt, /2-4 tầng nghĩa/i);
 assert.match(autoPrompt, /field "closingLine" riêng/);

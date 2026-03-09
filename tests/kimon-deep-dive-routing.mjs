@@ -43,18 +43,20 @@ assert.match(strategyPromptSource, /\[DEEP DIVE & CHAIN OF THOUGHT - CHUỖI TƯ
 assert.match(strategyPromptSource, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
 assert.match(strategyPromptSource, /buildStrategySystemInstruction\(\) \{\s*return KYMON_PRO_SYSTEM_PROMPT;/s);
 
-assert.match(promptBuilderSource, /import \{ KYMON_PRO_SYSTEM_PROMPT \} from '\.\/strategyPrompt\.js';/);
-assert.match(promptBuilderSource, /buildKimonSystemInstruction\(\{ tier = 'topic' \} = \{\}\) \{\s*void tier;\s*return KYMON_PRO_SYSTEM_PROMPT;/s);
+assert.match(promptBuilderSource, /export const KYMON_TOPIC_SYSTEM_PROMPT = /);
+assert.match(promptBuilderSource, /buildKimonSystemInstruction\(\{ tier = 'topic' \} = \{\}\) \{\s*void tier;\s*return KYMON_TOPIC_SYSTEM_PROMPT;/s);
 assert.match(promptBuilderSource, /\[INTERNAL INSIGHTS\]/);
 assert.match(promptBuilderSource, /\[PHÂN TÍCH CHỦ ĐỀ:/);
 assert.match(promptBuilderSource, /\[FLAGS DỤNG THẦN/);
 assert.match(promptBuilderSource, /\[ĐIỂM CẦN BÁM\]/);
-assert.doesNotMatch(promptBuilderSource, /\[SYSTEM ROLE & PERSONA\]/);
+assert.match(promptBuilderSource, /\[SYSTEM ROLE & PERSONA\]/);
+assert.match(promptBuilderSource, /\[OUTPUT FORMAT - TOPIC JSON\]/);
+assert.match(promptBuilderSource, /3 key: "lead", "message", "closingLine"/);
 assert.doesNotMatch(promptBuilderSource, /\[CORE METAPHORS - TỪ ĐIỂN ẨN DỤ BẮT BUỘC\]/);
 assert.doesNotMatch(promptBuilderSource, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
 
-assert.match(modelRouterSource, /import \{ buildKimonPrompt, buildCompanionPrompt \} from '\.\/promptBuilder\.js';/);
+assert.match(modelRouterSource, /import \{ buildKimonPrompt, buildCompanionPrompt, buildKimonSystemInstruction \} from '\.\/promptBuilder\.js';/);
 assert.match(modelRouterSource, /import \{ buildStrategyPrompt, buildStrategySystemInstruction \} from '\.\/strategyPrompt\.js';/);
-assert.match(modelRouterSource, /systemPrompt: buildStrategySystemInstruction\(\),/);
+assert.match(modelRouterSource, /systemPrompt: buildKimonSystemInstruction\(\),/);
 
 console.log('kimon-deep-dive-routing.mjs: OK');
