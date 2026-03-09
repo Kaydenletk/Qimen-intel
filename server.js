@@ -3680,13 +3680,78 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         transcriptHtml +
         '</div></body></html>';
 
-      printWindow.document.open();
-      printWindow.document.write(printHtml);
-      printWindow.document.close();
-      printWindow.addEventListener('load', () => {
-        printWindow.focus();
-        printWindow.print();
+      const cleanupPrintFrame = frame => {
+        window.setTimeout(() => {
+          try {
+            frame?.remove();
+          } catch {}
+        }, 1200);
+      };
+
+      const printFromWindow = targetWindow => {
+        if (!targetWindow) {
+          showKimonError('Không mở được cửa sổ in PDF.');
+          return false;
+        }
+
+        targetWindow.document.open();
+        targetWindow.document.write(printHtml);
+        targetWindow.document.close();
+        targetWindow.addEventListener('load', () => {
+          targetWindow.focus();
+          targetWindow.print();
+        }, { once: true });
+        return true;
+      };
+
+      const printFrame = document.createElement('iframe');
+      printFrame.setAttribute('aria-hidden', 'true');
+      printFrame.style.position = 'fixed';
+      printFrame.style.right = '0';
+      printFrame.style.bottom = '0';
+      printFrame.style.width = '0';
+      printFrame.style.height = '0';
+      printFrame.style.border = '0';
+      printFrame.style.opacity = '0';
+      printFrame.style.pointerEvents = 'none';
+
+      printFrame.addEventListener('load', () => {
+        const frameWindow = printFrame.contentWindow;
+        if (!frameWindow) {
+          cleanupPrintFrame(printFrame);
+          printFromWindow(window.open('', '_blank', 'width=960,height=780'));
+          return;
+        }
+
+        let cleaned = false;
+        const safeCleanup = () => {
+          if (cleaned) return;
+          cleaned = true;
+          cleanupPrintFrame(printFrame);
+        };
+
+        frameWindow.onafterprint = safeCleanup;
+        frameWindow.focus();
+        frameWindow.print();
+        window.setTimeout(safeCleanup, 1800);
       }, { once: true });
+
+      document.body.appendChild(printFrame);
+
+      if ('srcdoc' in printFrame) {
+        printFrame.srcdoc = printHtml;
+        return;
+      }
+
+      const frameDoc = printFrame.contentDocument || printFrame.contentWindow?.document;
+      if (!frameDoc) {
+        cleanupPrintFrame(printFrame);
+        printFromWindow(window.open('', '_blank', 'width=960,height=780'));
+        return;
+      }
+      frameDoc.open();
+      frameDoc.write(printHtml);
+      frameDoc.close();
     }
 
     function createKimonAudioIcon(iconName) {

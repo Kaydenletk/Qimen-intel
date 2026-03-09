@@ -138,7 +138,9 @@ assert.match(serverSource, /function ensureKimonAudioSource\(session\)/, 'Phải
 assert.match(serverSource, /function createKimonSpeechHandler\(session\)/, 'Phải có play\/pause handler theo audio session');
 assert.match(serverSource, /function seekKimonAudioSession\(session, deltaSeconds\)/, 'Phải có seek handler \+\/-10 giây');
 assert.match(serverSource, /function exportKimonConversationPdf\(\)/, 'Phải có exporter print-to-PDF');
-assert.match(serverSource, /window\.open\('', '_blank', 'noopener,noreferrer,width=960,height=780'\)/, 'Exporter phải dùng window.print path');
+assert.match(serverSource, /const printFrame = document\.createElement\('iframe'\);/, 'Exporter PDF nên ưu tiên iframe để tránh popup trắng');
+assert.match(serverSource, /printFrame\.srcdoc = printHtml;/, 'Exporter PDF phải bơm HTML trực tiếp vào iframe in');
+assert.match(serverSource, /window\.open\('', '_blank', 'width=960,height=780'\)/, 'Exporter PDF cần có fallback popup khi iframe không khả dụng');
 assert.match(serverSource, /function pickRandomKimonPlaceholder\(excludeValue = ''\)/, 'Phải có random placeholder helper');
 assert.match(serverSource, /function refreshKimonPlaceholder\(\)/, 'Phải có helper refresh placeholder');
 assert.match(serverSource, /refreshKimonPlaceholder\(\);/, 'Placeholder phải được refresh trong lifecycle chat');
