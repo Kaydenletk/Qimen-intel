@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { buildKimonPrompt } from '../src/logic/kimon/promptBuilder.js';
-import { buildStrategyPrompt } from '../src/logic/kimon/strategyPrompt.js';
+import { buildStrategyPrompt, KYMON_PRO_SYSTEM_PROMPT } from '../src/logic/kimon/strategyPrompt.js';
 import { buildPromptByTier, selectModel } from '../src/logic/kimon/modelRouter.js';
 
 const qmdjData = {
@@ -29,64 +29,37 @@ const strategyPrompt = buildStrategyPrompt({
   topicKey: 'hoc-tap',
 });
 
+assert.equal(strategyPrompt.systemPrompt, KYMON_PRO_SYSTEM_PROMPT);
+assert.match(strategyPrompt.systemPrompt, /\[SYSTEM ROLE & PERSONA\]/);
+assert.match(strategyPrompt.systemPrompt, /\[CORE METAPHORS - TỪ ĐIỂN ẨN DỤ BẮT BUỘC\]/);
+assert.match(strategyPrompt.systemPrompt, /\[STRICT CONSTRAINTS - RÀNG BUỘC NGHIÊM NGẶT\]/);
+assert.match(strategyPrompt.systemPrompt, /\[DEEP DIVE & CHAIN OF THOUGHT - CHUỖI TƯ DUY SÂU SẮC\]/);
+assert.match(strategyPrompt.systemPrompt, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
+assert.match(strategyPrompt.systemPrompt, /\[CLOSING LINE - CÂU CHỐT BẮT BUỘC\]/);
+assert.match(strategyPrompt.systemPrompt, /2-4 tầng nghĩa/i);
+assert.match(strategyPrompt.systemPrompt, /Đằng Xà = Sự rắc rối/);
+assert.match(strategyPrompt.systemPrompt, /Trực Phù = Quý nhân bảo trợ/);
+assert.match(strategyPrompt.systemPrompt, /Mưu Lược Hành Động/);
+assert.match(strategyPrompt.systemPrompt, /field "closingLine" riêng/);
+
 assert.match(strategyPrompt.userPrompt, /\[PHÂN TÍCH CHỦ ĐỀ: hoc-tap\]/);
 assert.match(strategyPrompt.userPrompt, /\[FLAGS DỤNG THẦN tại cung 6 · Tây Bắc\]/);
-assert.match(strategyPrompt.userPrompt, /- Dịch Mã/);
-assert.match(strategyPrompt.userPrompt, /- Không Vong/);
 assert.match(strategyPrompt.userPrompt, /\[ƯU TIÊN FLAGS\]/);
-assert.match(strategyPrompt.userPrompt, /\[QUAN TRỌNG - FLAGS\]/);
-assert.match(strategyPrompt.userPrompt, /Ưu tiên đọc block \[QUAN TRỌNG - FLAGS\]/);
 assert.match(strategyPrompt.userPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
 assert.match(strategyPrompt.userPrompt, /\[INSIGHT ENGINE\]/);
 assert.match(strategyPrompt.userPrompt, /\[GỢI Ý NGỮ CẢNH HỌC TẬP\]/);
-assert.match(strategyPrompt.userPrompt, /Thiên Phụ\/Cảnh Môn là tín hiệu gợi ý/i);
-assert.match(strategyPrompt.userPrompt, /không được lấn át Nhật Can, Dụng Thần hay Flags/i);
-assert.doesNotMatch(strategyPrompt.userPrompt, /Logic, Data, Memory, Processing/i);
-assert.match(strategyPrompt.userPrompt, /Chỉ kéo Cung Giờ vào khi câu hỏi thuộc ngữ cảnh hiện tại\/ngắn hạn/i);
-assert.match(strategyPrompt.userPrompt, /Nếu dữ liệu đủ mạnh, phải viết ít nhất 3 lớp diễn giải thật/i);
-assert.match(strategyPrompt.systemPrompt, /Chiến lược gia Đa tầng/);
-assert.match(strategyPrompt.systemPrompt, /\[TRỌNG TÂM LUẬN GIẢI\]/);
-assert.match(strategyPrompt.systemPrompt, /Dụng Thần là thực tế/i);
-assert.match(strategyPrompt.systemPrompt, /Nhật Can là tâm thế/i);
-assert.match(strategyPrompt.systemPrompt, /Cung Giờ là khí thế hiện tại, không phải trục mặc định/i);
-assert.match(strategyPrompt.systemPrompt, /Dịch Mã/);
-assert.match(strategyPrompt.systemPrompt, /Không Vong/);
-assert.match(strategyPrompt.systemPrompt, /Phản Ngâm/);
-assert.match(strategyPrompt.systemPrompt, /Đằng Xà\/Không Vong/);
-assert.match(strategyPrompt.systemPrompt, /Thương Môn\/Bạch Hổ/);
-assert.match(strategyPrompt.systemPrompt, /The Root \(Gốc\)/i);
-assert.match(strategyPrompt.systemPrompt, /The Rhythm \(Nhịp\)/i);
-assert.match(strategyPrompt.systemPrompt, /The Persona \(Người\)/i);
-assert.match(strategyPrompt.systemPrompt, /The Tactical \(Mưu\)/i);
-assert.match(strategyPrompt.systemPrompt, /"Nhật Can đang mạnh hay yếu so với Dụng Thần \(và Cung Giờ nếu bối cảnh yêu cầu\)\?"/i);
-assert.match(strategyPrompt.systemPrompt, /"Dòng năng lượng đang chảy đi đâu hay nghẽn ở đâu\?"/i);
-assert.match(strategyPrompt.systemPrompt, /"Flags đang bẻ nghĩa Môn\/Tinh như thế nào\?"/i);
-assert.match(strategyPrompt.systemPrompt, /Ngựa chạy vào hố/i);
-assert.match(strategyPrompt.systemPrompt, /Phanh gấp/i);
-assert.match(strategyPrompt.systemPrompt, /Ảo ảnh dội ngược/i);
-assert.match(strategyPrompt.systemPrompt, /Quay xe trong gió/i);
-assert.match(strategyPrompt.systemPrompt, /Nếu nỗi lo nằm ở đây -> Lo cho một bóng ma/i);
-assert.match(strategyPrompt.systemPrompt, /Không được trả lời cụt/i);
-assert.match(strategyPrompt.systemPrompt, /không được viết ngắn nếu trận đồ đang cho đủ tín hiệu để đọc sâu/i);
-assert.match(strategyPrompt.systemPrompt, /JSON CHUẨN/i);
-assert.match(strategyPrompt.systemPrompt, /"adversary":/);
-assert.match(strategyPrompt.systemPrompt, /Thiên Phụ\/Cảnh Môn/i);
-assert.match(strategyPrompt.systemPrompt, /Lỗ hổng gốc rễ/i);
-assert.match(strategyPrompt.systemPrompt, /điểm tựa|bám rễ|cánh cửa hẹp/i);
-assert.match(strategyPrompt.systemPrompt, /CHỈ phân tích Cung Giờ nếu câu hỏi liên quan đến năng lượng hiện tại/i);
-assert.match(strategyPrompt.systemPrompt, /không được dùng nó để thay thế Dụng Thần/i);
-assert.match(strategyPrompt.systemPrompt, /Nội kích/i);
-assert.match(strategyPrompt.systemPrompt, /Flags trước hết bẻ nghĩa của Dụng Thần/i);
+assert.match(strategyPrompt.userPrompt, /\[YÊU CẦU TRIỂN KHAI\]/);
+assert.match(strategyPrompt.userPrompt, /Xuất đúng JSON 5 key của Kymon Pro/i);
+assert.match(strategyPrompt.userPrompt, /field "closingLine" như một câu chốt riêng/i);
+assert.match(strategyPrompt.userPrompt, /Không được trả lời cụt hoặc quá ngắn/i);
+assert.match(strategyPrompt.userPrompt, /Mỗi bước nên giải thích rõ ít nhất 2 tín hiệu/i);
 
 const wealthStrategyPrompt = buildStrategyPrompt({
   qmdjData: wealthQmdjData,
   userContext: 'Có nên vào lệnh lúc này không?',
   topicKey: 'tai-van',
 });
-assert.match(wealthStrategyPrompt.systemPrompt, /CHIẾN THUẬT CHO CÁC MIỀN LO LẮNG/);
-assert.match(wealthStrategyPrompt.systemPrompt, /Tiền bạc \(Tài vận\)/i);
-assert.match(wealthStrategyPrompt.systemPrompt, /Mậu.*túi tiền.*Sinh Môn.*độ nảy mầm/i);
-assert.match(wealthStrategyPrompt.systemPrompt, /Săn bắn.*Canh tác/i);
+assert.equal(wealthStrategyPrompt.systemPrompt, KYMON_PRO_SYSTEM_PROMPT);
 assert.match(wealthStrategyPrompt.userPrompt, /\[ƯU TIÊN TÀI VẬN\]/);
 assert.match(wealthStrategyPrompt.userPrompt, /Can Mậu \(vốn\/ thanh khoản\) \+ Sinh Môn \(lợi nhuận\) \+ Nhật Can/i);
 
@@ -96,17 +69,15 @@ const topicPrompt = buildKimonPrompt({
   isAutoLoad: false,
 });
 
-assert.match(topicPrompt, /\[ƯU TIÊN FLAGS\]/, 'Topic/Flash prompt phải nhắc rule flags-first khi có aiHints');
-assert.match(topicPrompt, /\[FLAGS DỤNG THẦN tại cung 6 · Tây Bắc\]/, 'Topic/Flash prompt phải có block flags riêng');
-assert.match(topicPrompt, /\[QUAN TRỌNG - FLAGS\]/, 'Topic/Flash prompt phải carry block flags-first');
-assert.match(topicPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/, 'Topic/Flash prompt phải carry aiHints để model đọc flags');
-assert.match(topicPrompt, /nhịp sự việc và đòn hành động trước tiên/i, 'Topic/Flash prompt phải nhắc cách dùng flags');
-assert.match(topicPrompt, /tránh khuyên chờ chậm hoặc từ từ/i, 'Topic/Flash prompt phải chặn wording chậm khi có Dịch Mã');
-assert.match(topicPrompt, /delay, ảo tưởng hoặc kết quả rỗng/i, 'Topic/Flash prompt phải nhắc rule Không Vong');
-assert.match(topicPrompt, /Ngựa chạy vào hố/i, 'Topic/Flash prompt phải có rule combo Dịch Mã \+ Không Vong');
-assert.match(topicPrompt, /Logic, Data, Memory, Processing/i, 'Topic/Flash prompt phải ép dùng ngôn ngữ học tập kiểu kỹ thuật');
-assert.match(topicPrompt, /tránh kéo ẩn dụ sang sức khỏe, tiêu hóa hoặc hồi phục cơ thể/i, 'Topic/Flash prompt phải cấm ẩn dụ sức khỏe cho học tập');
-assert.match(topicPrompt, /lỗ hổng kiến thức, bug nền tảng hoặc điểm rò dữ liệu/i, 'Thiên Nhuế trong học tập phải được dịch về lỗi nền tảng');
+assert.match(topicPrompt, /\[ƯU TIÊN FLAGS\]/);
+assert.match(topicPrompt, /\[FLAGS DỤNG THẦN tại cung 6 · Tây Bắc\]/);
+assert.match(topicPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
+assert.match(topicPrompt, /Logic, Data, Memory, Processing/i);
+assert.match(topicPrompt, /\[ĐIỂM CẦN BÁM\]/);
+assert.match(topicPrompt, /2-4 lớp để người đọc thấy được toàn cảnh/i);
+assert.match(topicPrompt, /ít nhất 2 tín hiệu đang tương tác/i);
+assert.match(topicPrompt, /field "closingLine" riêng/);
+assert.doesNotMatch(topicPrompt, /\[SYSTEM ROLE & PERSONA\]/);
 
 const wealthTopicPrompt = buildKimonPrompt({
   qmdjData: wealthQmdjData,
@@ -115,7 +86,6 @@ const wealthTopicPrompt = buildKimonPrompt({
 });
 assert.match(wealthTopicPrompt, /\[ƯU TIÊN TÀI VẬN\]/);
 assert.match(wealthTopicPrompt, /cuộc chiến tốc độ|bài toán kiên nhẫn/i);
-assert.match(wealthTopicPrompt, /TUYỆT ĐỐI không lẫn sang nhà đất/i);
 
 const topicBuild = buildPromptByTier({
   tier: 'topic',
@@ -124,7 +94,21 @@ const topicBuild = buildPromptByTier({
   userContext: 'Khi nào có đề cương?',
 });
 assert.equal(topicBuild.responseFormat, 'json');
+assert.equal(topicBuild.systemPrompt, KYMON_PRO_SYSTEM_PROMPT);
+
+const generalTopicBuild = buildPromptByTier({
+  tier: 'topic',
+  topic: 'chung',
+  qmdjData: {},
+  userContext: 'Khanh bạn tôi đang làm gì?',
+});
+assert.equal(generalTopicBuild.responseFormat, 'json');
+assert.equal(generalTopicBuild.systemPrompt, KYMON_PRO_SYSTEM_PROMPT);
+
 assert.equal(selectModel('topic').model, 'gemini-2.5-flash');
 assert.equal(selectModel('strategy').model, 'gemini-2.5-pro');
+assert.equal(selectModel('companion').maxTokens, 1800);
+assert.equal(selectModel('topic').maxTokens, 4096);
+assert.equal(selectModel('strategy').maxTokens, 5120);
 
 console.log('kimon-pro-hints.mjs: OK');

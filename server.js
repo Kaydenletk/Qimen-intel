@@ -11,13 +11,13 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
-import { analyze } from './src/index.js';
+import { analyze, analyzeSafely, ANALYZE_FALLBACK_MESSAGE } from './src/index.js';
 import { generateDeterministicEnergyFlow } from './src/logic/dungThan/index.js';
 import { getAIHints } from './src/logic/dungThan/injector.js';
 import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
 import { parseKimonJsonResponse, toKimonResponseSchema } from './src/logic/kimon/jsonResponse.js';
 import { detectDeepDive, detectTopicHybrid } from './src/logic/kimon/detectTopic.js';
-import { selectModel, buildPromptByTier } from './src/logic/kimon/modelRouter.js';
+import { selectModel, buildPromptByTier, getTierRuntimeConfig } from './src/logic/kimon/modelRouter.js';
 import {
   ORDER as SLOT_ORDER,
   SLOT_TO_PALACE,
@@ -37,6 +37,11 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const isMainServerModule =
+  typeof process !== 'undefined'
+  && Array.isArray(process.argv)
+  && process.argv[1]
+  && path.resolve(process.argv[1]) === __filename;
 
 const PORT = 3000;
 const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 3072;
@@ -45,6 +50,174 @@ const KYMON_PARTIAL_LEAD = 'Kymon chưa trả lời trọn vẹn.';
 const KYMON_PARTIAL_MESSAGE = 'Phản hồi vừa rồi bị cắt giữa chừng ở phía hệ thống. Mình chưa muốn chốt nửa vời.';
 const KYMON_PARTIAL_ACTION = 'Bạn gửi lại câu hỏi ngắn hơn nhé.';
 const KYMON_UNCLEAR_MESSAGE = 'Phản hồi từ hệ thống chưa đủ rõ để hiển thị an toàn.';
+const KIMON_SERVICE_UNAVAILABLE_MESSAGE = 'Hệ thống đang quá tải năng lượng hoặc mất kết nối. Xin vui lòng thử lại sau giây lát.';
+const KIMON_RETRY_MESSAGE = 'Xin vui lòng thử lại sau giây lát.';
+
+class KimonTimeoutError extends Error {
+  constructor(message = 'Kimon request timed out.') {
+    super(message);
+    this.name = 'KimonTimeoutError';
+    this.code = 'KIMON_TIMEOUT';
+  }
+}
+
+function isTimeoutError(error) {
+  return error?.name === 'KimonTimeoutError'
+    || error?.code === 'KIMON_TIMEOUT'
+    || /timed out|timeout/i.test(String(error?.message || ''));
+}
+
+async function withTimeout(run, timeoutMs, label = 'Operation') {
+  let timeoutId;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(run),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new KimonTimeoutError(`${label} timed out after ${timeoutMs}ms.`));
+        }, timeoutMs);
+        if (typeof timeoutId?.unref === 'function') timeoutId.unref();
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+function createKimonFallbackPayload({ tier = 'topic', topic = 'chung', message = KIMON_SERVICE_UNAVAILABLE_MESSAGE } = {}) {
+  const payload = toKimonResponseSchema({
+    mode: 'interpretation',
+    lead: message,
+    timeHint: '',
+    message,
+    closingLine: KIMON_RETRY_MESSAGE,
+    tongQuan: message,
+    tamLy: { trangThai: '', dongChay: '' },
+    chienLuoc: { noiDung: '' },
+    hanhDong: [],
+    kimonQuote: KIMON_RETRY_MESSAGE,
+  });
+
+  payload.schema = 'fallback';
+  payload._tier = tier;
+  payload._topic = topic;
+  return payload;
+}
+
+function shapeCompanionTextPayload(rawText = '') {
+  const source = String(rawText || '').replace(/\r\n/g, '\n').trim();
+  if (!source) {
+    return {
+      mode: 'companion',
+      schema: 'companion',
+      lead: '',
+      timeHint: '',
+      message: '',
+      closingLine: '',
+      kimonQuote: '',
+    };
+  }
+
+  let body = source;
+  let closingLine = '';
+  const closingMatch = source.match(/(?:^|\n)\s*Chốt:\s*(.+)\s*$/i);
+  if (closingMatch) {
+    closingLine = String(closingMatch[1] || '').trim();
+    body = source.slice(0, closingMatch.index).trim();
+  }
+
+  const paragraphs = body
+    .split(/\n{2,}/)
+    .map(part => part.trim())
+    .filter(Boolean);
+  if (!closingLine && paragraphs.length) {
+    const lastParagraph = paragraphs[paragraphs.length - 1];
+    const sentenceParts = lastParagraph.split(/(?<=[.!?…])\s+/).map(part => part.trim()).filter(Boolean);
+    closingLine = sentenceParts[sentenceParts.length - 1] || '';
+  }
+  const lead = paragraphs[0] || body;
+  const message = body || lead;
+
+  return {
+    mode: 'companion',
+    schema: 'companion',
+    lead,
+    timeHint: '',
+    message,
+    closingLine,
+    kimonQuote: closingLine,
+  };
+}
+
+function writeSseData(res, payload) {
+  if (!res || res.writableEnded || res.destroyed) return false;
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  return true;
+}
+
+function writeSseComment(res, comment = 'keep-alive') {
+  if (!res || res.writableEnded || res.destroyed) return false;
+  res.write(`: ${comment}\n\n`);
+  return true;
+}
+
+function startSseHeartbeat(res, intervalMs = 12000) {
+  const timerId = setInterval(() => {
+    writeSseComment(res);
+  }, intervalMs);
+  if (typeof timerId?.unref === 'function') timerId.unref();
+  return () => clearInterval(timerId);
+}
+
+function respondWithKimonFallback(res, {
+  statusCode = 200,
+  tier = 'topic',
+  topic = 'chung',
+  message = KIMON_SERVICE_UNAVAILABLE_MESSAGE,
+} = {}) {
+  const payload = createKimonFallbackPayload({ tier, topic, message });
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+    'X-Kymon-Fallback': '1',
+  });
+  res.end(JSON.stringify(payload));
+}
+
+function endSseWithFallback(res, {
+  tier = 'topic',
+  topic = 'chung',
+  message = KIMON_SERVICE_UNAVAILABLE_MESSAGE,
+} = {}) {
+  const payload = createKimonFallbackPayload({ tier, topic, message });
+  writeSseData(res, { __ERROR__: message });
+  writeSseData(res, { __DONE__: true, parsed: payload });
+  if (!res.writableEnded) res.end();
+}
+
+function buildAnalyzeFallbackResponse({ dateInputValue = '', hour = '', minute = '', mode = 'live', errorMessage = '' } = {}) {
+  return {
+    fallback: true,
+    error: ANALYZE_FALLBACK_MESSAGE,
+    detail: errorMessage || '',
+    chart: null,
+    states: null,
+    evaluation: {
+      overallScore: 0,
+      verdict: ANALYZE_FALLBACK_MESSAGE,
+      topFormations: [],
+      allFormations: [],
+    },
+    topicResults: {},
+    displayChart: null,
+    chartTimeMode: mode,
+    chartTime: {
+      date: dateInputValue,
+      hour,
+      minute,
+    },
+  };
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SERVER-SIDE RATE LIMITING (prevents 429 from Gemini)
@@ -346,6 +519,27 @@ function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '') {
     selectedTopicUsefulPalace: detail.usefulGodPalace || qmdjData.selectedTopicUsefulPalace || '',
     selectedTopicUsefulPalaceName: detail.usefulGodPalaceName || qmdjData.selectedTopicUsefulPalaceName || '',
   };
+}
+
+async function detectTopicWithFallback({ userContext = 'chung', apiKey = '', isAutoLoad = false, timeoutMs = 6000 } = {}) {
+  if (isAutoLoad) {
+    return { topic: 'chung', tier: 'topic', confidence: 'auto' };
+  }
+
+  try {
+    return await withTimeout(
+      () => detectTopicHybrid(userContext, apiKey),
+      timeoutMs,
+      'Topic detection'
+    );
+  } catch (error) {
+    console.warn('[Kimon] Topic detection fallback:', error?.message || 'unknown');
+    return {
+      topic: 'chung',
+      tier: 'topic',
+      confidence: isTimeoutError(error) ? 'timeout-fallback' : 'fallback',
+    };
+  }
 }
 
 function generateHTML(date, hour, minute = 0, options = {}) {
@@ -2446,6 +2640,27 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-family: inherit;
     }
 
+    .kymon-closing-quote {
+      margin: 10px 0 0 0;
+      padding-top: 18px;
+      border-top: 1px solid rgba(148, 163, 184, 0.16);
+      color: rgba(203, 213, 225, 0.82);
+      font-size: 1rem;
+      font-weight: 500;
+      font-style: italic;
+      line-height: 1.58;
+      letter-spacing: -0.005em;
+      text-align: left;
+    }
+
+    .kymon-closing-quote strong,
+    .kymon-closing-quote b,
+    .kymon-closing-quote em,
+    .kymon-closing-quote i {
+      color: inherit;
+      font-weight: inherit;
+    }
+
     .kymon-action-list {
       margin: 0;
       color: var(--text-soft);
@@ -2509,7 +2724,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       margin-bottom: 0;
     }
 
-    /* Closing quote — italic, centered */
+    /* Legacy closing quote helper */
     .kimon-quote {
       text-align: center;
       padding: 28px 0 8px 0;
@@ -3893,6 +4108,17 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       };
     }
 
+    function createKimonQuoteSection({ className, rawText, seenParagraphs }) {
+      const paragraphs = collectUniqueKimonParagraphs(rawText, seenParagraphs);
+      if (!paragraphs.length) return null;
+      return {
+        type: 'quote',
+        label: '',
+        className,
+        text: paragraphs.join('\\n\\n'),
+      };
+    }
+
     function buildKimonRenderModel(data) {
       if (!data || typeof data !== 'object') return [];
       const sections = [];
@@ -3900,6 +4126,44 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       const pushSection = section => {
         if (section) sections.push(section);
       };
+
+      if (data.schema === 'kymon-pro') {
+        pushSection(createKimonTextSection({
+          label: 'Đâm thẳng vào vấn đề',
+          className: 'kymon-analysis-flow',
+          rawText: data.buoc1_gocReVanDe || '',
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonTextSection({
+          label: 'Tình trạng của Mục Tiêu',
+          className: 'kymon-analysis-flow',
+          rawText: data.buoc2_trangThaiMucTieu || '',
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonTextSection({
+          label: 'Vị thế & Tâm lý của bạn',
+          className: 'kymon-analysis-flow',
+          rawText: data.buoc3_noiLucVaTamLy || '',
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonTextSection({
+          label: 'Mưu Lược Hành Động',
+          className: 'kymon-analysis-flow',
+          rawText: data.buoc4_muuLuocHanhDong || '',
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonQuoteSection({
+          className: 'kymon-closing-quote kymon-action-footer',
+          rawText: data.closingLine || data.kimonQuote || '',
+          seenParagraphs,
+        }));
+
+        return sections;
+      }
 
       if (data.schema === 'deep-dive' && data.tongQuan) {
         pushSection(createKimonTextSection({
@@ -3930,10 +4194,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           seenParagraphs,
         }));
 
-        pushSection(createKimonTextSection({
-          label: 'Chốt lại',
-          className: 'kymon-action-footer',
-          rawText: data.kimonQuote || '',
+        pushSection(createKimonQuoteSection({
+          className: 'kymon-closing-quote kymon-action-footer',
+          rawText: data.closingLine || data.kimonQuote || '',
           seenParagraphs,
         }));
 
@@ -3983,9 +4246,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           seenParagraphs,
         }));
 
-        pushSection(createKimonTextSection({
-          label: 'Chốt',
-          className: 'kymon-action-footer',
+        pushSection(createKimonQuoteSection({
+          className: 'kymon-closing-quote kymon-action-footer',
           rawText: data.closingLine || data.action || '',
           seenParagraphs,
         }));
@@ -4014,10 +4276,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         seenParagraphs,
       }));
 
-      pushSection(createKimonTextSection({
-        label: 'Chốt',
-        className: 'kymon-action-footer',
-        rawText: data.closingLine || data.action || '',
+      pushSection(createKimonQuoteSection({
+        className: 'kymon-closing-quote kymon-action-footer',
+        rawText: data.closingLine || data.action || data.kimonQuote || '',
         seenParagraphs,
       }));
 
@@ -4047,9 +4308,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
               .join('') + '</ol>' +
           '</section>';
         }
-        const blockClass = section.className === 'kymon-action-footer'
+        const blockClass = section.className.includes('kymon-closing-quote')
           ? 'print-block print-quote'
-          : section.className === 'kymon-lead'
+          : section.className.includes('kymon-lead')
             ? 'print-block print-lead'
             : 'print-block';
         return '<section class="print-kymon-section">' +
@@ -4656,7 +4917,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         const hanhDong = Array.isArray(rawData.hanhDong)
           ? rawData.hanhDong.filter(item => typeof item === 'string' && item.trim())
           : [];
-        const kimonQuote = typeof rawData.kimonQuote === 'string' ? rawData.kimonQuote.trim() : '';
+        const kimonQuote = typeof rawData.kimonQuote === 'string'
+          ? rawData.kimonQuote.trim()
+          : (typeof rawData.closingLine === 'string' ? rawData.closingLine.trim() : '');
 
         // Build legacy fields for backwards compat
         const messageParts = [tamLy.trangThai, tamLy.dongChay, chienLuoc.noiDung].filter(Boolean);
@@ -4674,6 +4937,33 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           timeHint: '',
           message: messageParts.join('\\n\\n') || rawData.tongQuan.trim(),
           closingLine: kimonQuote,
+        };
+      }
+
+      // ── Detect Kymon Pro schema (4 steps + closingLine) ──
+      const buoc1 = typeof rawData.buoc1_gocReVanDe === 'string' ? rawData.buoc1_gocReVanDe.trim() : '';
+      const buoc2 = typeof rawData.buoc2_trangThaiMucTieu === 'string' ? rawData.buoc2_trangThaiMucTieu.trim() : '';
+      const buoc3 = typeof rawData.buoc3_noiLucVaTamLy === 'string' ? rawData.buoc3_noiLucVaTamLy.trim() : '';
+      const buoc4 = typeof rawData.buoc4_muuLuocHanhDong === 'string' ? rawData.buoc4_muuLuocHanhDong.trim() : '';
+      const hasKymonProSteps = Boolean(buoc1 || buoc2 || buoc3 || buoc4);
+
+      if (hasKymonProSteps) {
+        const closingLine = typeof rawData.closingLine === 'string'
+          ? rawData.closingLine.trim()
+          : (typeof rawData.kimonQuote === 'string' ? rawData.kimonQuote.trim() : '');
+
+        return {
+          mode: typeof rawData.mode === 'string' && rawData.mode.trim() ? rawData.mode.trim() : 'interpretation',
+          schema: 'kymon-pro',
+          buoc1_gocReVanDe: buoc1,
+          buoc2_trangThaiMucTieu: buoc2,
+          buoc3_noiLucVaTamLy: buoc3,
+          buoc4_muuLuocHanhDong: buoc4,
+          closingLine,
+          kimonQuote: closingLine,
+          lead: buoc1 || KYMON_PARTIAL_LEAD,
+          timeHint: '',
+          message: [buoc2, buoc3, buoc4].filter(Boolean).join('\\n\\n') || buoc1 || KYMON_UNCLEAR_MESSAGE,
         };
       }
 
@@ -4723,6 +5013,27 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         };
       }
 
+      // ── Detect Companion schema (text body + closingLine footer) ──
+      const isCompanion = rawData.schema === 'companion' || rawData.mode === 'companion';
+      if (isCompanion) {
+        const lead = typeof rawData.lead === 'string' ? rawData.lead.trim() : '';
+        const message = typeof rawData.message === 'string'
+          ? rawData.message.trim()
+          : (typeof rawData.traLoiTrucTiep === 'string' ? rawData.traLoiTrucTiep.trim() : '');
+        const closingLine = typeof rawData.closingLine === 'string'
+          ? rawData.closingLine.trim()
+          : (typeof rawData.kimonQuote === 'string' ? rawData.kimonQuote.trim() : '');
+        return {
+          mode: 'companion',
+          schema: 'companion',
+          lead,
+          timeHint: '',
+          message: message || lead || KYMON_UNCLEAR_MESSAGE,
+          closingLine,
+          kimonQuote: closingLine,
+        };
+      }
+
       // ── Legacy schema (lead/timeHint/message/closingLine) ──
       const lead = typeof rawData.lead === 'string'
         ? rawData.lead.trim()
@@ -4760,7 +5071,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         normalized.lead = KYMON_PARTIAL_LEAD;
       }
 
-      if (!normalized.closingLine) {
+      if (!normalized.closingLine && !normalized.message) {
         normalized.closingLine = KYMON_PARTIAL_ACTION;
       }
 
@@ -5590,7 +5901,24 @@ export default function handler(req, res) {
     const { date, hour, minute, mode, dateInputValue } = resolvedChartTime;
 
     try {
-      const result = analyze(date, hour);
+      const safeAnalyzeResult = analyzeSafely(date, hour);
+      if (!safeAnalyzeResult.ok) {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          'X-Qmdj-Fallback': '1',
+        });
+        res.end(JSON.stringify(buildAnalyzeFallbackResponse({
+          dateInputValue,
+          hour,
+          minute,
+          mode,
+          errorMessage: safeAnalyzeResult.error,
+        })));
+        return;
+      }
+
+      const result = safeAnalyzeResult.result;
       result.displayChart = buildDisplayChart(result.chart);
       result.chartTimeMode = mode;
       result.chartTime = {
@@ -5601,8 +5929,18 @@ export default function handler(req, res) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result, null, 2));
     } catch (err) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: err.message }));
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+        'X-Qmdj-Fallback': '1',
+      });
+      res.end(JSON.stringify(buildAnalyzeFallbackResponse({
+        dateInputValue,
+        hour,
+        minute,
+        mode,
+        errorMessage: err?.message || 'Analyze route failure',
+      })));
     }
   } else if (url.pathname === '/api/kimon/stream' && req.method === 'POST') {
     // ── STREAMING SSE ENDPOINT ────────────────────────────────────────────────
@@ -5615,6 +5953,12 @@ export default function handler(req, res) {
         'Connection': 'keep-alive',
         'X-Accel-Buffering': 'no',
       });
+      let stopHeartbeat = () => {};
+      let clientClosed = false;
+      const markClosed = () => { clientClosed = true; };
+      req.on('aborted', markClosed);
+      res.on('close', markClosed);
+
       try {
         const body = JSON.parse(bodyData);
         const { qmdjData, userContext = 'chung' } = body;
@@ -5625,8 +5969,7 @@ export default function handler(req, res) {
           const msg = rateCheck.reason === 'cooldown'
             ? `Đang cooldown. Vui lòng đợi ${rateCheck.secsLeft} giây.`
             : `Đã đạt giới hạn 12 request/phút. Đợi ${rateCheck.secsLeft} giây.`;
-          res.write(`data: ${JSON.stringify({ __ERROR__: msg })}\n\n`);
-          res.end();
+          endSseWithFallback(res, { message: msg });
           return;
         }
         recordGeminiRequest();
@@ -5634,20 +5977,26 @@ export default function handler(req, res) {
         // ── Tiered AI Routing ──
         const isAutoLoad = userContext === '__AUTO_LOAD__';
         const apiKey = process.env.GEMINI_API_KEY;
-        const detection = isAutoLoad
-          ? { topic: 'chung', tier: 'topic', confidence: 'auto' }
-          : await detectTopicHybrid(userContext, apiKey);
+        const detection = await detectTopicWithFallback({
+          userContext,
+          apiKey,
+          isAutoLoad,
+          timeoutMs: getTierRuntimeConfig('topic').detectTimeoutMs,
+        });
         const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
         const { topic, tier, confidence } = detection;
         const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
         const hasCriticalTopicFlags = Array.isArray(enrichedQmdjData?.selectedTopicFlags) && enrichedQmdjData.selectedTopicFlags.length > 0;
         const forceStrategyTopic = topic === 'tai-van';
         const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
+        const runtimeConfig = getTierRuntimeConfig(effectiveTier);
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
           tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
         });
         console.log(`[Kimon][stream] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} flags=${hasCriticalTopicFlags ? enrichedQmdjData.selectedTopicFlags.join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat}`);
+        stopHeartbeat = startSseHeartbeat(res, runtimeConfig.streamKeepAliveMs);
+        writeSseData(res, { __META__: { connected: true, tier: effectiveTier, topic: topic || 'chung' } });
 
         const genAI = new GoogleGenerativeAI(apiKey);
 
@@ -5677,58 +6026,64 @@ export default function handler(req, res) {
           ]
         });
 
-        const streamResult = await model.generateContentStream(userPrompt);
-        let fullText = '';
+        const streamOutcome = await withTimeout(async () => {
+          const streamResult = await model.generateContentStream(userPrompt);
+          let fullText = '';
 
-        for await (const chunk of streamResult.stream) {
-          const txt = chunk.text();
-          if (txt) {
-            fullText += txt;
-            // Send intermediate SSE chunk so frontend can show real-time text
-            res.write(`data: ${JSON.stringify({ chunk: txt })}\n\n`);
+          for await (const chunk of streamResult.stream) {
+            if (clientClosed) break;
+            const txt = chunk.text();
+            if (txt) {
+              fullText += txt;
+              writeSseData(res, { chunk: txt });
+            }
           }
+          const finalResponse = await streamResult.response;
+          return { fullText, finalResponse };
+        }, runtimeConfig.requestTimeoutMs, 'Kimon stream generation');
+
+        if (clientClosed) {
+          if (!res.writableEnded) res.end();
+          return;
         }
-        const finalResponse = await streamResult.response;
-        logKimonModelMeta('/api/kimon/stream', finalResponse, fullText);
+
+        logKimonModelMeta('/api/kimon/stream', streamOutcome.finalResponse, streamOutcome.fullText);
 
         try {
-          // Companion mode returns plain text — wrap into schema
           if (responseFormat === 'text') {
-            const companionParsed = {
-              mode: 'companion',
-              schema: 'companion',
-              lead: fullText.trim(),
-              timeHint: '',
-              message: fullText.trim(),
-              closingLine: '',
-              _tier: effectiveTier,
-              _topic: topic,
-            };
-            console.log('[Kimon] Companion response, length:', fullText.length);
-            res.write(`data: ${JSON.stringify({ __DONE__: true, parsed: companionParsed })}\n\n`);
+            const companionParsed = shapeCompanionTextPayload(streamOutcome.fullText);
+            companionParsed._tier = effectiveTier;
+            companionParsed._topic = topic;
+            console.log('[Kimon] Companion response, length:', streamOutcome.fullText.length);
+            writeSseData(res, { __DONE__: true, parsed: companionParsed });
           } else {
-            const parsed = toKimonResponseSchema(parseKimonJsonResponse(fullText), fullText);
+            const parsed = toKimonResponseSchema(parseKimonJsonResponse(streamOutcome.fullText), streamOutcome.fullText);
             parsed._tier = effectiveTier;
             parsed._topic = topic;
             console.log('[Kimon] Parsed OK, keys:', Object.keys(parsed));
-            res.write(`data: ${JSON.stringify({ __DONE__: true, parsed })}\n\n`);
+            writeSseData(res, { __DONE__: true, parsed });
           }
         } catch (parseErr) {
           console.error('[Kimon] JSON parse failed:', parseErr.message);
-          console.error('[Kimon] Raw response:', fullText.substring(0, 500));
-          const fallback = toKimonResponseSchema(parseKimonJsonResponse(fullText), fullText);
-          res.write(`data: ${JSON.stringify({ __DONE__: true, parsed: fallback })}\n\n`);
+          console.error('[Kimon] Raw response:', streamOutcome.fullText.substring(0, 500));
+          const fallback = toKimonResponseSchema(parseKimonJsonResponse(streamOutcome.fullText), streamOutcome.fullText);
+          fallback._tier = effectiveTier;
+          fallback._topic = topic;
+          writeSseData(res, { __DONE__: true, parsed: fallback });
         }
-        res.end();
+        if (!res.writableEnded) res.end();
       } catch (error) {
         console.error('Kimon Stream Error:', error);
-        let errorMsg = error.message;
+        let errorMsg = isTimeoutError(error)
+          ? KIMON_SERVICE_UNAVAILABLE_MESSAGE
+          : (error.message || KIMON_SERVICE_UNAVAILABLE_MESSAGE);
         if (error.status === 429 || String(error.message).includes('429')) {
           triggerGeminiCooldown(); // Activate cooldown on 429
           errorMsg = 'API Rate Limit (429). Vui lòng đợi 30 giây.';
         }
-        res.write(`data: ${JSON.stringify({ __ERROR__: errorMsg })}\n\n`);
-        res.end();
+        endSseWithFallback(res, { message: errorMsg });
+      } finally {
+        stopHeartbeat();
       }
     });
 
@@ -5757,15 +6112,19 @@ export default function handler(req, res) {
         const isAutoLoad = userContext === '__AUTO_LOAD__';
 
         // ── Tiered AI Routing ──
-        const detection = isAutoLoad
-          ? { topic: 'chung', tier: 'topic', confidence: 'auto' }
-          : await detectTopicHybrid(userContext, apiKey);
+        const detection = await detectTopicWithFallback({
+          userContext,
+          apiKey,
+          isAutoLoad,
+          timeoutMs: getTierRuntimeConfig('topic').detectTimeoutMs,
+        });
         const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
         const { topic, tier, confidence } = detection;
         const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
         const hasCriticalTopicFlags = Array.isArray(enrichedQmdjData?.selectedTopicFlags) && enrichedQmdjData.selectedTopicFlags.length > 0;
         const forceStrategyTopic = topic === 'tai-van';
         const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
+        const runtimeConfig = getTierRuntimeConfig(effectiveTier);
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
           tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
@@ -5792,25 +6151,22 @@ export default function handler(req, res) {
           systemInstruction: systemPrompt,
           generationConfig,
         });
-        const result = await model.generateContent(userPrompt);
+        const result = await withTimeout(
+          () => model.generateContent(userPrompt),
+          runtimeConfig.requestTimeoutMs,
+          'Kimon generateContent'
+        );
         const rawText = await result.response.text();
         logKimonModelMeta('/api/kimon', result.response, rawText);
 
         let parsed;
         if (responseFormat === 'text') {
-          parsed = {
-            mode: 'companion',
-            schema: 'companion',
-            lead: rawText.trim(),
-            timeHint: '',
-            message: rawText.trim(),
-            closingLine: '',
-            _tier: tier,
-            _topic: topic,
-          };
+          parsed = shapeCompanionTextPayload(rawText);
+          parsed._tier = effectiveTier;
+          parsed._topic = topic;
         } else {
           parsed = toKimonResponseSchema(parseKimonJsonResponse(rawText), rawText);
-          parsed._tier = tier;
+          parsed._tier = effectiveTier;
           parsed._topic = topic;
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -5819,8 +6175,12 @@ export default function handler(req, res) {
         if (error.status === 429 || String(error.message).includes('429')) {
           triggerGeminiCooldown();
         }
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: error.message }));
+        respondWithKimonFallback(res, {
+          statusCode: 200,
+          message: isTimeoutError(error)
+            ? KIMON_SERVICE_UNAVAILABLE_MESSAGE
+            : (error?.message || KIMON_SERVICE_UNAVAILABLE_MESSAGE),
+        });
       }
     });
 
@@ -5831,7 +6191,7 @@ export default function handler(req, res) {
 }
 
 // Ensure local development server still works when not on Vercel
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+if (!process.env.VERCEL && isMainServerModule) {
   const server = http.createServer(handler);
   server.listen(PORT, () => {
     console.log(`\n🔮 QMDJ Engine Server running at http://localhost:${PORT}\n`);

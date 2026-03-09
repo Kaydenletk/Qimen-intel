@@ -9,51 +9,33 @@ const modelRouterSource = readFileSync(new URL('../src/logic/kimon/modelRouter.j
 
 assert.match(serverSource, /import \{ detectDeepDive, detectTopicHybrid \} from '\.\/src\/logic\/kimon\/detectTopic\.js';/);
 assert.match(serverSource, /const isDeepDive = !isAutoLoad && detectDeepDive\(userContext\);/);
-assert.match(serverSource, /const hasCriticalTopicFlags = Array\.isArray\(enrichedQmdjData\?\.selectedTopicFlags\) && enrichedQmdjData\.selectedTopicFlags\.length > 0;/);
 assert.match(serverSource, /const effectiveTier = \(isDeepDive \|\| hasCriticalTopicFlags \|\| forceStrategyTopic\) \? 'strategy' : tier;/);
-assert.match(serverSource, /const enrichedQmdjData = enrichQmdjDataWithDetectedTopic\(qmdjData, topic \|\| 'chung'\);/);
-assert.match(serverSource, /selectedTopicFlags: Array\.isArray\(detail\.flags\)/);
-assert.match(serverSource, /data-all-topic-details=.*flags: Array\.isArray\(t\.flags\) \? t\.flags : \[\]/s);
-assert.match(serverSource, /generationConfig\.thinkingConfig = \{ thinkingBudget: 1024 \ }|generationConfig\.thinkingConfig = \{ thinkingBudget: 1024 \};/);
-assert.match(serverSource, /generationConfig\.thinkingConfig = \{ thinkingBudget: 0 \};/);
-assert.match(detectTopicSource, /const DEEP_DIVE_KEYWORDS = \[/);
-assert.match(detectTopicSource, /export function detectDeepDive\(userMessage\)/);
+
+assert.match(detectTopicSource, /You are an intent classifier\./);
+assert.match(detectTopicSource, /return a strict JSON object only/i);
+assert.match(detectTopicSource, /Return exactly this shape:/);
+assert.doesNotMatch(detectTopicSource, /Kymon - Một Chiến lược gia AI/);
+
+assert.match(strategyPromptSource, /export const KYMON_PRO_SYSTEM_PROMPT = /);
+assert.match(strategyPromptSource, /\[SYSTEM ROLE & PERSONA\]/);
+assert.match(strategyPromptSource, /\[CORE METAPHORS - TỪ ĐIỂN ẨN DỤ BẮT BUỘC\]/);
+assert.match(strategyPromptSource, /\[STRICT CONSTRAINTS - RÀNG BUỘC NGHIÊM NGẶT\]/);
+assert.match(strategyPromptSource, /\[DEEP DIVE & CHAIN OF THOUGHT - CHUỖI TƯ DUY SÂU SẮC\]/);
+assert.match(strategyPromptSource, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
+assert.match(strategyPromptSource, /buildStrategySystemInstruction\(\) \{\s*return KYMON_PRO_SYSTEM_PROMPT;/s);
+
+assert.match(promptBuilderSource, /import \{ KYMON_PRO_SYSTEM_PROMPT \} from '\.\/strategyPrompt\.js';/);
+assert.match(promptBuilderSource, /buildKimonSystemInstruction\(\{ tier = 'topic' \} = \{\}\) \{\s*void tier;\s*return KYMON_PRO_SYSTEM_PROMPT;/s);
 assert.match(promptBuilderSource, /\[INTERNAL INSIGHTS\]/);
 assert.match(promptBuilderSource, /\[PHÂN TÍCH CHỦ ĐỀ:/);
 assert.match(promptBuilderSource, /\[FLAGS DỤNG THẦN/);
-assert.match(promptBuilderSource, /\[ƯU TIÊN FLAGS\]/);
-assert.match(promptBuilderSource, /Dịch Mã.*Không Vong.*Phục Ngâm.*Phản Ngâm/s);
-assert.match(promptBuilderSource, /Cảnh Môn và Thiên Phụ/);
-assert.match(promptBuilderSource, /Logic, Data, Memory, Processing/);
-assert.match(promptBuilderSource, /tránh ẩn dụ sức khỏe, tiêu hóa, hồi phục/i);
-assert.match(strategyPromptSource, /\[INTERNAL INSIGHTS\]/);
-assert.match(strategyPromptSource, /\[FLAGS DỤNG THẦN/);
-assert.match(strategyPromptSource, /const aiHints = qmdjData\?\.aiHints \|\| '';/);
-assert.match(strategyPromptSource, /\[TRỌNG TÂM LUẬN GIẢI\]/);
-assert.match(strategyPromptSource, /Dụng Thần là thực tế/);
-assert.match(strategyPromptSource, /Nhật Can là tâm thế/);
-assert.match(strategyPromptSource, /Cung Giờ là khí thế hiện tại, không phải trục mặc định/);
-assert.match(strategyPromptSource, /\[QUY TẮC FLAGS - "NHỊP TIM" CỦA NỖI LO\]/);
-assert.match(strategyPromptSource, /Đằng Xà\/Không Vong/);
-assert.match(strategyPromptSource, /Thương Môn\/Bạch Hổ/);
-assert.match(strategyPromptSource, /The Root \(Gốc\)/i);
-assert.match(strategyPromptSource, /The Rhythm \(Nhịp\)/i);
-assert.match(strategyPromptSource, /The Persona \(Người\)/i);
-assert.match(strategyPromptSource, /The Tactical \(Mưu\)/i);
-assert.match(strategyPromptSource, /Không được trả lời cụt/);
-assert.match(strategyPromptSource, /không được viết ngắn nếu trận đồ đang cho đủ tín hiệu để đọc sâu/);
-assert.match(strategyPromptSource, /Thiên Phụ\/Cảnh Môn/);
-assert.match(strategyPromptSource, /Lỗ hổng gốc rễ/);
-assert.match(strategyPromptSource, /Quay xe trong gió/);
-assert.match(strategyPromptSource, /Ảo ảnh dội ngược/);
-assert.match(strategyPromptSource, /điểm tựa|bám rễ|cánh cửa hẹp/i);
-assert.match(strategyPromptSource, /CHỈ phân tích Cung Giờ nếu câu hỏi liên quan đến năng lượng hiện tại/i);
-assert.match(strategyPromptSource, /không được dùng nó để thay thế Dụng Thần/i);
-assert.match(strategyPromptSource, /Flags trước hết bẻ nghĩa của Dụng Thần/i);
-assert.match(strategyPromptSource, /\[GỢI Ý NGỮ CẢNH HỌC TẬP\]/);
-assert.doesNotMatch(strategyPromptSource, /Logic, Data, Memory, Processing/);
-assert.match(strategyPromptSource, /không được lấn át Nhật Can, Dụng Thần hay Flags/i);
-assert.match(modelRouterSource, /topic:\s+\{ model: MODELS\.flash,\s+maxTokens: 3072 \}/);
-assert.match(modelRouterSource, /strategy:\s+\{ model: MODELS\.pro,\s+maxTokens: 3072 \}/);
+assert.match(promptBuilderSource, /\[ĐIỂM CẦN BÁM\]/);
+assert.doesNotMatch(promptBuilderSource, /\[SYSTEM ROLE & PERSONA\]/);
+assert.doesNotMatch(promptBuilderSource, /\[CORE METAPHORS - TỪ ĐIỂN ẨN DỤ BẮT BUỘC\]/);
+assert.doesNotMatch(promptBuilderSource, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
+
+assert.match(modelRouterSource, /import \{ buildKimonPrompt, buildCompanionPrompt \} from '\.\/promptBuilder\.js';/);
+assert.match(modelRouterSource, /import \{ buildStrategyPrompt, buildStrategySystemInstruction \} from '\.\/strategyPrompt\.js';/);
+assert.match(modelRouterSource, /systemPrompt: buildStrategySystemInstruction\(\),/);
 
 console.log('kimon-deep-dive-routing.mjs: OK');

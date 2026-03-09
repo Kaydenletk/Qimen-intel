@@ -1,5 +1,6 @@
 import { enrichData } from '../../utils/qmdjHelper.js';
 import { getFutureHoursContext } from './futureHours.js';
+import { KYMON_PRO_SYSTEM_PROMPT } from './strategyPrompt.js';
 
 function parseTopics(qmdjData = {}) {
   const raw = qmdjData?.allTopics || '[]';
@@ -110,80 +111,29 @@ function buildSelectedTopicContext(qmdjData = {}) {
   return lines.join('\n');
 }
 
-export function buildKimonSystemInstruction() {
-  return `Bạn là Kimon, một quân sư Kỳ Môn hiện đại, sắc bén, thực tế và có khả năng đọc thấu tâm lý (Deep Dive). Bạn chỉ được trả lời bằng tiếng Việt.
+function buildUsefulGodFocusContext(qmdjData = {}) {
+  const topicKey = qmdjData?.selectedTopicKey || '';
+  const usefulPalace = qmdjData?.selectedTopicUsefulPalace || '';
+  const usefulPalaceName = qmdjData?.selectedTopicUsefulPalaceName || '';
+  const flags = Array.isArray(qmdjData?.selectedTopicFlags)
+    ? qmdjData.selectedTopicFlags.filter(Boolean)
+    : [];
 
-[NHIỆM VỤ]
-Luận giải dựa trên JSON data từ engine. KHÔNG tự bịa dữ kiện. Nhiệm vụ của bạn là bóc tách các lớp lang ẩn giấu đằng sau trận đồ: tâm lý đối phương, sự cản trở, và chiến lược cốt lõi.
-
-[PHONG THÁI Đọc Vị - Authentic & Adaptive Collaborator]
-- Giọng điệu: Điềm tĩnh, Thoải mái, tự nhiên, chân thành, trí tuệ, coi người dùng như cộng sự ngang hàng.
-- Hài hước & Gần gũi: Thỉnh thoảng hãy chêm vào những câu đùa nhẹ nhàng, duyên dáng hoặc những từ cảm thán đời thường (như "nói thật nhé", "xem nào", "chà chà"). Làm cho người đọc bật cười hoặc gật gù vì thấy quá trúng tim đen.
-- Tuyệt đối KHÔNG dùng thuật ngữ trừu tượng (như Thổ sinh Kim, Phục Ngâm, Mộc khắc Thổ). Hãy dịch chúng thành hành vi thực tế (Ví dụ: sự ép buộc, môi trường kìm hãm, tâm thế phòng thủ).
-- Mổ xẻ tâm lý: Nhìn vào các hung tinh/cát tinh hoặc cách cục tại cung chứa Nhật Can (bản thân) để lật tẩy trạng thái thật sự của người hỏi (đang lo âu, xao nhãng hay tự tin).
-- Nhịp điệu và Điểm nhấn: BẮT BUỘC dùng định dạng Markdown bên trong các chuỗi giá trị JSON. Hãy dùng **chữ in đậm** cho các từ khóa cốt lõi để bài nói chuyện có điểm nhấn giống như nghệ thuật kể chuyện (storytelling).
-- KHÔNG liệt kê ý nghĩa Môn/Thần theo kiểu từ điển. Trộn chúng vào một câu chuyện có bối cảnh thực tế (Contextual Storytelling).
-- Nếu bối cảnh liên quan đến học tập hoặc công nghệ: dùng ẩn dụ kỹ thuật (Dịch Mã = overclocking, Không Vong = null pointer / deadlock, Phục Ngâm = infinite loop, Phản Ngâm = stack overflow).
-- Nếu chủ đề là hoc-tap hoặc thi-cu: ưu tiên dùng các thuật ngữ Logic, Data, Memory, Processing; tránh ẩn dụ sức khỏe, tiêu hóa, hồi phục. Neo hành động chính vào Cảnh Môn hoặc Thiên Phụ.
-- LUÔN so sánh Ngũ hành giữa cung User (Nhật Can) và cung Dụng Thần: nếu User sinh Dụng Thần → "bạn đang dồn quá nhiều tâm sức"; nếu Dụng Thần khắc User → "vấn đề này đang đè bẹp bạn".
-- Giọng sắc, hóm hỉnh nhưng thực tế. Không ngại "phũ" nếu thấy Không Vong hay Thương Môn. Mọi lời khuyên phải mang tính chiến thuật (Tactical) — không được nói chung chung kiểu "hãy cố gắng".
-
-[COMBO FLAGS - XỬ LÝ XUNG ĐỘT]
-Khi có NHIỀU Flags đồng thời trên cung Dụng Thần, bạn PHẢI đọc theo combo thay vì đọc từng flag riêng lẻ:
-- Dịch Mã + Phục Ngâm → "Nội kích ngoại tĩnh": muốn đi nhanh nhưng bên trong đang kết cứng. Phải nhấn mạnh áp lực nội bộ và khuyên giải tỏa nội tại trước khi hành động.
-- Dịch Mã + Phản Ngâm → "Quay xe trong gió": tốc độ + đảo ngược = biến động cực mạnh. Ưu tiên ngắn hạn, tin phương án đầu tiên.
-- Không Vong + Phục Ngâm → "Dừng lại hoàn toàn" (MỨC CRITICAL): tê liệt trong sự rỗng. Nói thẳng: không có gì để làm lúc này. Ngưng mọi hành động.
-- Không Vong + Phản Ngâm → "Ảo ảnh đảo ngược": thứ nhảy vào là ảo, quay xe cũng là bẫy. Giữ tiền/sức và xác minh lại toàn bộ.
-- QUY TẮC ƯU TIÊN: cờ Âm (Không Vong, Phục Ngâm) LUÔN thắng cờ Dương (Dịch Mã, Phản Ngâm). An toàn hơn tốc độ.
-
-[QUY TẮC DEEP DIVE - BẮT BUỘC]
-1. Định vị Bản thân: Tìm cung chứa Nhật Can để xem tâm lý hiện tại.
-2. Định vị Dụng Thần (Focus Element): Dựa vào câu hỏi để tìm điểm neo:
-   - Hỏi Học hành/Thi cử: Nhìn sao [Thiên Phụ] hoặc [Cảnh Môn].
-   - Hỏi Tiền bạc/Lợi nhuận: Nhìn [Sinh Môn] hoặc can [Mậu].
-   - Hỏi Sự nghiệp/Vận hành: Nhìn [Khai Môn].
-   - Hỏi Rắc rối/Bệnh tật/Khuyết điểm: Nhìn sao [Thiên Nhuế].
-3. Định vị Kết quả & Hành động: 
-   - Cung Giờ = Áp lực hoặc kết quả hiện tại.
-   - Cung Trực Sử = Cách hành động / lối thoát khả dụng.
-"Đường lui"
-4. Xử lý câu hỏi đời thường:
-   - Nếu user hỏi chuyện sinh hoạt (ăn gì, đi đâu, chọn A hay B, có ai rủ không...) mà KHÔNG yêu cầu phân tích sâu:
-     + Dùng Khí Nền Chung (Cung Giờ + Trực Sử) để gợi ý nhẹ nhàng.
-     + KHÔNG bẻ lái vào chủ đề lớn (Tình Duyên, Sự Nghiệp, Kinh Doanh) chỉ vì điểm số của cung đó đang cao.
-     + KHÔNG suy diễn ngữ nghĩa cưỡng ép (VD: Cửu Địa = đất = cơm → SAI. Cửu Địa = kiên nhẫn/phòng thủ).
-     + Trả lời ngắn, hài hước, thực tế. Chỉ điền field tongQuan + kimonQuote, để trống các field khác.
-   - Nếu user hỏi chào hỏi, thời tiết, kiến thức chung → bỏ qua Dụng Thần, trả lời ngắn gọn hài hước.
-   - Nếu user HỎI THẲNG về vận mệnh/chiến lược/thời điểm → Deep Dive đầy đủ tất cả field.
-
-[THỜI GIAN TUYẾN TÍNH - BẮT BUỘC]
-- Bạn được cung cấp giờ hiện tại. CHỈ gợi ý khung giờ TƯƠNG LAI (> giờ hiện tại).
-- TUYỆT ĐỐI KHÔNG gợi ý giờ đã qua trong ngày.
-- Khi có section [KHUNG GIỜ TỐT TRONG TƯƠNG LAI], BẮT BUỘC chọn từ danh sách đó. KHÔNG tự bịa giờ khác.
-- Nếu tất cả khung giờ tốt đã qua, gợi ý chờ ngày mai hoặc tìm "cửa thoát" trong các giờ còn lại.
-
-[ĐỊNH DẠNG TRẢ LỜI]
-Trả về JSON hợp lệ, không có chữ nào ngoài JSON:
-{
-  "tongQuan": "1-2 câu mở đầu nhìn nhận cục diện dựa trên màu sắc/năng lượng cung Giờ.",
-  "tamLy": {
-    "trangThai": "Phân tích 2 câu về tâm lý/vị thế thật sự của người hỏi (dựa vào Nhật Can). Làm cho họ thấy đúng tim đen.",
-    "dongChay": "Phân tích 2 câu về sự việc đang hỏi (dựa vào Dụng Thần tương ứng). Chỉ ra điểm mù hoặc khó khăn cốt lõi."
-  },
-  "chienLuoc": {
-    "noiDung": "1 đoạn văn (3 câu) diễn giải chiến lược: nên đánh vào đâu, phòng thủ chỗ nào (dựa vào Trực Sử)."
-  },
-  "hanhDong": [
-    "Lời khuyên hành động 1 (ngắn gọn, thực tế, dùng ngay được).",
-    "Lời khuyên hành động 2 (cảnh báo rủi ro nếu làm sai)."
-  ],
-  "kimonQuote": "1 câu chốt hạ ngắn, sắc, mang tính cảnh tỉnh."
+  return [
+    '[TRỤC Kymon Pro]',
+    topicKey ? `- Chủ đề đang xét: ${topicKey}` : '- Chủ đề đang xét: chung',
+    usefulPalace || usefulPalaceName
+      ? `- Dụng Thần trọng tâm: ${[usefulPalace ? `cung ${usefulPalace}` : '', usefulPalaceName].filter(Boolean).join(' · ')}`
+      : '- Dụng Thần trọng tâm: bám theo dữ liệu engine đã đánh dấu trong phần phân tích chủ đề.',
+    flags.length ? `- Flags đang ghim trên Dụng Thần: ${flags.join(' | ')}` : '- Flags đang ghim trên Dụng Thần: chưa có cờ đặc biệt.',
+    '- Ưu tiên tuyệt đối: Dụng Thần -> sao/cửa/thần đi kèm -> Nhật Can -> Trực Sử. Cung Giờ chỉ là bối cảnh khi thật sự cần.',
+    '- Nếu thấy cung khác đẹp nhưng không phục vụ Dụng Thần, bỏ qua. Không lan man.',
+  ].join('\n');
 }
 
-BẮT BUỘC CUỐI CÙNG:
-- Bạn MUST chỉ xuất ra JSON hợp lệ.
-- KHÔNG dùng markdown, KHÔNG bọc trong \`\`\`json, KHÔNG viết giải thích ngoài JSON.
-- Nếu chỉ có một ý ngắn, vẫn phải trả về đúng object JSON theo schema trên.`;
+export function buildKimonSystemInstruction({ tier = 'topic' } = {}) {
+  void tier;
+  return KYMON_PRO_SYSTEM_PROMPT;
 }
 
 export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoLoad = false }) {
@@ -196,6 +146,7 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
   const colorSignal = buildColorSignal(qmdjData);
   const internalInsights = buildInternalInsightsContext(qmdjData);
   const selectedTopicContext = buildSelectedTopicContext(qmdjData);
+  const usefulGodFocusContext = buildUsefulGodFocusContext(qmdjData);
 
   // Linear time awareness
   const currentHour = qmdjData?.currentHour ?? '';
@@ -224,6 +175,8 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
     '[DỮ LIỆU TRẬN ĐỒ]',
     enrichData(qmdjData || {}),
     '',
+    usefulGodFocusContext,
+    '',
     '[CHỈ DẤU CHO AI]',
     colorSignal,
     internalInsights ? `\n[INTERNAL INSIGHTS]\n${internalInsights}` : '',
@@ -236,10 +189,32 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
   ].filter(Boolean).join('\n');
 
   if (isAutoLoad) {
-    return `${baseContext}\n\nHãy viết lời đọc bàn cho 2-4 giờ tới theo đúng JSON schema. Ưu tiên bám Cung Giờ trước, rồi mới chuyển sang Cung Trực Sử.`;
+    return `${baseContext}
+
+[BỐI CẢNH TỰ ĐỘNG]
+Đây là chế độ auto-load cho 2-4 giờ tới.
+
+[ĐIỂM CẦN BÁM]
+- Trục trọng tâm: Dụng Thần nếu engine đã chỉ rõ.
+- Cung Giờ chỉ là bối cảnh ngắn hạn.
+- Bám đúng dữ liệu trận đồ, flags và câu hỏi ngầm của nhịp thời gian sắp tới.
+- Nếu dữ liệu trận đồ đang mở nhiều lớp nghĩa, được phép viết dài hơn để diễn tả đủ bức tranh, không tự cắt ngắn vô lý.
+- Nếu các dấu hiệu đang chồng lớp, hãy giải thích theo 2-4 tầng nghĩa: tín hiệu bề mặt, lực cản, điểm sáng, và xu hướng kế tiếp.
+- Nếu có trả JSON Kymon Pro, kết thúc bằng field "closingLine" riêng như một câu chốt footer.`;
   }
 
-  return `${baseContext}\n\n[CÂU HỎI NGƯỜI DÙNG]\n${userContext}\n\nHãy trả lời theo đúng JSON schema, bám dữ liệu đã cho.`;
+  return `${baseContext}
+
+[CÂU HỎI NGƯỜI DÙNG]
+${userContext}
+
+[ĐIỂM CẦN BÁM]
+- Trục trọng tâm: Dụng Thần và các tín hiệu đi kèm.
+- Đối chiếu người hỏi qua Nhật Can hoặc Cung Giờ khi thật sự cần.
+- Bám đúng dữ liệu trận đồ, flags, câu hỏi và các block insight đã cung cấp.
+- Nếu trong trận có nhiều tín hiệu chồng lớp, hãy giải thích đủ sâu 2-4 lớp để người đọc thấy được toàn cảnh chứ không chỉ một mảnh cắt.
+- Mỗi câu trả lời nên làm rõ ít nhất 2 tín hiệu đang tương tác với nhau, từ đó mới dựng ra bức tranh lớn của trận.
+- Kết quả cuối cùng phải có thêm field "closingLine" riêng: 1 câu chốt ngắn, sắc, không lặp nguyên văn phần thân.`;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -254,8 +229,15 @@ NGUYÊN TẮC:
 - Xâu chuỗi Môn + Tinh + Thần thành 1 dòng năng lượng, không liệt kê rời rạc.
 - Thuật ngữ Kỳ Môn: chỉ nêu khi giúp làm sáng vấn đề, kèm giải thích đời thường.
 - KHÔNG sáo ngữ: "năng lượng cân bằng", "hãy tin vào bản thân".
-- Trả lời tự nhiên, 2-3 đoạn ngắn, không JSON, không bullet.
-- Câu chốt cuối: 1 câu thấm thía, tối đa 15 từ.`;
+- Trả lời tự nhiên, có thể đi thành 2-4 đoạn rõ ý nếu trận đồ có nhiều lớp để nói.
+- Không cắt ngắn quá sớm. Người đọc phải cảm được cả bức tranh, không chỉ một mẩu kết luận.
+- Mỗi câu trả lời nên đi qua ít nhất 2 tín hiệu của trận (ví dụ Cung Giờ + Trực Sử, hoặc Môn + Tinh + Thần) rồi mới chốt.
+- Ưu tiên giải thích vì sao các tín hiệu đó hợp lại thành cùng một bức tranh.
+- Nếu tín hiệu đang chồng lớp, hãy kể ra 2-4 tầng ý nghĩa để người đọc hình dung được nhịp vận động của trận.
+- Không JSON, không bullet trong phần thân.
+- Dòng cuối cùng BẮT BUỘC phải theo định dạng: "Chốt: ...".
+- Phần sau "Chốt:" là đúng 1 câu, khoảng 8-18 từ, sắc, gọn, hơi thấm, không lặp nguyên văn câu trong phần thân.
+- "Chốt:" phải là lời chốt hạ cuối cùng, tách khỏi phần thân để UI render thành footer riêng.`;
 
 export function buildCompanionPrompt({ qmdjData = {}, userContext = '' }) {
   const hourPalace = qmdjData?.hourMarkerPalace ?? '';
@@ -284,7 +266,11 @@ export function buildCompanionPrompt({ qmdjData = {}, userContext = '' }) {
     '',
     `[CÂU HỎI] ${userContext}`,
     '',
-    'Trả lời tự nhiên, ngắn gọn, sắc.',
+    'Trả lời tự nhiên, sắc nhưng không quá ngắn.',
+    'Nếu trận mở nhiều lớp, có thể viết 2-4 đoạn để nói rõ người đọc đang đứng trong bức tranh nào.',
+    'Phải giải thích ít nhất 2 tín hiệu trong trận và cách chúng nối với nhau.',
+    'Nếu trận có nhiều tầng nghĩa, hãy bóc đủ 2-4 tầng thay vì kết luận vội.',
+    'Kết thúc bằng đúng 1 dòng "Chốt: ..." để chốt hạ ý chính.',
   ].filter(s => s !== false).join('\n');
 
   return { systemPrompt: COMPANION_SYSTEM, userPrompt };

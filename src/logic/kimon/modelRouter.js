@@ -5,7 +5,7 @@
  * Single entry point for server.js.
  */
 
-import { buildKimonSystemInstruction, buildKimonPrompt, buildCompanionPrompt } from './promptBuilder.js';
+import { buildKimonPrompt, buildCompanionPrompt } from './promptBuilder.js';
 import { buildStrategyPrompt, buildStrategySystemInstruction } from './strategyPrompt.js';
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -18,9 +18,27 @@ const MODELS = {
 };
 
 const TIER_CONFIG = {
-  companion: { model: MODELS.flash, maxTokens: 800 },
-  topic:     { model: MODELS.flash, maxTokens: 3072 },
-  strategy:  { model: MODELS.pro,   maxTokens: 3072 },
+  companion: {
+    model: MODELS.flash,
+    maxTokens: 1800,
+    requestTimeoutMs: 20000,
+    detectTimeoutMs: 5000,
+    streamKeepAliveMs: 10000,
+  },
+  topic: {
+    model: MODELS.flash,
+    maxTokens: 4096,
+    requestTimeoutMs: 30000,
+    detectTimeoutMs: 6000,
+    streamKeepAliveMs: 12000,
+  },
+  strategy: {
+    model: MODELS.pro,
+    maxTokens: 5120,
+    requestTimeoutMs: 45000,
+    detectTimeoutMs: 7000,
+    streamKeepAliveMs: 12000,
+  },
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -34,6 +52,15 @@ const TIER_CONFIG = {
  */
 export function selectModel(tier) {
   return TIER_CONFIG[tier] || TIER_CONFIG.companion;
+}
+
+export function getTierRuntimeConfig(tier) {
+  const selected = TIER_CONFIG[tier] || TIER_CONFIG.companion;
+  return {
+    requestTimeoutMs: selected.requestTimeoutMs,
+    detectTimeoutMs: selected.detectTimeoutMs,
+    streamKeepAliveMs: selected.streamKeepAliveMs,
+  };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -62,7 +89,7 @@ export function buildPromptByTier({ tier, topic, qmdjData, userContext, isAutoLo
 
   // Default: topic tier (uses existing Deep Dive prompt)
   return {
-    systemPrompt: buildKimonSystemInstruction(),
+    systemPrompt: buildStrategySystemInstruction(),
     userPrompt: buildKimonPrompt({ qmdjData, userContext, isAutoLoad }),
     responseFormat: 'json',
   };

@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { detectDeepDive, detectTopic, detectTopicHybrid } from '../src/logic/kimon/detectTopic.js';
 
-// ── Companion tier (casual / short / no keyword) ──
+// ── Companion tier (small talk only) ──
 const t1 = detectTopic('tối nay ăn gì');
-assert.equal(t1.tier, 'companion', 'Casual food question → companion');
+assert.equal(t1.topic, null, 'Câu hỏi chung không keyword không được gán topic sync');
+assert.equal(t1.tier, 'topic', 'Câu hỏi chung phải mặc định đi về Kymon Pro topic tier');
 
 const t2 = detectTopic('hi');
-assert.equal(t2.tier, 'companion', 'Too short → companion');
+assert.equal(t2.topic, 'chung', 'Greeting ngắn phải được nhận diện là small talk');
+assert.equal(t2.tier, 'companion', 'Greeting ngắn → companion');
 
 const t3 = detectTopic('');
 assert.equal(t3.tier, 'companion', 'Empty → companion');
@@ -120,10 +122,17 @@ assert.equal(t26.topic, null, 'thủ môn không được false-positive sang ho
 const t22 = await detectTopicHybrid('thất nghiệp', '');
 assert.equal(t22.topic, 'chung', '2 từ không match + không API key → fallback chung');
 assert.equal(t22.confidence, 'fallback', '2 từ phải đi qua nhánh AI fallback trước khi hạ xuống chung');
+assert.equal(t22.tier, 'topic', 'Fallback chung cho user query phải lên topic tier');
 
 const t23 = await detectTopicHybrid('alo', '');
 assert.equal(t23.topic, 'chung', '1 từ casual → companion');
 assert.equal(t23.confidence, 'fallback', '1 từ vẫn fallback ngay');
+assert.equal(t23.tier, 'companion', 'Small talk rõ ràng phải giữ companion');
+
+const t27 = await detectTopicHybrid('Khanh bạn tôi đang làm gì', '');
+assert.equal(t27.topic, 'chung', 'Câu hỏi theo dõi người khác nhưng không có keyword vẫn là chung');
+assert.equal(t27.tier, 'topic', 'Câu hỏi chung có ý hỏi phải vào Kymon Pro topic tier');
+assert.equal(t27.confidence, 'fallback', 'Không API key thì vẫn fallback sạch');
 
 assert.equal(detectDeepDive('tại sao lại chọn hướng này'), true, 'Tại sao lại chọn → deep dive');
 assert.equal(detectDeepDive('giải thích kỹ hơn giúp mình'), false, 'Giải thích kỹ chung chung không được đẩy lên Pro');

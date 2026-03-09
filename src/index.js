@@ -35,6 +35,8 @@ import { buildInsight }      from './core/insightEngine.js';
 import { generateStrategicInsight } from './logic/dungThan/index.js';
 import { buildDisplayChart, getSectionLabel, getVisualPalaceEntries } from './ui/displayMappings.js';
 
+export const ANALYZE_FALLBACK_MESSAGE = 'Hệ thống đang quá tải năng lượng hoặc mất kết nối. Xin vui lòng thử lại sau giây lát.';
+
 const DEFAULT_TOPIC_KEYS = [
   'tai-van', 'suc-khoe', 'tinh-duyen', 'gia-dao', 'su-nghiep', 'kinh-doanh',
   'thi-cu', 'hoc-tap', 'ky-hop-dong', 'dam-phan', 'doi-no', 'kien-tung',
@@ -60,6 +62,7 @@ export function analyze(date, hour, topics = DEFAULT_TOPIC_KEYS) {
   };
   const topicResults = Object.fromEntries(
     topics.map(t => {
+      try {
       const topicResult = findUsefulGod(t, chart);
       topicResult.insight = buildInsight({
         chart,
@@ -73,9 +76,49 @@ export function analyze(date, hour, topics = DEFAULT_TOPIC_KEYS) {
         topicResult,
       });
       return [t, topicResult];
+      } catch (error) {
+        return [t, {
+          topic: TOPICS?.[t]?.title || t,
+          error: true,
+          errorMessage: error?.message || `Không phân tích được chủ đề ${t}`,
+          score: 0,
+          verdict: { label: 'Lỗi tính toán', color: 'hung' },
+          insight: '',
+          strategicInsight: null,
+        }];
+      }
     })
   );
   return { chart, states, evaluation, topicResults };
+}
+
+export function analyzeSafely(date, hour, topics = DEFAULT_TOPIC_KEYS) {
+  try {
+    return {
+      ok: true,
+      fallback: false,
+      message: '',
+      result: analyze(date, hour, topics),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      fallback: true,
+      message: ANALYZE_FALLBACK_MESSAGE,
+      error: error?.message || 'Unknown analyze error',
+      result: {
+        chart: null,
+        states: null,
+        evaluation: {
+          overallScore: 0,
+          verdict: ANALYZE_FALLBACK_MESSAGE,
+          topFormations: [],
+          allFormations: [],
+        },
+        topicResults: {},
+      },
+    };
+  }
 }
 
 // ── runDemo ───────────────────────────────────────────────────────────────────

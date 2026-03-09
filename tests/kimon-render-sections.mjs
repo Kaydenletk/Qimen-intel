@@ -121,7 +121,11 @@ assert.match(serverSource, /label:\s*'Tổng quan'/, 'Deep-dive phải có subti
 assert.match(serverSource, /label:\s*'Nhận định'/, 'Strategy phải có subtitle Nhận định');
 assert.match(serverSource, /label:\s*'Phân tích thế trận'/, 'Strategy phải có subtitle Phân tích thế trận');
 assert.match(serverSource, /label:\s*'Nước đi đề xuất'/, 'Strategy phải có subtitle Nước đi đề xuất');
-assert.match(serverSource, /label:\s*'Chốt'/, 'Renderer phải có subtitle Chốt');
+assert.match(serverSource, /function createKimonQuoteSection\(\{ className, rawText, seenParagraphs \}\)/, 'Renderer phải có helper quote footer riêng');
+assert.match(serverSource, /schema:\s*'kymon-pro'/, 'Frontend phải detect schema Kymon Pro riêng');
+assert.match(serverSource, /className:\s*'kymon-closing-quote kymon-action-footer'/, 'Quote footer phải có class riêng thay vì section generic');
+assert.match(serverSource, /function shapeCompanionTextPayload\(rawText = ''\)/, 'Server phải shape companion text thành payload có quote footer');
+assert.match(serverSource, /Chốt:/, 'Server phải parse dòng Chốt từ raw companion text');
 
 assert.match(serverSource, /function renderParsedSections\(container, data\) \{[\s\S]*container\.className = 'kymon-clean-layout';/, 'Renderer phải dùng clean layout');
 assert.match(serverSource, /const fragment = document\.createDocumentFragment\(\);/, 'Renderer nên dùng fragment để giảm DOM churn');
@@ -151,6 +155,9 @@ assert.match(serverSource, /\.kymon-lead \{[\s\S]*font-weight: 400;/, 'Lead khô
 assert.match(serverSource, /\.kymon-time-hint \{/, 'Time hint phải có style riêng');
 assert.match(serverSource, /\.kymon-analysis-flow \{/, 'Analysis flow phải có style riêng');
 assert.match(serverSource, /\.kymon-action-footer \{/, 'Closing/action footer phải có style riêng');
+assert.match(serverSource, /\.kymon-closing-quote \{/, 'Quote footer phải có style riêng');
+assert.match(serverSource, /\.kymon-closing-quote \{[\s\S]*color: rgba\(203, 213, 225, 0\.82\);/s, 'Quote footer phải chuyển sang light grey');
+assert.match(serverSource, /\.kymon-closing-quote \{[\s\S]*font-style: italic;/s, 'Quote footer nên có chất quote rõ hơn');
 assert.match(serverSource, /\.kymon-action-list \{/, 'Action list phải có style riêng');
 assert.match(serverSource, /\.kimon-section-title \{[\s\S]*font-weight: 700;[\s\S]*color: var\(--surface-highlight-text\);/s, 'Chỉ subtitle mới nên giữ nhấn mạnh rõ');
 assert.match(serverSource, /\.print-mini-title\{/, 'PDF phải có subtitle mini title riêng');
@@ -164,14 +171,14 @@ assert.match(serverSource, /const KYMON_MAX_OUTPUT_TOKENS = 5120;/, 'Backend Kym
 assert.match(serverSource, /maxOutputTokens: maxTokens/, 'Backend phải dùng dynamic maxTokens từ tiered router');
 assert.match(serverSource, /function logKimonModelMeta\(route, response, rawText = ''\)/, 'Backend phải log finish reason và raw response length');
 assert.match(serverSource, /logKimonModelMeta\('\/api\/kimon', result\.response, rawText\);/, 'Route non-stream phải log meta model');
-assert.match(serverSource, /logKimonModelMeta\('\/api\/kimon\/stream', finalResponse, fullText\);/, 'Route stream phải log meta model');
+assert.match(serverSource, /logKimonModelMeta\('\/api\/kimon\/stream', streamOutcome\.finalResponse, streamOutcome\.fullText\);/, 'Route stream phải log meta model');
 assert.match(serverSource, /url\.pathname === '\/api\/kimon\/tts' && req\.method === 'POST'/, 'Server phải có route ElevenLabs TTS');
 assert.match(serverSource, /import \{ parseKimonJsonResponse, toKimonResponseSchema \} from '\.\/src\/logic\/kimon\/jsonResponse\.js';/, 'Server phải import helper schema public mới');
 assert.match(serverSource, /import \{ [^}]*detectTopicHybrid[^}]*\} from '\.\/src\/logic\/kimon\/detectTopic\.js';/, 'Server phải import detectTopicHybrid từ detectTopic.js');
-assert.match(serverSource, /import \{ selectModel, buildPromptByTier \} from '\.\/src\/logic\/kimon\/modelRouter\.js';/, 'Server phải import tiered router');
+assert.match(serverSource, /import \{ selectModel, buildPromptByTier, getTierRuntimeConfig \} from '\.\/src\/logic\/kimon\/modelRouter\.js';/, 'Server phải import tiered router');
 assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(rawText\), rawText\)/, 'Route non-stream phải trả về đúng schema mới');
-assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(fullText\), fullText\)/, 'Route stream phải shape parsed payload về schema mới');
-assert.match(serverSource, /const fallback = toKimonResponseSchema\(parseKimonJsonResponse\(fullText\), fullText\);/, 'Fallback route stream cũng phải giữ schema mới');
+assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(streamOutcome\.fullText\), streamOutcome\.fullText\)/, 'Route stream phải shape parsed payload về schema mới');
+assert.match(serverSource, /const fallback = toKimonResponseSchema\(parseKimonJsonResponse\(streamOutcome\.fullText\), streamOutcome\.fullText\);/, 'Fallback route stream cũng phải giữ schema mới');
 assert.match(serverSource, /function stripMarkdownForSpeech\(rawText\)/, 'Phải có helper làm sạch markdown trước khi đọc');
 assert.match(serverSource, /function ensureKimonAudioSource\(session\)/, 'Phải có helper tải audio từ ElevenLabs');
 assert.match(serverSource, /function createKimonSpeechHandler\(session\)/, 'Phải có play\/pause handler theo audio session');

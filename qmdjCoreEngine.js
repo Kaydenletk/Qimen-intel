@@ -374,6 +374,19 @@ function getDichMa(branch) {
   };
 }
 
+function safeCoreCalculation(run, fallback) {
+  try {
+    return run();
+  } catch (error) {
+    return {
+      ok: false,
+      error: error?.message || 'Core engine error',
+      message: 'Hệ thống đang quá tải năng lượng hoặc mất kết nối. Xin vui lòng thử lại sau giây lát.',
+      ...(typeof fallback === 'function' ? fallback(error) : {}),
+    };
+  }
+}
+
 // ============================================================================
 //  SECTION 5 — DEMO / SELF-TEST  (remove or guard behind a flag in production)
 // ============================================================================
@@ -442,6 +455,24 @@ const QMDJCoreEngine = {
   getThapThan,
   getKhongVong,
   getDichMa,
+  safeGetThapThan(dayStem, targetStem) {
+    return safeCoreCalculation(
+      () => ({ ok: true, value: getThapThan(dayStem, targetStem) }),
+      () => ({ value: null, input: { dayStem, targetStem } })
+    );
+  },
+  safeGetKhongVong(stem, branch) {
+    return safeCoreCalculation(
+      () => ({ ok: true, value: getKhongVong(stem, branch) }),
+      () => ({ value: null, input: { stem, branch } })
+    );
+  },
+  safeGetDichMa(branch) {
+    return safeCoreCalculation(
+      () => ({ ok: true, value: getDichMa(branch) }),
+      () => ({ value: null, input: { branch } })
+    );
+  },
 
   // ── Utility helpers ─────────────────────────────────────────────────────
   mapBranchToPalace,

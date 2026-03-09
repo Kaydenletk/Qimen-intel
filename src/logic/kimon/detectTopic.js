@@ -102,7 +102,6 @@ const KEYWORD_MAP = {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const STRATEGY_TOPICS = new Set(['tai-van', 'muu-luoc', 'chien-luoc']);
-const COMPANION_TOPICS = new Set(['chung']);
 
 const TOPIC_ALIASES = {
   'tinh-yeu': 'tinh-duyen',
@@ -128,6 +127,33 @@ const DEEP_DIVE_KEYWORDS = [
   'chi tiết hơn', 'tại sao lại chọn', 'vì sao lại chọn',
   'chiến lược', 'mưu lược', 'giải thích chi tiết',
 ];
+
+const SMALL_TALK_EXACT_MATCHES = new Set([
+  'hi',
+  'hello',
+  'alo',
+  'a lo',
+  'chao',
+  'xin chao',
+  'hello kymon',
+  'hi kymon',
+  'chao kymon',
+  'ok',
+  'oke',
+  'okay',
+  'ok ban',
+  'oke ban',
+  'cam on',
+  'cam on nhe',
+  'cam on nha',
+  'cam on ban',
+  'thanks',
+  'thanks ban',
+  'thank you',
+  'hehe',
+  'hihi',
+  'haha',
+]);
 
 export function canonicalizeTopicKey(topic) {
   if (!topic || typeof topic !== 'string') return topic;
@@ -156,7 +182,7 @@ function isKeywordBlocked(topic, keyword, normalizedMessage) {
 
 function getTier(topic) {
   const canonicalTopic = canonicalizeTopicKey(topic);
-  if (!canonicalTopic || COMPANION_TOPICS.has(canonicalTopic)) return 'companion';
+  if (!canonicalTopic) return 'topic';
   if (STRATEGY_TOPICS.has(canonicalTopic)) return 'strategy';
   return 'topic';
 }
@@ -183,6 +209,19 @@ function normalize(text) {
     .replace(/đ/g, 'd');
 }
 
+function normalizeLooseText(text) {
+  return normalize(text)
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isSmallTalkMessage(userMessage) {
+  const normalized = normalizeLooseText(userMessage || '');
+  if (!normalized) return false;
+  return SMALL_TALK_EXACT_MATCHES.has(normalized);
+}
+
 // Pre-compute normalized keyword map for faster matching
 const NORMALIZED_KEYWORD_MAP = {};
 for (const [topic, keywords] of Object.entries(KEYWORD_MAP)) {
@@ -204,6 +243,10 @@ const ORIGINAL_KEYWORD_MAP = KEYWORD_MAP;
 export function detectTopic(userMessage) {
   if (!userMessage || typeof userMessage !== 'string') {
     return { topic: null, confidence: null, tier: 'companion' };
+  }
+
+  if (isSmallTalkMessage(userMessage)) {
+    return { topic: 'chung', confidence: 'fallback', tier: 'companion' };
   }
 
   const msgLower = userMessage.toLowerCase();
@@ -242,7 +285,7 @@ export function detectTopic(userMessage) {
     return { topic: canonicalTopic, confidence: 'keyword', tier: getTier(canonicalTopic) };
   }
 
-  return { topic: null, confidence: null, tier: 'companion' };
+  return { topic: null, confidence: null, tier: 'topic' };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -256,13 +299,17 @@ export function detectTopic(userMessage) {
  * @returns {Promise<{ topic: string, confidence: 'ai', tier: string }>}
  */
 export async function classifyWithAI(userMessage, apiKey) {
-  const classifyPrompt = `Phân loại câu hỏi sau vào 1 trong các category. Chỉ trả về KEY, không giải thích.
+  const classifyPrompt = `You are an intent classifier.
+Read the user's Vietnamese message and return a strict JSON object only.
+Do not explain. Do not use Markdown.
 
-Categories: tai-van, suc-khoe, tinh-duyen, su-nghiep, kinh-doanh, thi-cu, hoc-tap, gia-dao, ky-hop-dong, dam-phan, doi-no, kien-tung, xuat-hanh, xin-viec, bat-dong-san, muu-luoc, chung
+Valid topics: tai-van, suc-khoe, tinh-duyen, su-nghiep, kinh-doanh, thi-cu, hoc-tap, gia-dao, ky-hop-dong, dam-phan, doi-no, kien-tung, xuat-hanh, xin-viec, bat-dong-san, muu-luoc, chung
+Valid tiers: companion, topic, strategy
 
-Câu hỏi: "${userMessage}"
+Return exactly this shape:
+{"topic":"<one valid topic>","tier":"<one valid tier>"}
 
-KEY:`;
+User message: "${userMessage}"`;
 
   try {
     const response = await fetch(
@@ -278,21 +325,48 @@ KEY:`;
     );
 
     if (!response.ok) {
-      return { topic: 'chung', confidence: 'ai', tier: 'companion' };
+      return {
+        topic: 'chung',
+        confidence: 'ai',
+        tier: isSmallTalkMessage(userMessage) ? 'companion' : 'topic',
+      };
     }
 
     const data = await response.json();
-    const text = canonicalizeTopicKey(
-      (data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().toLowerCase().replace(/[^a-z-]/g, '')
-    );
+    const rawText = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+    let parsedTopic = '';
+    let parsedTier = '';
 
-    if (VALID_TOPICS.has(text)) {
-      return { topic: text, confidence: 'ai', tier: getTier(text) };
+    try {
+      const parsed = JSON.parse(rawText);
+      parsedTopic = canonicalizeTopicKey(String(parsed?.topic || '').trim().toLowerCase());
+      parsedTier = String(parsed?.tier || '').trim().toLowerCase();
+    } catch {
+      parsedTopic = canonicalizeTopicKey(rawText.toLowerCase().replace(/[^a-z-]/g, ''));
     }
 
-    return { topic: 'chung', confidence: 'ai', tier: 'companion' };
+    if (VALID_TOPICS.has(parsedTopic)) {
+      const tier = parsedTopic === 'chung'
+        ? (isSmallTalkMessage(userMessage) ? 'companion' : 'topic')
+        : (
+          parsedTier === 'companion' || parsedTier === 'topic' || parsedTier === 'strategy'
+            ? parsedTier
+            : getTier(parsedTopic)
+        );
+      return { topic: parsedTopic, confidence: 'ai', tier };
+    }
+
+    return {
+      topic: 'chung',
+      confidence: 'ai',
+      tier: isSmallTalkMessage(userMessage) ? 'companion' : 'topic',
+    };
   } catch {
-    return { topic: 'chung', confidence: 'ai', tier: 'companion' };
+    return {
+      topic: 'chung',
+      confidence: 'ai',
+      tier: isSmallTalkMessage(userMessage) ? 'companion' : 'topic',
+    };
   }
 }
 
@@ -313,16 +387,10 @@ export async function detectTopicHybrid(userMessage, apiKey) {
     return keywordResult;
   }
 
-  // Message too short for AI classify
-  const words = (userMessage || '').split(/\s+/).filter(Boolean);
-  if (words.length < 2) {
-    return { topic: 'chung', confidence: 'fallback', tier: 'companion' };
-  }
-
   // AI classify fallback
   if (apiKey) {
     return classifyWithAI(userMessage, apiKey);
   }
 
-  return { topic: 'chung', confidence: 'fallback', tier: 'companion' };
+  return { topic: 'chung', confidence: 'fallback', tier: 'topic' };
 }

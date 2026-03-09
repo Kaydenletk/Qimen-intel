@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { buildKimonPrompt, buildKimonSystemInstruction } from '../src/logic/kimon/promptBuilder.js';
+import { buildCompanionPrompt, buildKimonPrompt, buildKimonSystemInstruction } from '../src/logic/kimon/promptBuilder.js';
+import { KYMON_PRO_SYSTEM_PROMPT, buildStrategySystemInstruction } from '../src/logic/kimon/strategyPrompt.js';
 import { enrichData } from '../src/utils/qmdjHelper.js';
 
 const qmdjData = {
@@ -31,10 +32,6 @@ const qmdjData = {
   directEnvoyActionVerdict: 'thuận',
   directEnvoyActionScore: 9,
   quickReadSummary: 'Khí giờ đang nghịch, nhưng hành động đúng cách vẫn có cửa',
-  mentalState: 'Đầu óc đang dễ bật chế độ phòng vệ.',
-  conflict: 'Tình huống đang ép bạn phản ứng nhanh hơn mức cần thiết.',
-  blindSpot: 'Rủi ro nằm ở chỗ nói quá sớm.',
-  energyAdvice: 'Nên thử nhỏ trước khi chốt.',
   formations: 'Thiên Nhuế gặp Kinh Môn',
   allTopics: JSON.stringify([{ topic: 'Gọi điện', verdict: 'Bình', score: -2, action: 'Nhắn ngắn trước, đừng gọi dồn' }]),
   currentHour: 15,
@@ -42,49 +39,63 @@ const qmdjData = {
 };
 
 const systemInstruction = buildKimonSystemInstruction();
+const strategyInstruction = buildStrategySystemInstruction();
 const prompt = buildKimonPrompt({ qmdjData, userContext: 'Có nên gọi lúc này không?', isAutoLoad: false });
 const autoPrompt = buildKimonPrompt({ qmdjData, userContext: '__AUTO_LOAD__', isAutoLoad: true });
+const companionPrompt = buildCompanionPrompt({ qmdjData, userContext: 'Nay có nên nhắn không?' });
 const enriched = enrichData(qmdjData);
 
-// ── System Instruction: Deep Dive schema ──
-assert.match(systemInstruction, /Bạn là Kimon/);
-assert.match(systemInstruction, /Deep Dive/);
-assert.match(systemInstruction, /\[QUY TẮC DEEP DIVE - BẮT BUỘC\]/);
-assert.match(systemInstruction, /Định vị Bản thân/);
-assert.match(systemInstruction, /Định vị Dụng Thần/);
-assert.match(systemInstruction, /"tongQuan"/);
-assert.match(systemInstruction, /"tamLy"/);
-assert.match(systemInstruction, /"chienLuoc"/);
-assert.match(systemInstruction, /"hanhDong"/);
-assert.match(systemInstruction, /"kimonQuote"/);
+assert.equal(systemInstruction, KYMON_PRO_SYSTEM_PROMPT);
+assert.equal(strategyInstruction, KYMON_PRO_SYSTEM_PROMPT);
+assert.match(systemInstruction, /\[SYSTEM ROLE & PERSONA\]/);
+assert.match(systemInstruction, /Chiến lược gia AI \(Pro-level\)/);
+assert.match(systemInstruction, /\[CORE METAPHORS - TỪ ĐIỂN ẨN DỤ BẮT BUỘC\]/);
+assert.match(systemInstruction, /\[STRICT CONSTRAINTS - RÀNG BUỘC NGHIÊM NGẶT\]/);
+assert.match(systemInstruction, /\[DEEP DIVE & CHAIN OF THOUGHT - CHUỖI TƯ DUY SÂU SẮC\]/);
+assert.match(systemInstruction, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
+assert.match(systemInstruction, /\[CLOSING LINE - CÂU CHỐT BẮT BUỘC\]/);
+assert.match(systemInstruction, /ít nhất 2-4 tầng nghĩa/i);
+assert.match(systemInstruction, /out trình/);
+assert.match(systemInstruction, /Đỗ Môn = Sự tắc nghẽn/);
+assert.match(systemInstruction, /Thiên Phụ = Ngôi sao học giả/);
+assert.match(systemInstruction, /field "closingLine" riêng/);
 
-// ── System Instruction: Time awareness ──
-assert.match(systemInstruction, /THỜI GIAN TUYẾN TÍNH/);
-assert.match(systemInstruction, /CHỈ gợi ý khung giờ TƯƠNG LAI/);
-assert.match(systemInstruction, /KHUNG GIỜ TỐT TRONG TƯƠNG LAI/);
-
-// ── System Instruction: Casual routing ──
-assert.match(systemInstruction, /câu hỏi đời thường/);
-assert.match(systemInstruction, /KHÔNG bẻ lái vào chủ đề lớn/);
-assert.match(systemInstruction, /KHÔNG suy diễn ngữ nghĩa cưỡng ép/);
-
-// ── enrichData ──
 assert.match(enriched, /\[TÍN HIỆU ĐÈN\]/);
 assert.match(enriched, /Khí giờ đang nghịch, nhưng hành động đúng cách vẫn có cửa/);
-assert.match(enriched, /Ngày và Giờ cùng một cung/);
-assert.match(enriched, /Dấu giờ đang ký gửi/);
 assert.match(enriched, /Cung Giờ: P3 · Đông · Thần Chu Tước · Môn Kinh · Tinh Nhuế · tone dark/);
 assert.match(enriched, /Cung Trực Sử: P9 · Nam · Thần Cửu Địa · Môn Hưu · Tinh Trụ · tone very-bright/);
 assert.match(enriched, /Giờ hiện tại: 15:30/);
 
-// ── Prompt: contains chart data and time ──
 assert.match(prompt, /\[CHỈ DẤU CHO AI\]/);
+assert.match(prompt, /\[TRỤC Kymon Pro\]/);
+assert.match(prompt, /\[CÂU HỎI NGƯỜI DÙNG\]/);
+assert.match(prompt, /\[ĐIỂM CẦN BÁM\]/);
 assert.match(prompt, /tone=dark; verdict=nghịch/);
 assert.match(prompt, /tone=very-bright; verdict=thuận/);
 assert.match(prompt, /THỜI GIAN HIỆN TẠI.*15:30/);
 assert.match(prompt, /Có nên gọi lúc này không\?/);
+assert.match(prompt, /2-4 lớp để người đọc thấy được toàn cảnh/i);
+assert.match(prompt, /ít nhất 2 tín hiệu đang tương tác/i);
+assert.match(prompt, /field "closingLine" riêng/);
+assert.doesNotMatch(prompt, /\[SYSTEM ROLE & PERSONA\]/);
+assert.doesNotMatch(prompt, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
+assert.doesNotMatch(prompt, /\[YÊU CẦU TRIỂN KHAI\]/);
 
-// ── AutoLoad prompt ──
-assert.match(autoPrompt, /Ưu tiên bám Cung Giờ trước/);
+assert.match(autoPrompt, /\[BỐI CẢNH TỰ ĐỘNG\]/);
+assert.match(autoPrompt, /\[ĐIỂM CẦN BÁM\]/);
+assert.match(autoPrompt, /được phép viết dài hơn để diễn tả đủ bức tranh/i);
+assert.match(autoPrompt, /2-4 tầng nghĩa/i);
+assert.match(autoPrompt, /field "closingLine" riêng/);
+assert.doesNotMatch(autoPrompt, /Ưu tiên bám Cung Giờ trước/);
+
+assert.match(companionPrompt.systemPrompt, /Dòng cuối cùng BẮT BUỘC phải theo định dạng: "Chốt: \.\.\."/);
+assert.match(companionPrompt.systemPrompt, /8-18 từ/);
+assert.match(companionPrompt.systemPrompt, /2-4 đoạn rõ ý/i);
+assert.match(companionPrompt.systemPrompt, /ít nhất 2 tín hiệu của trận/i);
+assert.match(companionPrompt.systemPrompt, /2-4 tầng ý nghĩa/i);
+assert.match(companionPrompt.userPrompt, /Kết thúc bằng đúng 1 dòng "Chốt: \.\.\."/);
+assert.match(companionPrompt.userPrompt, /không quá ngắn/i);
+assert.match(companionPrompt.userPrompt, /2-4 đoạn/i);
+assert.match(companionPrompt.userPrompt, /2-4 tầng/i);
 
 console.log('ASSERTIONS: OK');

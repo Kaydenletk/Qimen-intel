@@ -5,6 +5,15 @@ const clean = parseKimonJsonResponse('{"tongQuan":"Ổn","tamLy":{"trangThai":"A
 assert.equal(clean.tongQuan, 'Ổn');
 assert.deepEqual(clean.hanhDong, ['D']);
 
+const kymonPro = parseKimonJsonResponse('{"buoc1_gocReVanDe":"**Bước 1: Đâm thẳng vào vấn đề**\\nNút nghẽn đang nằm ngay ở Dụng Thần.","buoc2_trangThaiMucTieu":"**Bước 2: Tình trạng của Mục Tiêu**\\nMục tiêu đang sáng cửa nhưng còn một lớp giấy tờ lắt léo.","buoc3_noiLucVaTamLy":"**Bước 3: Vị thế & Tâm lý của bạn**\\nBạn đang sốt ruột vì sợ mất nhịp chốt hạ.","buoc4_muuLuocHanhDong":"**Bước 4: Mưu Lược Hành Động**\\nĐi cửa hẹp nhưng vẫn có cửa.\\n- Chốt lại checklist trước khi ký\\n- Giữ nhịp chậm để tránh om hàng cảm xúc","closingLine":"Nhanh một nhịp thì được việc, nhanh quá một nhịp là vỡ bài."}');
+assert.equal(kymonPro.tongQuan, '**Bước 1: Đâm thẳng vào vấn đề**\nNút nghẽn đang nằm ngay ở Dụng Thần.');
+assert.equal(kymonPro.tamLy.dongChay, '**Bước 2: Tình trạng của Mục Tiêu**\nMục tiêu đang sáng cửa nhưng còn một lớp giấy tờ lắt léo.');
+assert.equal(kymonPro.tamLy.trangThai, '**Bước 3: Vị thế & Tâm lý của bạn**\nBạn đang sốt ruột vì sợ mất nhịp chốt hạ.');
+assert.equal(kymonPro.chienLuoc.noiDung, '**Bước 4: Mưu Lược Hành Động**\nĐi cửa hẹp nhưng vẫn có cửa.\n- Chốt lại checklist trước khi ký\n- Giữ nhịp chậm để tránh om hàng cảm xúc');
+assert.deepEqual(kymonPro.hanhDong, ['Chốt lại checklist trước khi ký', 'Giữ nhịp chậm để tránh om hàng cảm xúc']);
+assert.equal(kymonPro.closingLine, 'Nhanh một nhịp thì được việc, nhanh quá một nhịp là vỡ bài.');
+assert.equal(kymonPro.kimonQuote, 'Nhanh một nhịp thì được việc, nhanh quá một nhịp là vỡ bài.');
+
 const fenced = parseKimonJsonResponse('```json\n{"message":"Xin chờ","hanhDong":"Giữ nhịp"}\n```');
 assert.equal(fenced.tongQuan, 'Xin chờ');
 assert.equal(fenced.traLoiTrucTiep, 'Xin chờ');
@@ -66,6 +75,7 @@ assert.equal(repaired.mode, 'companion');
 assert.match(repaired.traLoiTrucTiep, /hơi rối/);
 assert.equal(repaired.thoiDiemGoiY, 'Sau 15h');
 assert.equal(repaired.kimonQuote, 'Cứ chậm mà chắc nhé.');
+assert.equal(repaired.closingLine, 'Cứ chậm mà chắc nhé.');
 
 const truncatedStructured = parseKimonJsonResponse(`{
   "mode": "decision",
@@ -108,6 +118,14 @@ assert.equal(publicSchema.tongQuan, 'legacy');
 assert.deepEqual(publicSchema.tamLy, { trangThai: 'legacy', dongChay: 'legacy' });
 assert.deepEqual(publicSchema.hanhDong, ['legacy']);
 
+const kymonProPublicSchema = toKimonResponseSchema(kymonPro);
+assert.equal(kymonProPublicSchema.buoc1_gocReVanDe, kymonPro.buoc1_gocReVanDe);
+assert.equal(kymonProPublicSchema.buoc2_trangThaiMucTieu, kymonPro.buoc2_trangThaiMucTieu);
+assert.equal(kymonProPublicSchema.buoc3_noiLucVaTamLy, kymonPro.buoc3_noiLucVaTamLy);
+assert.equal(kymonProPublicSchema.buoc4_muuLuocHanhDong, kymonPro.buoc4_muuLuocHanhDong);
+assert.equal(kymonProPublicSchema.tongQuan, kymonPro.tongQuan);
+assert.equal(kymonProPublicSchema.closingLine, 'Nhanh một nhịp thì được việc, nhanh quá một nhịp là vỡ bài.');
+
 const strictFallbackSchema = toKimonResponseSchema(
   parseKimonJsonResponse('{"mode":"decision","lead":"Đang xem..."\n{"mode":"decision"'),
   '{"mode":"decision","lead":"Đang xem..."\n{"mode":"decision"'
@@ -116,6 +134,13 @@ assert.equal(strictFallbackSchema.mode, 'decision');
 assert.equal(strictFallbackSchema.lead, 'Đang xem...');
 assert.equal(strictFallbackSchema.timeHint, '');
 assert.equal(strictFallbackSchema.message, 'Đang xem...');
-assert.equal(strictFallbackSchema.closingLine, 'Bạn gửi lại câu hỏi ngắn hơn nhé.');
+assert.equal(strictFallbackSchema.closingLine, '');
+
+const emptyStrictFallbackSchema = toKimonResponseSchema(
+  parseKimonJsonResponse('{"mode":"decision","message":'),
+  '{"mode":"decision","message":'
+);
+assert.equal(emptyStrictFallbackSchema.lead, 'Kymon chưa trả lời trọn vẹn.');
+assert.equal(emptyStrictFallbackSchema.closingLine, 'Bạn gửi lại câu hỏi ngắn hơn nhé.');
 
 console.log('ASSERTIONS: OK');
