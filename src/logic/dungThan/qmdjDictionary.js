@@ -17,7 +17,7 @@ export const QMDJ_DICTIONARY = {
       {
         'hoc-tap': 'đề bài đánh đố, kiến thức quấn lấy nhau, học mãi vẫn thấy lắt léo',
         'tinh-duyen': 'mập mờ, nghi ngờ, suy diễn, cảm giác bị treo giữa thật và giả',
-        'gia-dao': 'bằng mặt không bằng lòng, chuyện nhỏ kéo thành mớ dây rối trong nhà',
+        'gia-dao': 'sự bất an, tâm tư khó nói, bằng mặt nhưng dối lòng, chuyện nhỏ kéo thành mớ dây rối trong nhà',
         'kinh-doanh': 'đối tác nói một đằng làm một nẻo, điều khoản nhìn đẹp nhưng gài bẫy',
       }
     ),
@@ -33,7 +33,7 @@ export const QMDJ_DICTIONARY = {
       'thế hòa, kết nối được với nhau, còn cửa ngồi lại nói chuyện cho ra nhẽ',
       {
         'tinh-duyen': 'nhân duyên hợp nhịp, dễ nối lại liên lạc hoặc chốt một cuộc nói chuyện thật',
-        'gia-dao': 'khả năng sum vầy, có cửa hòa giải, người trong nhà còn muốn ngồi lại',
+        'gia-dao': 'sự thấu hiểu, gắn kết và tiếng nói chung giữa các thành viên, dấu hiệu nhà vẫn còn muốn ngồi lại với nhau',
         'kinh-doanh': 'đối tác hợp tác được, mối nối thương lượng chưa đứt',
         'ky-hop-dong': 'điều khoản có thể chốt nếu đôi bên chịu nhường đúng điểm',
       }
@@ -119,6 +119,7 @@ export const QMDJ_DICTIONARY = {
       {
         'tai-van': 'tiền đang có cửa sinh lời hoặc tạo ra dòng chảy mới nếu đi đúng nhịp',
         'tinh-duyen': 'mối quan hệ có lực nảy nở, nói chuyện đúng cách là tình cảm lên rõ',
+        'gia-dao': 'hơi ấm, sức sống và khả năng nuôi dưỡng của ngôi nhà, thứ giữ cho nếp nhà còn sống',
         'bat-dong-san': 'nhà cửa, công trình, tài sản hữu hình đang có lực tăng giá hoặc dễ chốt',
         'kinh-doanh': 'dòng tiền, khách, đơn hoặc doanh số đang có cửa bật lên',
       }
@@ -213,7 +214,7 @@ export const QMDJ_DICTIONARY = {
     'Thiên Trụ': withDefault(
       'gây cản, tạo áp lực, làm tiếng nói bị nghẽn hoặc bị cô lập',
       {
-        'gia-dao': 'ai cũng cố thủ ở vị trí mình, nói mãi vẫn không lọt tai nhau',
+        'gia-dao': 'lời qua tiếng lại, cái tôi dựng thành bức tường, ai cũng nói mà không lọt tai nhau',
         'su-nghiep': 'bị vướng đầu mối cứng, nói mãi vẫn không ai chịu ký hoặc bật đèn xanh',
       }
     ),
@@ -331,7 +332,7 @@ export const QMDJ_DICTIONARY = {
         'bat-dong-san': 'deal đẹp trên giấy nhưng thực tế chốt không được hoặc thông tin bị hẫng',
         'hoc-tap': 'học nhiều nhưng vào phòng thi lại trống đầu hoặc ôn lệch trọng tâm',
         'thi-cu': 'đặt cược lớn nhưng kết quả hụt tay, kỳ vọng và thực tế vênh nhau rõ',
-        'gia-dao': 'nói rất nhiều mà chẳng chạm được vào điều cốt lõi, ai cũng thấy trống',
+        'gia-dao': 'nhà có người nhưng lòng cách xa, sự thấu hiểu bị rỗng, khoảng trống và nỗi cô đơn nằm ngay trong tổ ấm',
         'ky-hop-dong': 'cam kết nghe ngon nhưng hiệu lực mỏng, chữ nghĩa không giữ được kết quả',
         'dam-phan': 'ngồi nói lâu mà không kéo được gì về phía mình',
         'doi-no': 'hứa trả tiếp tục là hứa, tiền vẫn không về',

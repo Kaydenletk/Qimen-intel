@@ -1,5 +1,8 @@
 import { enrichData } from '../../utils/qmdjHelper.js';
 import { getFutureHoursContext } from './futureHours.js';
+import { resolveDungThanMarker } from './dungThanHelper.js';
+import { buildQuestionIntentContext } from './questionIntent.js';
+import { buildFlashTopicPersonaContext } from './topicPersonaProfiles.js';
 
 function parseTopics(qmdjData = {}) {
   const raw = qmdjData?.allTopics || '[]';
@@ -81,17 +84,83 @@ function buildPROFrameworkContext(qmdjData = {}) {
   return lines.filter(Boolean).join('\n');
 }
 
-function buildSelectedTopicContext(qmdjData = {}) {
+function resolvePromptDungThan(qmdjData = {}, userContext = '') {
+  const liveMarker = resolveDungThanMarker({
+    topic: qmdjData?.selectedTopicKey || '',
+    boardData: qmdjData?.displayPalaces || {},
+    userContext,
+    hourPalaceNum: qmdjData?.hourMarkerPalace || null,
+  });
+  return liveMarker || qmdjData?.selectedTopicCanonicalDungThan || null;
+}
+
+function buildCanonicalDungThanContext(qmdjData = {}, userContext = '') {
+  const canonicalDungThan = resolvePromptDungThan(qmdjData, userContext);
+  const topicKey = qmdjData?.selectedTopicKey || '';
+  if (!canonicalDungThan?.palaceNum) return '';
+
+  const lines = [
+    '[DỤNG THẦN CHUẨN SÁCH]',
+    topicKey ? `- Chủ đề: ${topicKey}` : '',
+    `- Dụng Thần chính theo quy chiếu chủ đề: cung ${canonicalDungThan.palaceNum} (${canonicalDungThan.palaceName})${canonicalDungThan.direction ? ` · ${canonicalDungThan.direction}` : ''}.`,
+    canonicalDungThan.targetSummary
+      ? `- Trục bắt Dụng Thần: ${canonicalDungThan.targetSummary}.`
+      : '',
+    canonicalDungThan.matchedByText
+      ? `- Cung này được khớp theo: ${canonicalDungThan.matchedByText}.`
+      : '',
+    '- Khi block này xuất hiện, coi đây là [DỤNG THẦN CHÍNH]. Nếu lệch với Dụng Thần engine tổng hợp, đọc cung này trước; cung engine tổng hợp chỉ dùng làm đối chiếu phụ.',
+    canonicalDungThan.boardText
+      ? `[CỬU CUNG THEO TOPIC]\n${canonicalDungThan.boardText}`
+      : '',
+  ];
+
+  return lines.filter(Boolean).join('\n');
+}
+
+function buildMultiTopicContext(qmdjData = {}) {
+  const primaryTopic = qmdjData?.selectedTopicKey || '';
+  const secondaryTopic = qmdjData?.selectedSecondaryTopicKey || '';
+  const topicCandidates = Array.isArray(qmdjData?.selectedTopicCandidates)
+    ? qmdjData.selectedTopicCandidates.filter(Boolean)
+    : [];
+  if (!secondaryTopic && !topicCandidates.length) return '';
+
+  return [
+    '[TOPIC CHỒNG LỚP]',
+    primaryTopic ? `- Chủ đề chính: ${primaryTopic}` : '',
+    secondaryTopic ? `- Chủ đề phụ: ${secondaryTopic}` : '',
+    topicCandidates.length ? `- Các topic nổi bật: ${topicCandidates.join(' | ')}` : '',
+    '- Luận theo chủ đề chính trước. Chủ đề phụ chỉ dùng để soi lớp phụ, tuyệt đối không đổi trục Dụng Thần.',
+  ].filter(Boolean).join('\n');
+}
+
+function buildSelectedTopicContext(qmdjData = {}, userContext = '') {
   const topicKey = qmdjData?.selectedTopicKey || '';
   const selectedTopicResult = qmdjData?.selectedTopicResult || '';
   const insight = qmdjData?.insight || '';
   const aiHints = qmdjData?.aiHints || '';
+  const canonicalDungThanContext = buildCanonicalDungThanContext(qmdjData, userContext);
+  const multiTopicContext = buildMultiTopicContext(qmdjData);
   const selectedTopicFlags = Array.isArray(qmdjData?.selectedTopicFlags)
     ? qmdjData.selectedTopicFlags.filter(Boolean)
     : [];
   const selectedTopicUsefulPalace = qmdjData?.selectedTopicUsefulPalace || '';
   const selectedTopicUsefulPalaceName = qmdjData?.selectedTopicUsefulPalaceName || '';
+  const topicPersonaContext = buildFlashTopicPersonaContext(topicKey);
   const lines = [];
+
+  if (canonicalDungThanContext) {
+    lines.push(canonicalDungThanContext);
+  }
+
+  if (multiTopicContext) {
+    lines.push(multiTopicContext);
+  }
+
+  if (topicPersonaContext) {
+    lines.push(topicPersonaContext);
+  }
 
   if (selectedTopicResult) {
     lines.push(`[PHÂN TÍCH CHỦ ĐỀ: ${topicKey || 'chung'}]`);
@@ -107,8 +176,9 @@ function buildSelectedTopicContext(qmdjData = {}) {
     const palaceSuffix = [selectedTopicUsefulPalace ? `cung ${selectedTopicUsefulPalace}` : '', selectedTopicUsefulPalaceName || '']
       .filter(Boolean)
       .join(' · ');
-    lines.push(`[FLAGS DỤNG THẦN${palaceSuffix ? ` tại ${palaceSuffix}` : ''}]`);
-    selectedTopicFlags.forEach(flag => lines.push(`- ${flag}`));
+    lines.push(`[FLAGS ENGINE TẠI DỤNG THẦN${palaceSuffix ? ` tại ${palaceSuffix}` : ''}]`);
+    lines.push(`- Tóm tắt engine: ${selectedTopicFlags.join(' | ')}`);
+    lines.push('- Vị trí chính xác của từng cờ phải đọc trong [CỬU CUNG THEO TOPIC], không được hoán đổi cờ giữa các cung.');
   }
 
   if (aiHints) {
@@ -127,6 +197,13 @@ function buildSelectedTopicContext(qmdjData = {}) {
     lines.push('Nếu Thiên Nhuế xuất hiện trong topic học tập, hãy dịch nó thành lỗ hổng kiến thức, bug nền tảng hoặc điểm rò dữ liệu; không được luận như bệnh lý.');
   }
 
+  if (topicKey === 'gia-dao') {
+    lines.push('[ƯU TIÊN GIA ĐẠO]');
+    lines.push('Đây là bài đọc về tổ ấm, hòa khí, nếp nhà và khoảng cách lòng người. Chỉ nói về căn nhà như tài sản khi câu hỏi hỏi thẳng về mua bán, giấy tờ hoặc xuống tiền.');
+    lines.push('Nếu thấy Lục Hợp đi cùng Không Vong trong cùng một cung, phải đọc là nhà có người nhưng lòng cách xa, sự thấu hiểu đang bị rỗng tuếch.');
+    lines.push('Tuyệt đối không dùng giọng giao dịch, pháp lý, đầu tư hay lợi nhuận cho topic gia-dao.');
+  }
+
   if (topicKey === 'tai-van') {
     lines.push('[ƯU TIÊN TÀI VẬN]');
     lines.push('Tách rõ 3 lớp: vốn/ thanh khoản (Can Mậu), lợi nhuận (Sinh Môn), và vị thế của người hỏi (Nhật Can).');
@@ -134,13 +211,22 @@ function buildSelectedTopicContext(qmdjData = {}) {
     lines.push('TUYỆT ĐỐI không lẫn sang nhà đất hoặc đất đai trong topic tai-van. Nhà đất là topic riêng.');
   }
 
+  if (topicKey === 'bat-dong-san') {
+    lines.push('[ƯU TIÊN BẤT ĐỘNG SẢN]');
+    lines.push('Nếu câu hỏi là quyết định xuống tiền mua tài sản, topic bat-dong-san thắng kinh-doanh hoặc tai-van.');
+    lines.push('Ngoài trục Can Mậu + Sinh Môn, bắt buộc soi thêm Cảnh Môn để đọc pháp lý, giấy tờ, hồ sơ và phần bề mặt dễ đánh lừa.');
+    lines.push('Đồng thời phải đọc Cửu Địa để chốt độ bền, nền đất, khả năng giữ giá và việc tài sản có đi được đường dài hay không.');
+    lines.push('Không được luận như một lệnh trading thuần tốc độ. Đây là quyết định mua tài sản thật.');
+  }
+
   return lines.join('\n');
 }
 
-function buildUsefulGodFocusContext(qmdjData = {}) {
+function buildUsefulGodFocusContext(qmdjData = {}, userContext = '') {
   const topicKey = qmdjData?.selectedTopicKey || '';
   const usefulPalace = qmdjData?.selectedTopicUsefulPalace || '';
   const usefulPalaceName = qmdjData?.selectedTopicUsefulPalaceName || '';
+  const canonicalDungThan = resolvePromptDungThan(qmdjData, userContext);
   const flags = Array.isArray(qmdjData?.selectedTopicFlags)
     ? qmdjData.selectedTopicFlags.filter(Boolean)
     : [];
@@ -148,10 +234,16 @@ function buildUsefulGodFocusContext(qmdjData = {}) {
   return [
     '[TRỤC Kymon Pro]',
     topicKey ? `- Chủ đề đang xét: ${topicKey}` : '- Chủ đề đang xét: chung',
+    canonicalDungThan?.palaceNum
+      ? `- Dụng Thần chuẩn sách: cung ${canonicalDungThan.palaceNum}${canonicalDungThan.palaceName ? ` · ${canonicalDungThan.palaceName}` : ''}${canonicalDungThan.matchedByText ? ` · ${canonicalDungThan.matchedByText}` : ''}`
+      : '',
     usefulPalace || usefulPalaceName
       ? `- Dụng Thần trọng tâm: ${[usefulPalace ? `cung ${usefulPalace}` : '', usefulPalaceName].filter(Boolean).join(' · ')}`
       : '- Dụng Thần trọng tâm: bám theo dữ liệu engine đã đánh dấu trong phần phân tích chủ đề.',
     flags.length ? `- Flags đang ghim trên Dụng Thần: ${flags.join(' | ')}` : '- Flags đang ghim trên Dụng Thần: chưa có cờ đặc biệt.',
+    canonicalDungThan?.palaceNum
+      ? '- Nếu Dụng Thần chuẩn sách lệch với Dụng Thần engine tổng hợp, Dụng Thần chuẩn sách thắng ở bước đọc chủ đề; Dụng Thần engine tổng hợp chỉ dùng để đối chiếu hoặc đọc lớp phụ.'
+      : '',
     '- Ưu tiên tuyệt đối: Dụng Thần -> sao/cửa/thần đi kèm -> Nhật Can -> Trực Sử. Cung Giờ chỉ là bối cảnh khi thật sự cần.',
     '- Nếu thấy cung khác đẹp nhưng không phục vụ Dụng Thần, bỏ qua. Không lan man.',
   ].join('\n');
@@ -167,6 +259,8 @@ Bạn là Kymon — nhà phân tích Kỳ Môn Độn Giáp cho các câu hỏi 
 
 [CORE RULES]
 - Bám chặt Dụng Thần và các tín hiệu engine đã cung cấp. Không bỏ Dụng Thần để chạy theo một cung đẹp nhưng không phải trục chính.
+- Nếu input có block [PERSONA THEO CHỦ ĐỀ], đó là lớp dịch tượng và từ vựng bắt buộc cho chủ đề đang hỏi.
+- Nếu input có block [TRỤC CÂU HỎI], đó là ưu tiên số 1 cho câu mở đầu và câu chốt. Trả lời đúng cái user hỏi trước, rồi mới diễn giải vì sao trận đi về hướng đó.
 - Khi kết luận điều gì, phải nói rõ đang dựa vào mối tương tác nào giữa Môn, Tinh, Thần, Can hoặc Flags.
 - Nếu tín hiệu chồng lớp, phải bóc ít nhất 2-4 tầng nghĩa để người đọc thấy cả bức tranh, không chỉ một mẩu kết luận.
 - Có thể dùng hình ảnh, ẩn dụ hiện đại vừa phải, nhưng không được làm loãng dữ kiện của trận.
@@ -174,6 +268,7 @@ Bạn là Kymon — nhà phân tích Kỳ Môn Độn Giáp cho các câu hỏi 
 
 [VERDICT AS THESIS]
 - Câu mở đầu phải có thesis/phán quyết rõ bằng 1-2 câu để người đọc biết thế trận đang nghiêng về đâu.
+- Thesis phải bám đúng trục literal của câu hỏi. Nếu user hỏi giá bao nhiêu, thesis phải chốt vào giá, giá treo, giá chạm hoặc khả năng chốt giá; không được mở đầu bằng lời khuyên hàn gắn hay chữa lành.
 - Nhưng thesis chỉ là mở bài, không phải toàn bộ câu trả lời. Sau hook mở đầu, bắt buộc phải triển khai thân bài đủ dày và giải thích vì sao trận dẫn tới nhận định đó.
 - Không được trả lời kiểu chốt một câu rồi dừng. Người dùng phải đọc ra được luận giải, mạch vận động và logic của trận.
 - Cách viết nên giống một bài văn ngắn: có mở bài, có triển khai, có chốt; rõ mà vẫn sâu.
@@ -187,6 +282,7 @@ Bạn là Kymon — nhà phân tích Kỳ Môn Độn Giáp cho các câu hỏi 
 - "lead": 1-2 câu mở bài, nêu thesis/phán quyết rõ.
 - "message": phần thân chính của bài luận giải. Viết đủ dày, thường là 3-6 đoạn hoặc ít nhất 2-4 lớp nghĩa khi trận phức tạp. Không được co lại thành một đoạn ngắn chỉ lặp lại "lead".
 - "closingLine": 1 câu chốt riêng, khoảng 8-18 từ, không lặp nguyên văn thân bài.
+- "closingLine" phải khóa cùng trục với câu hỏi. Hỏi giá thì chốt về giá hoặc khả năng chốt; hỏi có/không thì chốt về quyết định; hỏi khi nào thì chốt về thời điểm.
 - Không nhét toàn bộ nội dung vào "lead". Trọng lượng phân tích phải nằm ở "message".
 - Ưu tiên văn xuôi liền mạch. Chỉ dùng bullet trong "message" nếu câu hỏi thật sự cần checklist hành động.`;
 
@@ -199,8 +295,9 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
   const topicsContext = buildTopicsContext(qmdjData);
   const colorSignal = buildColorSignal(qmdjData);
   const internalInsights = buildInternalInsightsContext(qmdjData);
-  const selectedTopicContext = buildSelectedTopicContext(qmdjData);
-  const usefulGodFocusContext = buildUsefulGodFocusContext(qmdjData);
+  const selectedTopicContext = buildSelectedTopicContext(qmdjData, userContext);
+  const usefulGodFocusContext = buildUsefulGodFocusContext(qmdjData, userContext);
+  const questionIntentContext = buildQuestionIntentContext(userContext);
 
   // Linear time awareness
   const currentHour = qmdjData?.currentHour ?? '';
@@ -229,6 +326,7 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
     '[DỮ LIỆU TRẬN ĐỒ]',
     enrichData(qmdjData || {}),
     '',
+    questionIntentContext,
     usefulGodFocusContext,
     buildPROFrameworkContext(qmdjData),
     '',
@@ -253,6 +351,7 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
 - Trục trọng tâm: Dụng Thần nếu engine đã chỉ rõ.
 - Cung Giờ chỉ là bối cảnh ngắn hạn.
 - Bám đúng dữ liệu trận đồ, flags và câu hỏi ngầm của nhịp thời gian sắp tới.
+- Nếu có [PERSONA THEO CHỦ ĐỀ], phải giữ đúng lớp ngôn ngữ và ẩn dụ của chủ đề đó.
 - Câu mở đầu phải chốt rõ nhịp chính đang thuận, nghịch hay cần dè chừng ra sao; để AI tự chọn chữ theo trận, nhưng không được mở đầu mơ hồ.
 - Phán quyết mở đầu chỉ là hook/thesis. Phần thân phía sau vẫn phải giữ độ dày luận giải, không được co lại thành vài câu ngắn.
 - Nếu dữ liệu trận đồ đang mở nhiều lớp nghĩa, được phép viết dài hơn để diễn tả đủ bức tranh, không tự cắt ngắn vô lý.
@@ -272,6 +371,8 @@ ${userContext}
 - Trục trọng tâm: Dụng Thần và các tín hiệu đi kèm.
 - Đối chiếu người hỏi qua Nhật Can hoặc Cung Giờ khi thật sự cần.
 - Bám đúng dữ liệu trận đồ, flags, câu hỏi và các block insight đã cung cấp.
+- Nếu có [TRỤC CÂU HỎI], lead và closingLine phải trả lời thẳng đúng trục đó trước khi triển khai thân bài.
+- Nếu có [PERSONA THEO CHỦ ĐỀ], phải giữ đúng persona và vocabulary của chủ đề đó; không được kéo giọng sang domain khác.
 - Ngay phần mở đầu phải có một phán quyết đủ rõ để người hỏi biết nên nhìn trận theo hướng thuận, nghịch, còn cửa hay cần dè chừng; dùng chữ linh hoạt theo ngữ cảnh, không gắn nhãn máy móc.
 - Phán quyết mở đầu nên đóng vai trò hook/thesis 1-2 câu, rồi phải bung phần thân ra như một bài viết ngắn có luận giải thật sự.
 - Nếu trong trận có nhiều tín hiệu chồng lớp, hãy giải thích đủ sâu 2-4 lớp để người đọc thấy được toàn cảnh chứ không chỉ một mảnh cắt.

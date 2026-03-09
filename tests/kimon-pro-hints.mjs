@@ -10,6 +10,14 @@ const qmdjData = {
   selectedTopicFlags: ['Dịch Mã', 'Không Vong'],
   selectedTopicUsefulPalace: 6,
   selectedTopicUsefulPalaceName: 'Tây Bắc',
+  selectedTopicCanonicalDungThan: {
+    palaceNum: 8,
+    palaceName: 'Cấn',
+    direction: 'Đông Bắc',
+    matchedByText: 'Môn Cảnh + Tinh Phụ',
+    targetSummary: 'Môn Cảnh + Tinh Phụ',
+    boardText: 'Cung Đông Bắc (P8):\n===> [DỤNG THẦN CHÍNH - BẮT BUỘC PHÂN TÍCH TRỌNG TÂM TẠI ĐÂY] <===\n- Môn: Cảnh\n- Tinh: Phụ\n- Thần: Đằng Xà\n- Can: Đinh\n- Cờ: Đằng Xà',
+  },
   insight: 'Dụng thần đang sáng lên ở cung cần đọc.',
   currentHour: 12,
   currentMinute: 3,
@@ -23,6 +31,34 @@ const wealthQmdjData = {
   aiHints: '[GỢI Ý ẨN DỤ CHO AI]\n[QUAN TRỌNG - FLAGS]\n- Đối với [Dịch Mã]: Hãy ẩn dụ nó là "thanh khoản chạy rất nhanh".',
 };
 
+const familyQmdjData = {
+  ...qmdjData,
+  selectedTopicKey: 'gia-dao',
+  selectedTopicResult: 'Headline: Nhà còn khung, nhưng lòng người đang hẫng.',
+  selectedTopicCanonicalDungThan: {
+    palaceNum: 8,
+    palaceName: 'Cấn',
+    direction: 'Đông Bắc',
+    matchedByText: 'Môn Sinh + Thần Lục Hợp',
+    targetSummary: 'Môn Sinh + Thần Lục Hợp',
+    boardText: 'Cung Đông Bắc (P8):\n===> [DỤNG THẦN CHÍNH - BẮT BUỘC PHÂN TÍCH TRỌNG TÂM TẠI ĐÂY] <===\n[ĐÂY LÀ CUNG DỤNG THẦN CHÍNH]\n- Môn: Sinh\n- Tinh: Trụ\n- Thần: Lục Hợp\n- Can: Đinh\n- Cờ: Không Vong',
+  },
+};
+
+const propertyPricingQmdjData = {
+  ...qmdjData,
+  selectedTopicKey: 'bat-dong-san',
+  selectedTopicResult: 'Headline: Có giá để nói, nhưng chưa chắc có giá để chốt.',
+  selectedTopicCanonicalDungThan: {
+    palaceNum: 3,
+    palaceName: 'Chấn',
+    direction: 'Đông',
+    matchedByText: 'Can Mậu + Môn Sinh',
+    targetSummary: 'Can Mậu + Môn Sinh',
+    boardText: 'Cung Đông (P3):\n===> [DỤNG THẦN CHÍNH - BẮT BUỘC PHÂN TÍCH TRỌNG TÂM TẠI ĐÂY] <===\n[ĐÂY LÀ CUNG DỤNG THẦN CHÍNH]\n- Môn: Sinh\n- Tinh: Xung\n- Thần: Chu Tước\n- Can: Canh\n- Cờ: Không Vong',
+  },
+};
+
 const strategyPrompt = buildStrategyPrompt({
   qmdjData,
   userContext: 'Khi nào có đề cương?',
@@ -34,19 +70,30 @@ assert.match(strategyPrompt.systemPrompt, /\[SYSTEM ROLE & PERSONA\]/);
 assert.match(strategyPrompt.systemPrompt, /\[CORE METAPHORS - TỪ ĐIỂN ẨN DỤ BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /\[STRICT CONSTRAINTS - RÀNG BUỘC NGHIÊM NGẶT\]/);
 assert.match(strategyPrompt.systemPrompt, /\[DEEP DIVE & CHAIN OF THOUGHT - CHUỖI TƯ DUY SÂU SẮC\]/);
+assert.match(strategyPrompt.systemPrompt, /\[SHADOW ANALYSIS - GÓC KHUẤT BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /\[VERDICT FIRST - PHÁN QUYẾT MỞ ĐẦU\]/);
 assert.match(strategyPrompt.systemPrompt, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /\[CLOSING LINE - CÂU CHỐT BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /2-4 tầng nghĩa/i);
 assert.match(strategyPrompt.systemPrompt, /Giữ nguyên độ dài cần thiết của bài phân tích/i);
 assert.match(strategyPrompt.systemPrompt, /các đoạn ngắn có white space rõ ràng/i);
+assert.match(strategyPrompt.systemPrompt, /góc khuất nào chưa lộ/i);
+assert.match(strategyPrompt.systemPrompt, /dễ tự huyễn hoặc/i);
+assert.match(strategyPrompt.systemPrompt, /cái giá phải trả/i);
+assert.match(strategyPrompt.systemPrompt, /follow-up question thật trúng/i);
+assert.match(strategyPrompt.systemPrompt, /lăng kính triết gia/i);
 assert.match(strategyPrompt.systemPrompt, /Đằng Xà = Sự rắc rối/);
 assert.match(strategyPrompt.systemPrompt, /Trực Phù = Quý nhân bảo trợ/);
 assert.match(strategyPrompt.systemPrompt, /Mưu Lược Hành Động/);
 assert.match(strategyPrompt.systemPrompt, /field "closingLine" riêng/);
+assert.match(strategyPrompt.systemPrompt, /ƯU TIÊN TUYỆT ĐỐI: Bạn phải tìm nhãn \[DỤNG THẦN CHÍNH\]/);
 
 assert.match(strategyPrompt.userPrompt, /\[PHÂN TÍCH CHỦ ĐỀ: hoc-tap\]/);
-assert.match(strategyPrompt.userPrompt, /\[FLAGS DỤNG THẦN tại cung 6 · Tây Bắc\]/);
+assert.match(strategyPrompt.userPrompt, /\[DỤNG THẦN CHUẨN SÁCH\]/);
+assert.match(strategyPrompt.userPrompt, /cung 8 \(Cấn\) · Đông Bắc/i);
+assert.match(strategyPrompt.userPrompt, /===> \[DỤNG THẦN CHÍNH - BẮT BUỘC PHÂN TÍCH TRỌNG TÂM TẠI ĐÂY\] <===/);
+assert.match(strategyPrompt.userPrompt, /CỬU CUNG THEO TOPIC/i);
+assert.match(strategyPrompt.userPrompt, /\[FLAGS ENGINE TẠI DỤNG THẦN tại cung 6 · Tây Bắc\]/);
 assert.match(strategyPrompt.userPrompt, /\[ƯU TIÊN FLAGS\]/);
 assert.match(strategyPrompt.userPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
 assert.match(strategyPrompt.userPrompt, /\[INSIGHT ENGINE\]/);
@@ -56,9 +103,35 @@ assert.match(strategyPrompt.userPrompt, /phán quyết rõ/i);
 assert.match(strategyPrompt.userPrompt, /Xuất đúng JSON 5 key của Kymon Pro/i);
 assert.match(strategyPrompt.userPrompt, /field "closingLine" như một câu chốt riêng/i);
 assert.match(strategyPrompt.userPrompt, /Không được trả lời cụt hoặc quá ngắn/i);
+assert.match(strategyPrompt.userPrompt, /góc khuất|điểm người hỏi dễ hiểu sai/i);
+assert.match(strategyPrompt.userPrompt, /cái giá phải trả/i);
+assert.match(strategyPrompt.userPrompt, /giới hạn của cái xấu/i);
+assert.match(strategyPrompt.userPrompt, /follow-up question thật trúng/i);
+assert.match(strategyPrompt.userPrompt, /chiêm nghiệm kiểu triết gia/i);
 assert.match(strategyPrompt.userPrompt, /Mỗi bước nên giải thích rõ ít nhất 2 tín hiệu/i);
 assert.match(strategyPrompt.userPrompt, /không được tự rút ngắn phần thân|Giữ nguyên độ dày của bài phân tích/i);
 assert.match(strategyPrompt.userPrompt, /các đoạn ngắn có white space rõ/i);
+
+const familyStrategyPrompt = buildStrategyPrompt({
+  qmdjData: familyQmdjData,
+  userContext: 'Nhà Khanh hiện tại ra sao?',
+  topicKey: 'gia-dao',
+});
+
+assert.match(familyStrategyPrompt.userPrompt, /\[LENS THEO CHỦ ĐỀ\]/);
+assert.match(familyStrategyPrompt.userPrompt, /hòa khí|nếp nhà|sự kết nối/i);
+assert.match(familyStrategyPrompt.userPrompt, /Chỉ nói về tài sản, giao dịch, giấy tờ khi câu hỏi thật sự hỏi về căn nhà như một tài sản/i);
+
+const propertyPricingStrategyPrompt = buildStrategyPrompt({
+  qmdjData: propertyPricingQmdjData,
+  userContext: 'Nhà Khanh giá bao nhiêu?',
+  topicKey: 'bat-dong-san',
+});
+
+assert.match(propertyPricingStrategyPrompt.userPrompt, /\[TRỤC CÂU HỎI\]/);
+assert.match(propertyPricingStrategyPrompt.userPrompt, /Định giá \/ Giá tiền/);
+assert.match(propertyPricingStrategyPrompt.systemPrompt, /Hỏi giá thì chốt vào giá\/chốt giá/i);
+assert.match(propertyPricingStrategyPrompt.userPrompt, /Hỏi giá thì phải chốt về giá treo, giá chạm, giá chốt/i);
 
 const wealthStrategyPrompt = buildStrategyPrompt({
   qmdjData: wealthQmdjData,
@@ -76,7 +149,7 @@ const topicPrompt = buildKimonPrompt({
 });
 
 assert.match(topicPrompt, /\[NGUYÊN TẮC ĐỌC FLAGS\]/);
-assert.match(topicPrompt, /\[FLAGS DỤNG THẦN tại cung 6 · Tây Bắc\]/);
+assert.match(topicPrompt, /\[FLAGS ENGINE TẠI DỤNG THẦN tại cung 6 · Tây Bắc\]/);
 assert.match(topicPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
 assert.match(topicPrompt, /Logic, Data, Memory, Processing/i);
 assert.match(topicPrompt, /\[ĐIỂM CẦN BÁM\]/);

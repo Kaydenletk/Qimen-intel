@@ -34,8 +34,42 @@ const qmdjData = {
   quickReadSummary: 'Khí giờ đang nghịch, nhưng hành động đúng cách vẫn có cửa',
   formations: 'Thiên Nhuế gặp Kinh Môn',
   allTopics: JSON.stringify([{ topic: 'Gọi điện', verdict: 'Bình', score: -2, action: 'Nhắn ngắn trước, đừng gọi dồn' }]),
+  selectedTopicCanonicalDungThan: {
+    palaceNum: 9,
+    palaceName: 'Ly',
+    direction: 'Nam',
+    matchedByText: 'Môn Cảnh + Tinh Phụ',
+    targetSummary: 'Môn Cảnh + Tinh Phụ',
+    boardText: 'Cung Nam (P9):\n===> [DỤNG THẦN CHÍNH - BẮT BUỘC PHÂN TÍCH TRỌNG TÂM TẠI ĐÂY] <===\n- Môn: Cảnh\n- Tinh: Phụ\n- Thần: Cửu Địa\n- Can: Bính',
+  },
   currentHour: 15,
   currentMinute: 30,
+};
+
+const giaDaoQmdjData = {
+  ...qmdjData,
+  selectedTopicKey: 'gia-dao',
+  selectedTopicCanonicalDungThan: {
+    palaceNum: 8,
+    palaceName: 'Cấn',
+    direction: 'Đông Bắc',
+    matchedByText: 'Môn Sinh + Thần Lục Hợp',
+    targetSummary: 'Môn Sinh + Thần Lục Hợp',
+    boardText: 'Cung Đông Bắc (P8):\n===> [DỤNG THẦN CHÍNH - BẮT BUỘC PHÂN TÍCH TRỌNG TÂM TẠI ĐÂY] <===\n- Môn: Sinh\n- Tinh: Trụ\n- Thần: Lục Hợp\n- Can: Đinh\n- Cờ: Không Vong',
+  },
+};
+
+const propertyPricingQmdjData = {
+  ...qmdjData,
+  selectedTopicKey: 'bat-dong-san',
+  selectedTopicCanonicalDungThan: {
+    palaceNum: 3,
+    palaceName: 'Chấn',
+    direction: 'Đông',
+    matchedByText: 'Can Mậu + Môn Sinh',
+    targetSummary: 'Can Mậu + Môn Sinh',
+    boardText: 'Cung Đông (P3):\n===> [DỤNG THẦN CHÍNH - BẮT BUỘC PHÂN TÍCH TRỌNG TÂM TẠI ĐÂY] <===\n- Môn: Sinh\n- Tinh: Xung\n- Thần: Chu Tước\n- Can: Canh\n- Cờ: Không Vong',
+  },
 };
 
 const systemInstruction = buildKimonSystemInstruction();
@@ -43,6 +77,8 @@ const strategyInstruction = buildStrategySystemInstruction();
 const prompt = buildKimonPrompt({ qmdjData, userContext: 'Có nên gọi lúc này không?', isAutoLoad: false });
 const autoPrompt = buildKimonPrompt({ qmdjData, userContext: '__AUTO_LOAD__', isAutoLoad: true });
 const companionPrompt = buildCompanionPrompt({ qmdjData, userContext: 'Nay có nên nhắn không?' });
+const giaDaoPrompt = buildKimonPrompt({ qmdjData: giaDaoQmdjData, userContext: 'Nhà Khanh hiện tại ra sao?', isAutoLoad: false });
+const propertyPricingPrompt = buildKimonPrompt({ qmdjData: propertyPricingQmdjData, userContext: 'Nhà Khanh giá bao nhiêu?', isAutoLoad: false });
 const enriched = enrichData(qmdjData);
 
 assert.equal(systemInstruction, KYMON_TOPIC_SYSTEM_PROMPT);
@@ -67,6 +103,9 @@ assert.match(enriched, /Giờ hiện tại: 15:30/);
 
 assert.match(prompt, /\[CHỈ DẤU CHO AI\]/);
 assert.match(prompt, /\[TRỤC Kymon Pro\]/);
+assert.match(prompt, /\[DỤNG THẦN CHUẨN SÁCH\]/);
+assert.match(prompt, /Dụng Thần chuẩn sách: cung 9 · Ly · Môn Cảnh \+ Tinh Phụ/i);
+assert.match(prompt, /===> \[DỤNG THẦN CHÍNH - BẮT BUỘC PHÂN TÍCH TRỌNG TÂM TẠI ĐÂY\] <===/);
 assert.match(prompt, /\[CÂU HỎI NGƯỜI DÙNG\]/);
 assert.match(prompt, /\[ĐIỂM CẦN BÁM\]/);
 assert.match(prompt, /tone=dark; verdict=nghịch/);
@@ -85,6 +124,21 @@ assert.match(prompt, /dùng đúng 3 key: lead, message, closingLine/i);
 assert.doesNotMatch(prompt, /\[SYSTEM ROLE & PERSONA\]/);
 assert.doesNotMatch(prompt, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
 assert.doesNotMatch(prompt, /\[YÊU CẦU TRIỂN KHAI\]/);
+
+assert.match(giaDaoPrompt, /\[PERSONA THEO CHỦ ĐỀ\]/);
+assert.match(giaDaoPrompt, /Quân sư tâm lý/);
+assert.match(giaDaoPrompt, /tổ ấm|hòa khí|nếp nhà/i);
+assert.match(giaDaoPrompt, /Sinh Môn = hơi ấm/i);
+assert.match(giaDaoPrompt, /Lục Hợp = sự thấu hiểu/i);
+assert.match(giaDaoPrompt, /Không Vong = sự trống vắng/i);
+assert.match(giaDaoPrompt, /\[ƯU TIÊN GIA ĐẠO\]/);
+assert.match(giaDaoPrompt, /nhà có người nhưng lòng cách xa/i);
+assert.match(giaDaoPrompt, /Tránh dùng: giao dịch, pháp lý, đầu tư/i);
+
+assert.match(propertyPricingPrompt, /\[TRỤC CÂU HỎI\]/);
+assert.match(propertyPricingPrompt, /Định giá \/ Giá tiền/);
+assert.match(propertyPricingPrompt, /giá treo, giá chạm, giá chốt/i);
+assert.match(propertyPricingPrompt, /closingLine phải chốt vào giá, khả năng bán, khả năng chốt/i);
 
 assert.match(autoPrompt, /\[BỐI CẢNH TỰ ĐỘNG\]/);
 assert.match(autoPrompt, /\[ĐIỂM CẦN BÁM\]/);

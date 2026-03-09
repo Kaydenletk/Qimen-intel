@@ -13,6 +13,7 @@ dotenv.config({ path: '.env.local' });
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { analyze, analyzeSafely, ANALYZE_FALLBACK_MESSAGE } from './src/index.js';
 import { generateDeterministicEnergyFlow } from './src/logic/dungThan/index.js';
+import { resolveDungThanMarker } from './src/logic/kimon/dungThanHelper.js';
 import { getAIHints } from './src/logic/dungThan/injector.js';
 import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
 import { parseKimonJsonResponse, toKimonResponseSchema } from './src/logic/kimon/jsonResponse.js';
@@ -95,6 +96,23 @@ function getSafeKimonErrorMessage(error) {
   return KIMON_SERVICE_UNAVAILABLE_MESSAGE;
 }
 
+function isGeminiRetriableServiceError(error) {
+  const rawMessage = String(error?.message || '');
+  const status = Number(error?.status);
+  if (isTimeoutError(error)) return true;
+  if (Number.isFinite(status) && status >= 500) return true;
+  return /(?:\b500\b|\b502\b|\b503\b|\b504\b|overloaded|unavailable|temporarily unavailable|fetch failed|econnreset|socket hang up|service unavailable)/i.test(rawMessage);
+}
+
+function shouldRetryStrategyAsTopic(error, { effectiveTier = '', topic = '' } = {}) {
+  if (effectiveTier !== 'strategy') return false;
+  if (!topic || topic === 'chung') return false;
+  if (isGeminiApiKeyError(error)) return false;
+  const rawMessage = String(error?.message || '');
+  if (error?.status === 429 || rawMessage.includes('429')) return false;
+  return isGeminiRetriableServiceError(error);
+}
+
 async function withTimeout(run, timeoutMs, label = 'Operation') {
   let timeoutId;
   try {
@@ -131,6 +149,13 @@ function createKimonFallbackPayload({ tier = 'topic', topic = 'chung', message =
   payload._topic = topic;
   return payload;
 }
+
+const KIMON_STREAM_SAFETY_SETTINGS = [
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
 
 function shapeCompanionTextPayload(rawText = '') {
   const source = String(rawText || '').replace(/\r\n/g, '\n').trim();
@@ -548,7 +573,7 @@ function topicAllowsCriticalFlagEscalation(topic = '') {
   return !FLASH_LOCK_TOPICS.has(topic);
 }
 
-function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '') {
+function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '', userContext = '') {
   if (!topicKey || topicKey === 'chung') return qmdjData;
 
   const topicLookup = resolveTopicDetailLookup(qmdjData);
@@ -563,11 +588,25 @@ function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '') {
   const detail = topicLookup[normalizedTopicKey] || (fallbackKey ? topicLookup[fallbackKey] : null);
 
   if (!detail) {
+    const canonicalDungThan = resolveDungThanMarker({
+      topic: normalizedTopicKey,
+      boardData: qmdjData?.displayPalaces || {},
+      userContext,
+      hourPalaceNum: qmdjData?.hourMarkerPalace || null,
+    });
     return {
       ...qmdjData,
       selectedTopicKey: normalizedTopicKey,
+      selectedTopicCanonicalDungThan: canonicalDungThan || qmdjData.selectedTopicCanonicalDungThan || null,
     };
   }
+
+  const canonicalDungThan = resolveDungThanMarker({
+    topic: normalizedTopicKey,
+    boardData: qmdjData?.displayPalaces || {},
+    userContext,
+    hourPalaceNum: qmdjData?.hourMarkerPalace || null,
+  });
 
   return {
     ...qmdjData,
@@ -581,6 +620,7 @@ function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '') {
     selectedTopicUsefulPalaceName: detail.usefulGodPalaceName || qmdjData.selectedTopicUsefulPalaceName || '',
     selectedTopicMarkersForAI: detail.markersForAI || qmdjData.selectedTopicMarkersForAI || null,
     selectedTopicNguHanh: detail.nguHanhRelation || qmdjData.selectedTopicNguHanh || null,
+    selectedTopicCanonicalDungThan: canonicalDungThan || qmdjData.selectedTopicCanonicalDungThan || null,
   };
 }
 
@@ -603,6 +643,111 @@ async function detectTopicWithFallback({ userContext = 'chung', apiKey = '', isA
       confidence: isTimeoutError(error) ? 'timeout-fallback' : 'fallback',
     };
   }
+}
+
+function buildKimonGenerationContext({
+  apiKey = '',
+  tier = 'topic',
+  topic = 'chung',
+  qmdjData = {},
+  userContext = 'chung',
+  isAutoLoad = false,
+  includeSafetySettings = false,
+} = {}) {
+  const runtimeConfig = getTierRuntimeConfig(tier);
+  const { model: modelName, maxTokens } = selectModel(tier);
+  const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
+    tier,
+    topic: topic || 'chung',
+    qmdjData,
+    userContext,
+    isAutoLoad,
+  });
+
+  const generationConfig = {
+    temperature: tier === 'companion' ? 0.7 : 0.3,
+    maxOutputTokens: maxTokens,
+    thinkingConfig: tier === 'strategy'
+      ? { thinkingBudget: 1024 }
+      : { thinkingBudget: 0 },
+  };
+
+  if (responseFormat === 'json') {
+    generationConfig.responseMimeType = 'application/json';
+  }
+
+  const modelConfig = {
+    model: modelName,
+    systemInstruction: systemPrompt,
+    generationConfig,
+  };
+
+  if (includeSafetySettings) {
+    modelConfig.safetySettings = KIMON_STREAM_SAFETY_SETTINGS;
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+
+  return {
+    runtimeConfig,
+    modelName,
+    maxTokens,
+    responseFormat,
+    userPrompt,
+    model: genAI.getGenerativeModel(modelConfig),
+  };
+}
+
+function finalizeKimonParsedPayload({ responseFormat = 'json', rawText = '', tier = 'topic', topic = 'chung' } = {}) {
+  const parsed = responseFormat === 'text'
+    ? shapeCompanionTextPayload(rawText)
+    : toKimonResponseSchema(parseKimonJsonResponse(rawText), rawText);
+  parsed._tier = tier;
+  parsed._topic = topic;
+  return parsed;
+}
+
+async function generateKimonJsonResponse({
+  apiKey = '',
+  tier = 'topic',
+  topic = 'chung',
+  qmdjData = {},
+  userContext = 'chung',
+  isAutoLoad = false,
+} = {}) {
+  const {
+    runtimeConfig,
+    modelName,
+    maxTokens,
+    responseFormat,
+    userPrompt,
+    model,
+  } = buildKimonGenerationContext({
+    apiKey,
+    tier,
+    topic,
+    qmdjData,
+    userContext,
+    isAutoLoad,
+  });
+
+  console.log(`[Kimon][json] tier=${tier} topic=${topic} model=${modelName} maxTokens=${maxTokens} format=${responseFormat}`);
+
+  const result = await withTimeout(
+    () => model.generateContent(userPrompt),
+    runtimeConfig.requestTimeoutMs,
+    'Kimon generateContent'
+  );
+  const rawText = await result.response.text();
+  logKimonModelMeta('/api/kimon', result.response, rawText);
+  const parsed = finalizeKimonParsedPayload({ responseFormat, rawText, tier, topic });
+
+  return {
+    parsed,
+    modelName,
+    maxTokens,
+    responseFormat,
+  };
 }
 
 function generateHTML(date, hour, minute = 0, options = {}) {
@@ -3757,13 +3902,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const kimonDownloadBtn = document.getElementById('kimonDownloadBtn');
     const expertCopyBtn = document.getElementById('expertCopyBtn');
     const expertCopyStatus = document.getElementById('expertCopyStatus');
-    const kimonSuggestions = null; // Removed: Claude-like clean UI
     const kimonError = document.getElementById('kimonError');
     const kimonAutoData = document.getElementById('kimonAutoData');
     const kimonThinking = document.getElementById('kimonThinking');
     const kimonThinkingText = document.getElementById('kimonThinkingText');
     const kimonConversationStore = [];
-    let currentTopic = null; // set by renderTopic
     let thinkingMessageTimeout = null;
     let kimonErrorTimeout = null;
     let isKimonFetching = false;
@@ -4954,11 +5097,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       return 'flash';
     }
 
-    // Suggestions disabled for Claude-like minimal UI
-    function renderSuggestions(suggestions) {
-      // No-op: removed suggestion chips for cleaner UI
-    }
-
     function showKimonError(msg) {
       if (!kimonError) return;
       if (kimonErrorTimeout) {
@@ -5280,99 +5418,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         logKimonDebug('parse fail', { message: error?.message || 'unknown error' });
         throw error;
       }
-    }
-
-    function humanizeKimonSectionLabel(key) {
-      const labelMap = {
-        tongQuan: '',
-        chienLuoc: '🚩 Chiến Lược',
-        tamLy: '🧠 Tâm Trí & Năng Lượng',
-        hanhDong: '📋 Hành Động',
-        kimonQuote: '🎯 Góc Nhìn Kymon',
-      };
-      if (key in labelMap) return labelMap[key];
-      const raw = String(key || '');
-      let normalized = '';
-      for (let idx = 0; idx < raw.length; idx++) {
-        const ch = raw[idx];
-        const prev = idx > 0 ? raw[idx - 1] : '';
-        if (ch === '_' || ch === '-') {
-          normalized += ' ';
-          continue;
-        }
-        const isUpper = ch >= 'A' && ch <= 'Z';
-        const prevIsAlphaNum = (prev >= 'a' && prev <= 'z') || (prev >= '0' && prev <= '9');
-        if (isUpper && prevIsAlphaNum) normalized += ' ';
-        normalized += ch;
-      }
-      const compact = normalized.split(' ').filter(Boolean).join(' ').trim();
-      if (!compact) return '';
-      return compact[0].toUpperCase() + compact.slice(1);
-    }
-
-    function hasRenderableValue(value) {
-      if (!value) return false;
-      if (typeof value === 'string') return value.trim().length > 0;
-      if (Array.isArray(value)) return value.length > 0;
-      if (typeof value === 'object') return Object.values(value).some(hasRenderableValue);
-      return true;
-    }
-
-    function appendGenericKimonSection(container, typables, key, value) {
-      if (!hasRenderableValue(value)) return;
-      const sec = document.createElement('div');
-      sec.className = 'kimon-section';
-      const label = humanizeKimonSectionLabel(key);
-      if (label) {
-        const lbl = document.createElement('strong');
-        lbl.className = 'kimon-section-label';
-        lbl.textContent = label;
-        sec.appendChild(lbl);
-      }
-      if (Array.isArray(value)) {
-        const ol = document.createElement('ol');
-        ol.style.cssText = 'margin:0; padding-left:1.2em; list-style-type:decimal;';
-        value.forEach(step => {
-          if (!hasRenderableValue(step)) return;
-          const li = document.createElement('li');
-          li.className = 'kimon-message-text';
-          ol.appendChild(li);
-          typables.push({ el: li, text: typeof step === 'string' ? step : JSON.stringify(step) });
-        });
-        sec.appendChild(ol);
-      } else if (typeof value === 'object' && value !== null) {
-        const p = document.createElement('p');
-        p.className = 'kimon-message-text';
-        sec.appendChild(p);
-        const combinedText = Object.values(value)
-          .filter(hasRenderableValue)
-          .map(item => typeof item === 'string' ? item : JSON.stringify(item))
-          .join('\\n\\n');
-        typables.push({ el: p, text: combinedText });
-      } else {
-        const p = document.createElement('p');
-        p.className = 'kimon-message-text';
-        sec.appendChild(p);
-        typables.push({ el: p, text: String(value) });
-      }
-      container.appendChild(sec);
-    }
-
-    function appendNarrativeSection(container, typables, label, text, className = 'kimon-paragraph') {
-      if (!hasRenderableValue(text)) return;
-      const sec = document.createElement('div');
-      sec.className = 'kimon-section';
-      if (label) {
-        const lbl = document.createElement('strong');
-        lbl.className = 'kimon-section-title';
-        lbl.textContent = label;
-        sec.appendChild(lbl);
-      }
-      const p = document.createElement('p');
-      p.className = className;
-      sec.appendChild(p);
-      typables.push({ el: p, text: String(text) });
-      container.appendChild(sec);
     }
 
     function buildTypewriterRichTextFragment(rawText) {
@@ -5831,7 +5876,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       }
 
       resetScrollTracking();
-      if (kimonSuggestions) kimonSuggestions.style.display = 'none';
 
       // Remove tip if exists (only show on first load)
       const existingTip = kimonMessages.querySelector('.kimon-tip');
@@ -5855,27 +5899,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       const requestContext = beginKimonRequest('manual');
 
       try {
-        const base = getBaseQmdjData();
-        const payload = currentTopic ? {
-          ...base,
-          score: currentTopic.score,
-          mon: currentTopic.usefulGodGate || base.mon,
-          than: currentTopic.usefulGodDeity || base.than,
-          cung: currentTopic.usefulGodPalaceName || base.cung,
-          selectedTopic: currentTopic.chipLabel || 'chung',
-          selectedTopicKey: currentTopic.key || 'chung',
-          selectedTopicResult: currentTopic.promptTopicResult || '',
-          insight: currentTopic.promptInsight || '',
-          aiHints: currentTopic.aiHints || '',
-          selectedTopicFlags: Array.isArray(currentTopic.flags) ? currentTopic.flags : [],
-          selectedTopicUsefulPalace: currentTopic.usefulGodPalace || '',
-          selectedTopicUsefulPalaceName: currentTopic.usefulGodPalaceName || '',
-          selectedTopicMarkersForAI: currentTopic.markersForAI || null,
-          selectedTopicNguHanh: currentTopic.nguHanhRelation || null,
-        } : base;
-
         const data = await sendKymonRequest({
-          qmdjData: payload,
+          qmdjData: getBaseQmdjData(),
           userContext: promptToSend,
           signal: requestContext.controller.signal,
         });
@@ -6137,6 +6162,8 @@ export default function handler(req, res) {
       req.on('aborted', markClosed);
       res.on('close', markClosed);
 
+      let resolvedTopic = 'chung';
+      let resolvedTier = 'topic';
       try {
         const body = JSON.parse(bodyData);
         const { qmdjData, userContext = 'chung' } = body;
@@ -6162,16 +6189,21 @@ export default function handler(req, res) {
           timeoutMs: getTierRuntimeConfig('topic').detectTimeoutMs,
         });
         const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
-        const { topic, tier, confidence } = detection;
-        const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
+        const { topic, tier, confidence, secondaryTopic = null, topicCandidates = [] } = detection;
+        resolvedTopic = topic || 'chung';
+        const enrichedQmdjData = {
+          ...enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung', userContext || ''),
+          selectedSecondaryTopicKey: secondaryTopic,
+          selectedTopicCandidates: topicCandidates,
+        };
         const criticalTopicFlagCombos = getCriticalTopicFlagCombos(enrichedQmdjData?.selectedTopicFlags);
         const allowCriticalFlagEscalation = topicAllowsCriticalFlagEscalation(topic);
         const hasCriticalTopicFlags = allowCriticalFlagEscalation && criticalTopicFlagCombos.length > 0;
         const forceStrategyTopic = ['tai-van', 'muu-luoc', 'chien-luoc'].includes(topic);
         const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
-        const runtimeConfig = getTierRuntimeConfig(effectiveTier);
+        resolvedTier = effectiveTier;
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
-        const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
+        const { responseFormat } = buildPromptByTier({
           tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
         });
         console.log(`[Kimon][stream] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} flagCombos=${hasCriticalTopicFlags ? criticalTopicFlagCombos.map(combo => combo.id).join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat}`);
@@ -6183,86 +6215,81 @@ export default function handler(req, res) {
           });
           return;
         }
-        stopHeartbeat = startSseHeartbeat(res, runtimeConfig.streamKeepAliveMs);
-        writeSseData(res, { __META__: { connected: true, tier: effectiveTier, topic: topic || 'chung' } });
+        stopHeartbeat = startSseHeartbeat(res, getTierRuntimeConfig(effectiveTier).streamKeepAliveMs);
+        let streamedChunkCount = 0;
 
-        const genAI = new GoogleGenerativeAI(apiKey);
+        const streamKimonAttempt = async attemptTier => {
+          const {
+            runtimeConfig,
+            responseFormat: attemptResponseFormat,
+            userPrompt,
+            model,
+          } = buildKimonGenerationContext({
+            apiKey,
+            tier: attemptTier,
+            topic: topic || 'chung',
+            qmdjData: enrichedQmdjData,
+            userContext,
+            isAutoLoad,
+            includeSafetySettings: true,
+          });
 
-        const generationConfig = {
-          temperature: effectiveTier === 'companion' ? 0.7 : 0.3,
-          maxOutputTokens: maxTokens,
-        };
-        if (responseFormat === 'json') {
-          generationConfig.responseMimeType = 'application/json';
-        }
-        if (effectiveTier === 'strategy') {
-          generationConfig.thinkingConfig = { thinkingBudget: 1024 };
-        } else {
-          // Disable thinking for Flash to prevent token budget exhaustion
-          generationConfig.thinkingConfig = { thinkingBudget: 0 };
-        }
+          writeSseData(res, { __META__: { connected: true, tier: attemptTier, topic: topic || 'chung' } });
 
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          systemInstruction: systemPrompt,
-          generationConfig,
-          safetySettings: [
-            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
-          ]
-        });
+          const streamOutcome = await withTimeout(async () => {
+            const streamResult = await model.generateContentStream(userPrompt);
+            let fullText = '';
 
-        const streamOutcome = await withTimeout(async () => {
-          const streamResult = await model.generateContentStream(userPrompt);
-          let fullText = '';
-
-          for await (const chunk of streamResult.stream) {
-            if (clientClosed) break;
-            const txt = chunk.text();
-            if (txt) {
+            for await (const chunk of streamResult.stream) {
+              if (clientClosed) break;
+              const txt = chunk.text();
+              if (!txt) continue;
+              streamedChunkCount += 1;
               fullText += txt;
               writeSseData(res, { chunk: txt });
             }
+
+            const finalResponse = await streamResult.response;
+            return { fullText, finalResponse };
+          }, runtimeConfig.requestTimeoutMs, 'Kimon stream generation');
+
+          if (clientClosed) {
+            if (!res.writableEnded) res.end();
+            return { aborted: true };
           }
-          const finalResponse = await streamResult.response;
-          return { fullText, finalResponse };
-        }, runtimeConfig.requestTimeoutMs, 'Kimon stream generation');
 
-        if (clientClosed) {
-          if (!res.writableEnded) res.end();
-          return;
-        }
-
-        logKimonModelMeta('/api/kimon/stream', streamOutcome.finalResponse, streamOutcome.fullText);
+          logKimonModelMeta('/api/kimon/stream', streamOutcome.finalResponse, streamOutcome.fullText);
+          const parsed = finalizeKimonParsedPayload({
+            responseFormat: attemptResponseFormat,
+            rawText: streamOutcome.fullText,
+            tier: attemptTier,
+            topic: topic || 'chung',
+          });
+          writeSseData(res, { __DONE__: true, parsed });
+          return { aborted: false };
+        };
 
         try {
-          if (responseFormat === 'text') {
-            const companionParsed = shapeCompanionTextPayload(streamOutcome.fullText);
-            companionParsed._tier = effectiveTier;
-            companionParsed._topic = topic;
-            console.log('[Kimon] Companion response, length:', streamOutcome.fullText.length);
-            writeSseData(res, { __DONE__: true, parsed: companionParsed });
-          } else {
-            const parsed = toKimonResponseSchema(parseKimonJsonResponse(streamOutcome.fullText), streamOutcome.fullText);
-            parsed._tier = effectiveTier;
-            parsed._topic = topic;
-            console.log('[Kimon] Parsed OK, keys:', Object.keys(parsed));
-            writeSseData(res, { __DONE__: true, parsed });
+          const streamResult = await streamKimonAttempt(effectiveTier);
+          if (streamResult?.aborted) return;
+        } catch (primaryError) {
+          const canRetryAsTopic = shouldRetryStrategyAsTopic(primaryError, { effectiveTier, topic })
+            && streamedChunkCount === 0;
+          if (!canRetryAsTopic) {
+            throw primaryError;
           }
-        } catch (parseErr) {
-          console.error('[Kimon] JSON parse failed:', parseErr.message);
-          console.error('[Kimon] Raw response:', streamOutcome.fullText.substring(0, 500));
-          const fallback = toKimonResponseSchema(parseKimonJsonResponse(streamOutcome.fullText), streamOutcome.fullText);
-          fallback._tier = effectiveTier;
-          fallback._topic = topic;
-          writeSseData(res, { __DONE__: true, parsed: fallback });
+          console.warn(`[Kimon][stream] strategy failed for topic=${topic}; retrying with topic tier: ${primaryError?.message || 'unknown error'}`);
+          resolvedTier = 'topic';
+          const retryResult = await streamKimonAttempt('topic');
+          if (retryResult?.aborted) return;
         }
+
         if (!res.writableEnded) res.end();
       } catch (error) {
         console.error('Kimon Stream Error:', error);
         endSseWithFallback(res, {
+          tier: resolvedTier,
+          topic: resolvedTopic,
           message: getSafeKimonErrorMessage(error),
         });
       } finally {
@@ -6288,6 +6315,8 @@ export default function handler(req, res) {
       }
       recordGeminiRequest();
 
+      let resolvedTopic = 'chung';
+      let resolvedTier = 'topic';
       try {
         const body = JSON.parse(bodyData);
         const { qmdjData, userContext = 'chung' } = body;
@@ -6302,16 +6331,21 @@ export default function handler(req, res) {
           timeoutMs: getTierRuntimeConfig('topic').detectTimeoutMs,
         });
         const isDeepDive = !isAutoLoad && detectDeepDive(userContext);
-        const { topic, tier, confidence } = detection;
-        const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
+        const { topic, tier, confidence, secondaryTopic = null, topicCandidates = [] } = detection;
+        resolvedTopic = topic || 'chung';
+        const enrichedQmdjData = {
+          ...enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung', userContext || ''),
+          selectedSecondaryTopicKey: secondaryTopic,
+          selectedTopicCandidates: topicCandidates,
+        };
         const criticalTopicFlagCombos = getCriticalTopicFlagCombos(enrichedQmdjData?.selectedTopicFlags);
         const allowCriticalFlagEscalation = topicAllowsCriticalFlagEscalation(topic);
         const hasCriticalTopicFlags = allowCriticalFlagEscalation && criticalTopicFlagCombos.length > 0;
         const forceStrategyTopic = ['tai-van', 'muu-luoc', 'chien-luoc'].includes(topic);
         const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
-        const runtimeConfig = getTierRuntimeConfig(effectiveTier);
+        resolvedTier = effectiveTier;
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
-        const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
+        const { responseFormat } = buildPromptByTier({
           tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
         });
         console.log(`[Kimon][json] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} flagCombos=${hasCriticalTopicFlags ? criticalTopicFlagCombos.map(combo => combo.id).join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat}`);
@@ -6325,49 +6359,38 @@ export default function handler(req, res) {
           return;
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const generationConfig = {
-          temperature: effectiveTier === 'companion' ? 0.7 : 0.3,
-          maxOutputTokens: maxTokens,
-        };
-        if (responseFormat === 'json') {
-          generationConfig.responseMimeType = 'application/json';
-        }
-        if (effectiveTier === 'strategy') {
-          generationConfig.thinkingConfig = { thinkingBudget: 1024 };
-        } else {
-          // Disable thinking for Flash to prevent token budget exhaustion
-          generationConfig.thinkingConfig = { thinkingBudget: 0 };
-        }
-
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          systemInstruction: systemPrompt,
-          generationConfig,
-        });
-        const result = await withTimeout(
-          () => model.generateContent(userPrompt),
-          runtimeConfig.requestTimeoutMs,
-          'Kimon generateContent'
-        );
-        const rawText = await result.response.text();
-        logKimonModelMeta('/api/kimon', result.response, rawText);
-
         let parsed;
-        if (responseFormat === 'text') {
-          parsed = shapeCompanionTextPayload(rawText);
-          parsed._tier = effectiveTier;
-          parsed._topic = topic;
-        } else {
-          parsed = toKimonResponseSchema(parseKimonJsonResponse(rawText), rawText);
-          parsed._tier = effectiveTier;
-          parsed._topic = topic;
+        try {
+          ({ parsed } = await generateKimonJsonResponse({
+            apiKey,
+            tier: effectiveTier,
+            topic: topic || 'chung',
+            qmdjData: enrichedQmdjData,
+            userContext,
+            isAutoLoad,
+          }));
+        } catch (primaryError) {
+          if (!shouldRetryStrategyAsTopic(primaryError, { effectiveTier, topic })) {
+            throw primaryError;
+          }
+          console.warn(`[Kimon][json] strategy failed for topic=${topic}; retrying with topic tier: ${primaryError?.message || 'unknown error'}`);
+          resolvedTier = 'topic';
+          ({ parsed } = await generateKimonJsonResponse({
+            apiKey,
+            tier: 'topic',
+            topic: topic || 'chung',
+            qmdjData: enrichedQmdjData,
+            userContext,
+            isAutoLoad,
+          }));
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(parsed));
       } catch (error) {
         respondWithKimonFallback(res, {
           statusCode: 200,
+          tier: resolvedTier,
+          topic: resolvedTopic,
           message: getSafeKimonErrorMessage(error),
         });
       }

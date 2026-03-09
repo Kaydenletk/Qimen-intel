@@ -42,9 +42,9 @@ assert.match(propertyHints, /\[Cửu Địa\].*đất đai|bền chắc/i);
 
 const familyHints = getAIHints('gia-dao', ['Hưu Môn', 'Lục Hợp', 'Đằng Xà', 'Không Vong', 'Phản Ngâm']);
 assert.match(familyHints, /\[Hưu Môn\].*bình yên|nghỉ chiến/i);
-assert.match(familyHints, /\[Lục Hợp\].*sum vầy|hòa giải|ngồi lại/i);
-assert.match(familyHints, /\[Đằng Xà\].*bằng mặt không bằng lòng|rối/i);
-assert.match(familyHints, /\[Không Vong\].*chẳng chạm được|ai cũng thấy trống/i);
+assert.match(familyHints, /\[Lục Hợp\].*thấu hiểu|gắn kết|ngồi lại/i);
+assert.match(familyHints, /\[Đằng Xà\].*tâm tư khó nói|dối lòng|rối/i);
+assert.match(familyHints, /\[Không Vong\].*lòng cách xa|nỗi cô đơn|tổ ấm/i);
 assert.match(familyHints, /\[Phản Ngâm\].*đổi thái độ nhanh|vừa dịu đã bùng lại/i);
 
 const fallbackHints = getAIHints('bat-dong-san', ['Thiên Tâm', 'Quý']);

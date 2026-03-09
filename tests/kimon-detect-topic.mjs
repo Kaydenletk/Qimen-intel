@@ -49,11 +49,38 @@ assert.equal(t8e.topic, 'hoc-tap', 'giáo viên + bài tập → hoc-tap');
 const t8f = detectTopic('thi cử dạo này sao');
 assert.equal(t8f.topic, 'hoc-tap', 'thi cử → hoc-tap');
 
+const t8i = detectTopic('phân tích sâu về giáo viên này');
+assert.equal(t8i.topic, 'hoc-tap', 'giáo viên + phân tích sâu vẫn phải giữ domain hoc-tap');
+assert.equal(t8i.tier, 'strategy', 'Deep dive chỉ nâng tier lên strategy');
+
+const t8j = detectTopic('Vậy tôi nên làm gì? phân tích sâu về giáo viên này');
+assert.equal(t8j.topic, 'hoc-tap', 'Domain rõ phải thắng muu-luoc dù có deep dive');
+assert.equal(t8j.tier, 'strategy', 'Domain hoc-tap + deep dive -> strategy');
+
+const t8k = detectTopic('giải thích chi tiết về vàng giúp mình');
+assert.equal(t8k.topic, 'tai-van', 'Vàng + giải thích chi tiết vẫn phải giữ domain tai-van');
+assert.equal(t8k.tier, 'strategy', 'Tai-van + deep dive -> strategy');
+
 const t8g = detectTopic('mẹ chồng với con dâu đang bất hòa');
 assert.equal(t8g.topic, 'gia-dao', 'mẹ chồng + bất hòa → gia-dao');
 
 const t8h = detectTopic('gia đình dạo này hay cãi nhau');
 assert.equal(t8h.topic, 'gia-dao', 'gia đình + cãi nhau → gia-dao');
+
+const t8l = detectTopic('Nhà Khanh hiện tại ra sao?');
+assert.equal(t8l.topic, 'gia-dao', 'Nhà + tên riêng + câu hỏi trạng thái phải ưu tiên gia-dao');
+
+const t8m = detectTopic('Nhà tôi dạo này có vấn đề gì?');
+assert.equal(t8m.topic, 'gia-dao', 'Nhà tôi + trạng thái nội bộ phải ưu tiên gia-dao');
+
+const t8n = detectTopic('Nhà anh ấy đang lạnh lắm phải không?');
+assert.equal(t8n.topic, 'gia-dao', 'Nhà + đại từ nhân xưng + khí lạnh phải ưu tiên gia-dao');
+
+const t8o = detectTopic('Tôi mua nhà của Khanh có nên xuống tiền không?');
+assert.equal(t8o.topic, 'bat-dong-san', 'Nhà + tên riêng nhưng có tín hiệu xuống tiền phải để bat-dong-san thắng');
+
+const t8p = detectTopic('Nhà Khanh giá bao nhiêu?');
+assert.equal(t8p.topic, 'bat-dong-san', 'Nhà + tên riêng nhưng hỏi giá bao nhiêu phải route sang bat-dong-san');
 
 // ── Strategy tier ──
 const t9 = detectTopic('chiến lược Q2 cho công ty');
@@ -71,6 +98,10 @@ assert.equal(t11.tier, 'strategy');
 const t11b = detectTopic('mưu lược giá cho quý tới');
 assert.equal(t11b.topic, 'muu-luoc', 'Mưu lược → muu-luoc');
 assert.equal(t11b.tier, 'strategy');
+
+const t11c = detectTopic('phân tích sâu tình hình này giúp tôi');
+assert.equal(t11c.topic, 'muu-luoc', 'Không có domain rõ nhưng có deep dive -> muu-luoc');
+assert.equal(t11c.tier, 'strategy', 'Deep dive thuần -> strategy');
 
 // ── Kinh doanh keywords (new additions) ──
 const t12 = detectTopic('mở quán trà sữa được không');
@@ -111,6 +142,17 @@ assert.equal(t21.topic, 'bat-dong-san', '1 từ nhà → bat-dong-san');
 const t24 = detectTopic('Tình hình đất đai dạo này sao?');
 assert.equal(t24.topic, 'bat-dong-san', 'Đất đai → bat-dong-san');
 assert.equal(t24.tier, 'topic');
+
+const t24b = detectTopic('Tôi mua nhà này để kinh doanh có nên xuống tiền không?');
+assert.equal(t24b.topic, 'bat-dong-san', 'Quyết định xuống tiền mua nhà để kinh doanh phải ưu tiên bat-dong-san');
+assert.equal(t24b.secondaryTopic, 'kinh-doanh', 'Case overlap phải giữ kinh-doanh làm secondary');
+
+const t24c = detectTopic('Mua nhà để kinh doanh thì tài vận thế nào?');
+assert.ok(['kinh-doanh', 'tai-van'].includes(t24c.topic), 'Case overlap có thể giữ kinh-doanh hoặc tai-van làm primary');
+assert.ok(
+  t24c.secondaryTopic === 'bat-dong-san' || (Array.isArray(t24c.topicCandidates) && t24c.topicCandidates.includes('bat-dong-san')),
+  'Case overlap phải giữ bat-dong-san như lens phụ'
+);
 
 const t25 = detectTopic('deadline dự án đang dí quá');
 assert.equal(t25.topic, 'su-nghiep', 'deadline dự án → su-nghiep');

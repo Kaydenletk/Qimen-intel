@@ -30,7 +30,7 @@ const KEYWORD_MAP = {
     'crush', 'người yêu', 'bạn gái', 'bạn trai', 'yêu', 'hẹn hò', 'cưới',
     'hôn nhân', 'chia tay', 'tình cảm', 'thả thính', 'tán', 'ngoại tình',
     'vợ', 'chồng', 'người ấy', 'tình yêu', 'cắm sừng', 'nyc', 'người yêu cũ',
-    'mập mờ', 'lạnh nhạt', 'tán đổ', 'tiểu tam', 'bắt cá hai tay', 'vợ chồng', 'tỏ tình',
+    'mập mờ', 'lạnh nhạt', 'tán đổ', 'tiểu tam', 'bắt cá hai tay', 'tỏ tình',
   ],
   'su-nghiep': [
     'công việc', 'thăng chức', 'sếp', 'đồng nghiệp', 'lương', 'career',
@@ -62,6 +62,7 @@ const KEYWORD_MAP = {
   'gia-dao': [
     'cãi nhau', 'mẹ chồng', 'gia đạo', 'bố mẹ', 'con cái', 'anh em',
     'họ hàng', 'gia đình', 'nhà chồng', 'nhà vợ', 'bất hòa',
+    'nhà cửa', 'vợ chồng',
   ],
   'ky-hop-dong': [
     'hợp đồng', 'ký', 'contract', 'thỏa thuận', 'deal', 'ký kết',
@@ -102,6 +103,7 @@ const KEYWORD_MAP = {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const STRATEGY_TOPICS = new Set(['tai-van', 'muu-luoc', 'chien-luoc']);
+const STRATEGY_ONLY_TOPICS = new Set(['muu-luoc', 'chien-luoc']);
 
 const TOPIC_ALIASES = {
   'tinh-yeu': 'tinh-duyen',
@@ -121,6 +123,42 @@ const KEYWORD_CONTEXT_EXCLUSIONS = {
     'đòi': ['đội'],
   },
 };
+
+const PROPERTY_PRIMARY_OVERRIDE_HINTS = ['xuong tien', 'co nen mua', 'co nen xuong tien', 'chot coc', 'sang ten'];
+const OVERLAP_SECONDARY_PAIRS = new Set([
+  'bat-dong-san|kinh-doanh',
+  'bat-dong-san|tai-van',
+  'kinh-doanh|bat-dong-san',
+  'tai-van|bat-dong-san',
+]);
+
+const EXPLICIT_PROPERTY_INTENT_HINTS = [
+  'mua', 'ban', 'xuong tien', 'co nen mua', 'co nen xuong tien', 'chot coc', 'dat coc', 'coc',
+  'so do', 'so hong', 'phap ly', 'sang ten', 'cho thue', 'thue', 'mat bang', 'dau tu',
+  'giao dich', 'quy hoach', 'gia ban', 'gia thue', 'gia bao nhieu', 'bao nhieu tien',
+  'dinh gia', 'gia chot', 'gia treo', 'ban duoc bao nhieu', 'tai san', 'can ho', 'chung cu', 'biet thu',
+];
+
+const HOUSEHOLD_REFERENCE_HINTS = [
+  'nha toi', 'nha tao', 'nha tui', 'nha minh',
+  'nha anh ay', 'nha chi ay', 'nha em', 'nha ban', 'nha ho', 'nha no',
+  'nha ong ay', 'nha ba ay', 'nha co ay', 'nha chu ay', 'nha bac ay',
+  'nha vo chong', 'nha con cai', 'nha bo me',
+];
+
+const HOUSEHOLD_STATE_HINTS = [
+  'ra sao', 'nhu the nao', 'the nao', 'co van de gi', 'co chuyen gi',
+  'dang lanh', 'dang on khong', 'co yen khong', 'sao roi', 'dang ra sao',
+  'hien tai', 'bieu hien', 'dang co van de', 'bat on', 'xa cach',
+];
+
+const HOUSE_PROPERTY_FOLLOWERS = new Set([
+  'nay', 'kia', 'do', 'ay', 'dep', 'moi', 'cu', 'pho', 'dat', 'tro', 'xuong', 'can', 'lo', 'cho',
+]);
+
+const HOUSEHOLD_STOPWORD_FOLLOWERS = new Set([
+  'de', 'la', 'dang', 'co', 'thi', 'ma', 'nao', 'gi', 'khi', 'luc', 'neu', 'duoc',
+]);
 
 const DEEP_DIVE_KEYWORDS = [
   'cơ sở nào', 'tính sao ra', 'luận kỹ', 'phân tích sâu',
@@ -187,6 +225,99 @@ function getTier(topic) {
   return 'topic';
 }
 
+function findBestKeywordTopic({ topics = [], msgLower = '', msgNorm = '' } = {}) {
+  let bestTopic = null;
+  let bestScore = 0;
+
+  for (const topic of topics) {
+    const keywords = ORIGINAL_KEYWORD_MAP[topic] || [];
+    const normKeywords = NORMALIZED_KEYWORD_MAP[topic] || [];
+
+    for (let i = 0; i < keywords.length; i++) {
+      if (hasKeywordMatch(msgLower, keywords[i].toLowerCase())) {
+        if (isKeywordBlocked(topic, keywords[i], msgNorm)) continue;
+        const score = keywords[i].length;
+        if (score > bestScore) {
+          bestScore = score;
+          bestTopic = topic;
+        }
+      } else if (hasKeywordMatch(msgNorm, normKeywords[i])) {
+        if (isKeywordBlocked(topic, keywords[i], msgNorm)) continue;
+        const score = normKeywords[i].length;
+        if (score > bestScore) {
+          bestScore = score;
+          bestTopic = topic;
+        }
+      }
+    }
+  }
+
+  return bestTopic;
+}
+
+function collectKeywordTopicStats({ topics = [], msgLower = '', msgNorm = '' } = {}) {
+  const stats = [];
+
+  for (const topic of topics) {
+    const keywords = ORIGINAL_KEYWORD_MAP[topic] || [];
+    const normKeywords = NORMALIZED_KEYWORD_MAP[topic] || [];
+    const matches = [];
+    let totalScore = 0;
+    let bestScore = 0;
+
+    for (let i = 0; i < keywords.length; i++) {
+      const keyword = keywords[i];
+      const normKeyword = normKeywords[i];
+      const matched = hasKeywordMatch(msgLower, keyword.toLowerCase())
+        || hasKeywordMatch(msgNorm, normKeyword);
+      if (!matched) continue;
+      if (isKeywordBlocked(topic, keyword, msgNorm)) continue;
+
+      const score = normKeyword.length;
+      matches.push(keyword);
+      totalScore += score;
+      if (score > bestScore) bestScore = score;
+    }
+
+    if (!matches.length) continue;
+    stats.push({ topic, totalScore, bestScore, matches });
+  }
+
+  return stats.sort((a, b) => {
+    if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+    if (b.bestScore !== a.bestScore) return b.bestScore - a.bestScore;
+    return a.topic.localeCompare(b.topic);
+  });
+}
+
+function chooseSecondaryTopic(primaryStat, rankedStats = []) {
+  if (!primaryStat) return null;
+  const secondaryStat = rankedStats.find(stat => stat.topic !== primaryStat.topic);
+  if (!secondaryStat) return null;
+
+  const overlapKey = `${primaryStat.topic}|${secondaryStat.topic}`;
+  if (OVERLAP_SECONDARY_PAIRS.has(overlapKey)) return secondaryStat.topic;
+  if (secondaryStat.totalScore >= Math.max(6, Math.floor(primaryStat.totalScore * 0.6))) return secondaryStat.topic;
+  return null;
+}
+
+function applyPrimaryOverlapOverride(rankedStats = [], msgNorm = '') {
+  const propertyStat = rankedStats.find(stat => stat.topic === 'bat-dong-san');
+  if (!propertyStat) return null;
+
+  const hasPrimaryOverrideHint = PROPERTY_PRIMARY_OVERRIDE_HINTS.some(hint => msgNorm.includes(hint));
+  if (!hasPrimaryOverrideHint) return null;
+
+  const businessStat = rankedStats.find(stat => stat.topic === 'kinh-doanh');
+  const wealthStat = rankedStats.find(stat => stat.topic === 'tai-van');
+  const secondaryStat = businessStat || wealthStat || null;
+
+  return {
+    primaryTopic: 'bat-dong-san',
+    secondaryTopic: secondaryStat?.topic || null,
+  };
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // ALL VALID TOPIC KEYS
 // ══════════════════════════════════════════════════════════════════════════════
@@ -222,6 +353,32 @@ function isSmallTalkMessage(userMessage) {
   return SMALL_TALK_EXACT_MATCHES.has(normalized);
 }
 
+function hasExplicitPropertyIntent(msgNorm = '') {
+  return EXPLICIT_PROPERTY_INTENT_HINTS.some(hint => msgNorm.includes(hint));
+}
+
+function hasHouseholdPeopleReference(userMessage = '', msgNorm = '') {
+  if (!msgNorm.includes('nha')) return false;
+  if (HOUSEHOLD_REFERENCE_HINTS.some(hint => msgNorm.includes(hint))) return true;
+  if (msgNorm.includes('vo chong') || msgNorm.includes('con cai') || msgNorm.includes('gia dinh')) return true;
+
+  const followerMatch = msgNorm.match(/\bnha\s+([\p{L}\p{N}]+)/u);
+  const follower = followerMatch?.[1] || '';
+  if (!follower || HOUSE_PROPERTY_FOLLOWERS.has(follower) || HOUSEHOLD_STOPWORD_FOLLOWERS.has(follower)) return false;
+
+  const hasProperNamePattern = /(?:^|[^\p{L}\p{N}])Nhà\s+[A-ZÀ-Ỵ][\p{L}\p{M}'-]*/u.test(userMessage);
+  const hasStateHint = HOUSEHOLD_STATE_HINTS.some(hint => msgNorm.includes(hint));
+  return hasProperNamePattern || hasStateHint;
+}
+
+function applyHouseholdTopicOverride(userMessage = '', msgNorm = '') {
+  if (!hasHouseholdPeopleReference(userMessage, msgNorm)) return null;
+  if (hasExplicitPropertyIntent(msgNorm)) {
+    return { primaryTopic: 'bat-dong-san', secondaryTopic: null };
+  }
+  return { primaryTopic: 'gia-dao', secondaryTopic: null };
+}
+
 // Pre-compute normalized keyword map for faster matching
 const NORMALIZED_KEYWORD_MAP = {};
 for (const [topic, keywords] of Object.entries(KEYWORD_MAP)) {
@@ -242,50 +399,73 @@ const ORIGINAL_KEYWORD_MAP = KEYWORD_MAP;
  */
 export function detectTopic(userMessage) {
   if (!userMessage || typeof userMessage !== 'string') {
-    return { topic: null, confidence: null, tier: 'companion' };
+    return { topic: null, secondaryTopic: null, topicCandidates: [], confidence: null, tier: 'companion' };
   }
 
   if (isSmallTalkMessage(userMessage)) {
-    return { topic: 'chung', confidence: 'fallback', tier: 'companion' };
+    return { topic: 'chung', secondaryTopic: null, topicCandidates: ['chung'], confidence: 'fallback', tier: 'companion' };
   }
 
   const msgLower = userMessage.toLowerCase();
   const msgNorm = normalize(userMessage);
+  const hasDeepDiveIntent = detectDeepDive(userMessage);
+  const householdOverride = applyHouseholdTopicOverride(userMessage, msgNorm);
+  const domainTopics = Object.keys(ORIGINAL_KEYWORD_MAP).filter(topic => !STRATEGY_ONLY_TOPICS.has(topic));
+  const rankedDomainStats = collectKeywordTopicStats({
+    topics: domainTopics,
+    msgLower,
+    msgNorm,
+  });
+  const overlapOverride = applyPrimaryOverlapOverride(rankedDomainStats, msgNorm);
+  const bestDomainTopic = householdOverride?.primaryTopic || overlapOverride?.primaryTopic || rankedDomainStats[0]?.topic || findBestKeywordTopic({
+    topics: domainTopics,
+    msgLower,
+    msgNorm,
+  });
 
-  let bestTopic = null;
-  let bestScore = 0;
-
-  for (const [topic, keywords] of Object.entries(ORIGINAL_KEYWORD_MAP)) {
-    const normKeywords = NORMALIZED_KEYWORD_MAP[topic];
-
-    for (let i = 0; i < keywords.length; i++) {
-      // Try exact Vietnamese match first
-      if (hasKeywordMatch(msgLower, keywords[i].toLowerCase())) {
-        if (isKeywordBlocked(topic, keywords[i], msgNorm)) continue;
-        const score = keywords[i].length; // Longer keyword = more specific
-        if (score > bestScore) {
-          bestScore = score;
-          bestTopic = topic;
-        }
-      }
-      // Fallback to normalized match
-      else if (hasKeywordMatch(msgNorm, normKeywords[i])) {
-        if (isKeywordBlocked(topic, keywords[i], msgNorm)) continue;
-        const score = normKeywords[i].length;
-        if (score > bestScore) {
-          bestScore = score;
-          bestTopic = topic;
-        }
-      }
-    }
+  if (bestDomainTopic) {
+    const canonicalTopic = canonicalizeTopicKey(bestDomainTopic);
+    const primaryStat = rankedDomainStats.find(stat => stat.topic === bestDomainTopic) || null;
+    const secondaryTopic = householdOverride?.secondaryTopic || overlapOverride?.secondaryTopic || chooseSecondaryTopic(primaryStat, rankedDomainStats);
+    const topicCandidates = Array.from(
+      new Set([
+        canonicalTopic,
+        ...(secondaryTopic ? [canonicalizeTopicKey(secondaryTopic)] : []),
+        ...rankedDomainStats.slice(0, 3).map(stat => canonicalizeTopicKey(stat.topic)),
+      ].filter(Boolean))
+    );
+    return {
+      topic: canonicalTopic,
+      secondaryTopic: secondaryTopic ? canonicalizeTopicKey(secondaryTopic) : null,
+      topicCandidates,
+      confidence: 'keyword',
+      tier: hasDeepDiveIntent ? 'strategy' : getTier(canonicalTopic),
+    };
   }
 
-  if (bestTopic) {
-    const canonicalTopic = canonicalizeTopicKey(bestTopic);
-    return { topic: canonicalTopic, confidence: 'keyword', tier: getTier(canonicalTopic) };
+  const rankedStrategyStats = collectKeywordTopicStats({
+    topics: Array.from(STRATEGY_ONLY_TOPICS),
+    msgLower,
+    msgNorm,
+  });
+  const bestStrategyTopic = rankedStrategyStats[0]?.topic || findBestKeywordTopic({
+    topics: Array.from(STRATEGY_ONLY_TOPICS),
+    msgLower,
+    msgNorm,
+  });
+
+  if (bestStrategyTopic) {
+    const canonicalTopic = canonicalizeTopicKey(bestStrategyTopic);
+    return {
+      topic: canonicalTopic,
+      secondaryTopic: null,
+      topicCandidates: rankedStrategyStats.slice(0, 3).map(stat => canonicalizeTopicKey(stat.topic)),
+      confidence: 'keyword',
+      tier: 'strategy',
+    };
   }
 
-  return { topic: null, confidence: null, tier: 'topic' };
+  return { topic: null, secondaryTopic: null, topicCandidates: [], confidence: null, tier: 'topic' };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -327,6 +507,8 @@ User message: "${userMessage}"`;
     if (!response.ok) {
       return {
         topic: 'chung',
+        secondaryTopic: null,
+        topicCandidates: ['chung'],
         confidence: 'ai',
         tier: isSmallTalkMessage(userMessage) ? 'companion' : 'topic',
       };
@@ -353,17 +535,21 @@ User message: "${userMessage}"`;
             ? parsedTier
             : getTier(parsedTopic)
         );
-      return { topic: parsedTopic, confidence: 'ai', tier };
+      return { topic: parsedTopic, secondaryTopic: null, topicCandidates: [parsedTopic], confidence: 'ai', tier };
     }
 
     return {
       topic: 'chung',
+      secondaryTopic: null,
+      topicCandidates: ['chung'],
       confidence: 'ai',
       tier: isSmallTalkMessage(userMessage) ? 'companion' : 'topic',
     };
   } catch {
     return {
       topic: 'chung',
+      secondaryTopic: null,
+      topicCandidates: ['chung'],
       confidence: 'ai',
       tier: isSmallTalkMessage(userMessage) ? 'companion' : 'topic',
     };
@@ -392,5 +578,5 @@ export async function detectTopicHybrid(userMessage, apiKey) {
     return classifyWithAI(userMessage, apiKey);
   }
 
-  return { topic: 'chung', confidence: 'fallback', tier: 'topic' };
+  return { topic: 'chung', secondaryTopic: null, topicCandidates: ['chung'], confidence: 'fallback', tier: 'topic' };
 }

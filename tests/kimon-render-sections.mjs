@@ -180,8 +180,9 @@ assert.match(serverSource, /import \{ parseKimonJsonResponse, toKimonResponseSch
 assert.match(serverSource, /import \{ [^}]*detectTopicHybrid[^}]*\} from '\.\/src\/logic\/kimon\/detectTopic\.js';/, 'Server phải import detectTopicHybrid từ detectTopic.js');
 assert.match(serverSource, /import \{ selectModel, buildPromptByTier, getTierRuntimeConfig \} from '\.\/src\/logic\/kimon\/modelRouter\.js';/, 'Server phải import tiered router');
 assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(rawText\), rawText\)/, 'Route non-stream phải trả về đúng schema mới');
-assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(streamOutcome\.fullText\), streamOutcome\.fullText\)/, 'Route stream phải shape parsed payload về schema mới');
-assert.match(serverSource, /const fallback = toKimonResponseSchema\(parseKimonJsonResponse\(streamOutcome\.fullText\), streamOutcome\.fullText\);/, 'Fallback route stream cũng phải giữ schema mới');
+assert.match(serverSource, /function finalizeKimonParsedPayload\(\{ responseFormat = 'json', rawText = '', tier = 'topic', topic = 'chung' \} = \{\}\)/, 'Server nên gom logic shape payload vào helper chung');
+assert.match(serverSource, /const parsed = responseFormat === 'text'\s*\?\s*shapeCompanionTextPayload\(rawText\)\s*:\s*toKimonResponseSchema\(parseKimonJsonResponse\(rawText\), rawText\);/s, 'Helper chung phải shape payload đúng schema mới');
+assert.match(serverSource, /const parsed = finalizeKimonParsedPayload\(\{\s*responseFormat: attemptResponseFormat,\s*rawText: streamOutcome\.fullText,\s*tier: attemptTier,\s*topic: topic \|\| 'chung',\s*\}\);/s, 'Route stream phải dùng helper chung để shape parsed payload');
 assert.match(serverSource, /function stripMarkdownForSpeech\(rawText\)/, 'Phải có helper làm sạch markdown trước khi đọc');
 assert.match(serverSource, /function ensureKimonAudioSource\(session\)/, 'Phải có helper tải audio từ ElevenLabs');
 assert.match(serverSource, /function createKimonSpeechHandler\(session\)/, 'Phải có play\/pause handler theo audio session');
