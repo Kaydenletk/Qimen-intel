@@ -41,7 +41,7 @@ assert.match(
   'narrative tình duyên phải nói rõ VOID'
 );
 
-const horseVoidDate = new Date(2026, 2, 10, 7, 0, 0);
+const horseVoidDate = new Date(2026, 4, 9, 7, 0, 0);
 const { topicResults: horseVoidTopics } = analyze(horseVoidDate, 7, ['hoc-tap']);
 const horseVoidStudy = horseVoidTopics['hoc-tap'];
 

@@ -542,6 +542,12 @@ function getCriticalTopicFlagCombos(selectedTopicFlags = []) {
   return combos.filter(combo => combo.flags.every(hasFlag));
 }
 
+const FLASH_LOCK_TOPICS = new Set(['hoc-tap', 'thi-cu']);
+
+function topicAllowsCriticalFlagEscalation(topic = '') {
+  return !FLASH_LOCK_TOPICS.has(topic);
+}
+
 function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '') {
   if (!topicKey || topicKey === 'chung') return qmdjData;
 
@@ -6045,7 +6051,8 @@ export default function handler(req, res) {
         const { topic, tier, confidence } = detection;
         const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
         const criticalTopicFlagCombos = getCriticalTopicFlagCombos(enrichedQmdjData?.selectedTopicFlags);
-        const hasCriticalTopicFlags = criticalTopicFlagCombos.length > 0;
+        const allowCriticalFlagEscalation = topicAllowsCriticalFlagEscalation(topic);
+        const hasCriticalTopicFlags = allowCriticalFlagEscalation && criticalTopicFlagCombos.length > 0;
         const forceStrategyTopic = ['tai-van', 'muu-luoc', 'chien-luoc'].includes(topic);
         const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
         const runtimeConfig = getTierRuntimeConfig(effectiveTier);
@@ -6184,7 +6191,8 @@ export default function handler(req, res) {
         const { topic, tier, confidence } = detection;
         const enrichedQmdjData = enrichQmdjDataWithDetectedTopic(qmdjData, topic || 'chung');
         const criticalTopicFlagCombos = getCriticalTopicFlagCombos(enrichedQmdjData?.selectedTopicFlags);
-        const hasCriticalTopicFlags = criticalTopicFlagCombos.length > 0;
+        const allowCriticalFlagEscalation = topicAllowsCriticalFlagEscalation(topic);
+        const hasCriticalTopicFlags = allowCriticalFlagEscalation && criticalTopicFlagCombos.length > 0;
         const forceStrategyTopic = ['tai-van', 'muu-luoc', 'chien-luoc'].includes(topic);
         const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
         const runtimeConfig = getTierRuntimeConfig(effectiveTier);

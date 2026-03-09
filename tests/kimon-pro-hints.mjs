@@ -34,6 +34,7 @@ assert.match(strategyPrompt.systemPrompt, /\[SYSTEM ROLE & PERSONA\]/);
 assert.match(strategyPrompt.systemPrompt, /\[CORE METAPHORS - TỪ ĐIỂN ẨN DỤ BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /\[STRICT CONSTRAINTS - RÀNG BUỘC NGHIÊM NGẶT\]/);
 assert.match(strategyPrompt.systemPrompt, /\[DEEP DIVE & CHAIN OF THOUGHT - CHUỖI TƯ DUY SÂU SẮC\]/);
+assert.match(strategyPrompt.systemPrompt, /\[VERDICT FIRST - PHÁN QUYẾT MỞ ĐẦU\]/);
 assert.match(strategyPrompt.systemPrompt, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /\[CLOSING LINE - CÂU CHỐT BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /2-4 tầng nghĩa/i);
@@ -49,6 +50,7 @@ assert.match(strategyPrompt.userPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
 assert.match(strategyPrompt.userPrompt, /\[INSIGHT ENGINE\]/);
 assert.match(strategyPrompt.userPrompt, /\[GỢI Ý NGỮ CẢNH HỌC TẬP\]/);
 assert.match(strategyPrompt.userPrompt, /\[YÊU CẦU TRIỂN KHAI\]/);
+assert.match(strategyPrompt.userPrompt, /phán quyết rõ/i);
 assert.match(strategyPrompt.userPrompt, /Xuất đúng JSON 5 key của Kymon Pro/i);
 assert.match(strategyPrompt.userPrompt, /field "closingLine" như một câu chốt riêng/i);
 assert.match(strategyPrompt.userPrompt, /Không được trả lời cụt hoặc quá ngắn/i);
@@ -69,11 +71,12 @@ const topicPrompt = buildKimonPrompt({
   isAutoLoad: false,
 });
 
-assert.match(topicPrompt, /\[ƯU TIÊN FLAGS\]/);
+assert.match(topicPrompt, /\[NGUYÊN TẮC ĐỌC FLAGS\]/);
 assert.match(topicPrompt, /\[FLAGS DỤNG THẦN tại cung 6 · Tây Bắc\]/);
 assert.match(topicPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
 assert.match(topicPrompt, /Logic, Data, Memory, Processing/i);
 assert.match(topicPrompt, /\[ĐIỂM CẦN BÁM\]/);
+assert.match(topicPrompt, /phán quyết đủ rõ/i);
 assert.match(topicPrompt, /2-4 lớp để người đọc thấy được toàn cảnh/i);
 assert.match(topicPrompt, /ít nhất 2 tín hiệu đang tương tác/i);
 assert.match(topicPrompt, /field "closingLine" riêng/);

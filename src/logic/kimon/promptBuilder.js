@@ -226,6 +226,7 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
 - Trục trọng tâm: Dụng Thần nếu engine đã chỉ rõ.
 - Cung Giờ chỉ là bối cảnh ngắn hạn.
 - Bám đúng dữ liệu trận đồ, flags và câu hỏi ngầm của nhịp thời gian sắp tới.
+- Câu mở đầu phải chốt rõ nhịp chính đang thuận, nghịch hay cần dè chừng ra sao; để AI tự chọn chữ theo trận, nhưng không được mở đầu mơ hồ.
 - Nếu dữ liệu trận đồ đang mở nhiều lớp nghĩa, được phép viết dài hơn để diễn tả đủ bức tranh, không tự cắt ngắn vô lý.
 - Nếu các dấu hiệu đang chồng lớp, hãy giải thích theo 2-4 tầng nghĩa: tín hiệu bề mặt, lực cản, điểm sáng, và xu hướng kế tiếp.
 - Nếu có trả JSON Kymon Pro, kết thúc bằng field "closingLine" riêng như một câu chốt footer.`;
@@ -240,8 +241,10 @@ ${userContext}
 - Trục trọng tâm: Dụng Thần và các tín hiệu đi kèm.
 - Đối chiếu người hỏi qua Nhật Can hoặc Cung Giờ khi thật sự cần.
 - Bám đúng dữ liệu trận đồ, flags, câu hỏi và các block insight đã cung cấp.
+- Ngay phần mở đầu phải có một phán quyết đủ rõ để người hỏi biết nên nhìn trận theo hướng thuận, nghịch, còn cửa hay cần dè chừng; dùng chữ linh hoạt theo ngữ cảnh, không gắn nhãn máy móc.
 - Nếu trong trận có nhiều tín hiệu chồng lớp, hãy giải thích đủ sâu 2-4 lớp để người đọc thấy được toàn cảnh chứ không chỉ một mảnh cắt.
 - Mỗi câu trả lời nên làm rõ ít nhất 2 tín hiệu đang tương tác với nhau, từ đó mới dựng ra bức tranh lớn của trận.
+- Không được để phần phán quyết chìm nghỉm giữa các đoạn phân tích dài. Rõ kết luận trước, rồi mới đi sâu lý do.
 - Kết quả cuối cùng phải có thêm field "closingLine" riêng: 1 câu chốt ngắn, sắc, không lặp nguyên văn phần thân.`;
 }
 

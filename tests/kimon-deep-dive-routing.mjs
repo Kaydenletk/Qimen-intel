@@ -11,9 +11,13 @@ assert.match(serverSource, /import \{ detectDeepDive, detectTopicHybrid \} from 
 assert.doesNotMatch(serverSource, /import \{ detectFlagCombos \} from '\.\/src\/logic\/dungThan\/flagCombos\.js';/);
 assert.match(serverSource, /const isDeepDive = !isAutoLoad && detectDeepDive\(userContext\);/);
 assert.match(serverSource, /function getCriticalTopicFlagCombos\(selectedTopicFlags = \[\]\)/);
+assert.match(serverSource, /const FLASH_LOCK_TOPICS = new Set\(\['hoc-tap', 'thi-cu'\]\);/);
+assert.match(serverSource, /function topicAllowsCriticalFlagEscalation\(topic = ''\) \{\s*return !FLASH_LOCK_TOPICS\.has\(topic\);\s*\}/s);
 assert.match(serverSource, /function getGeminiApiKey\(\)/);
 assert.match(serverSource, /function getSafeKimonErrorMessage\(error\)/);
 assert.match(serverSource, /const criticalTopicFlagCombos = getCriticalTopicFlagCombos\(enrichedQmdjData\?\.selectedTopicFlags\);/);
+assert.match(serverSource, /const allowCriticalFlagEscalation = topicAllowsCriticalFlagEscalation\(topic\);/);
+assert.match(serverSource, /const hasCriticalTopicFlags = allowCriticalFlagEscalation && criticalTopicFlagCombos\.length > 0;/);
 assert.match(serverSource, /flags: \['Dịch Mã', 'Phục Ngâm'\]/);
 assert.match(serverSource, /flags: \['Dịch Mã', 'Phản Ngâm'\]/);
 assert.match(serverSource, /flags: \['Không Vong', 'Phục Ngâm'\]/);
