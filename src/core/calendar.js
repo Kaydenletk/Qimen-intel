@@ -46,7 +46,7 @@ export function jdOfSolarLon(targetLon, nearYear, nearMonth) {
  * getSolarTermInfo(date) → SolarTermInfo
  * Returns: { name, isDuong, sectorIdx, daysSince, nguyen, nguyenName, cucSo, cucArr }
  */
-export function getSolarTermInfo(date) {
+export function getSolarTermInfo(date, dayJiaZi = null) {
   const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
   const timeOfDay = (date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds()) / 86400;
   const targetJD = toJD(y, m, d) + timeOfDay;
@@ -58,7 +58,17 @@ export function getSolarTermInfo(date) {
 
   const termStartJD = jdOfSolarLon(tk.lon, y, Math.max(1, m - 1));
   const daysSince = Math.floor(targetJD - termStartJD);
-  const nguyen = daysSince < 5 ? 0 : daysSince < 10 ? 1 : 2;
+  
+  let nguyen = 0;
+  if (dayJiaZi !== null && dayJiaZi >= 0) {
+    // Orthodox Chai Bu (Sách Bổ) method: Epoch depends purely on the Day Pillar's Jiazi index
+    const cycleStart = Math.floor(dayJiaZi / 5);
+    nguyen = cycleStart % 3;
+  } else {
+    // Flat Qi (Bình Khí) fallback
+    nguyen = daysSince < 5 ? 0 : daysSince < 10 ? 1 : 2;
+  }
+  
   const cucArr = CUC_TABLE[tk.name] || [1, 7, 4];
 
   return {

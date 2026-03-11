@@ -873,10 +873,10 @@ export function getDichMa(branchIdx, type = 'hour') {
  * Main entry point. Returns the complete annotated 9-palace chart.
  */
 export function buildFullChart(date, hourStr) {
-  const tk = getSolarTermInfo(date);
   const yearPillar = getYearPillar(date);
   const monthPillar = getMonthPillar(date, yearPillar.stemIdx);
   const dayPillar = getDayPillar(date);
+  const tk = getSolarTermInfo(date, dayPillar.jiazi);
   const hour = parseInt(hourStr, 10);
   const gioChiIdx = getGioChi(hour);
   const gioCanIdx = getGioCan(hour, dayPillar.stemIdx);

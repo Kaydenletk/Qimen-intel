@@ -43,6 +43,7 @@ export const TOPICS = {
   'kien-tung': { label: 'Kiện Tụng / Pháp Lý', primaryDoors: ['Khai Môn'], primaryDeities: ['Câu Trận', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Hưu Môn'], avoidDeities: ['Chu Tước', 'Đằng Xà'], usefulStars: ['Thiên Xung'] },
   'xuat-hanh': { label: 'Xuất Hành / Du Lịch', primaryDoors: ['Sinh Môn', 'Khai Môn', 'Hưu Môn'], primaryDeities: ['Lục Hợp', 'Cửu Thiên'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Đằng Xà'], usefulStars: ['Thiên Nhậm', 'Thiên Tâm'] },
   'xin-viec': { label: 'Xin Việc / Phỏng Vấn', primaryDoors: ['Khai Môn'], primaryDeities: ['Cửu Thiên', 'Lục Hợp'], avoidDoors: ['Tử Môn'], avoidDeities: ['Câu Trận'], usefulStars: ['Thiên Nhậm', 'Thiên Phụ'] },
+  'mang-thai': { label: 'Mang Thai / Sinh Đẻ', primaryDoors: ['Sinh Môn', 'Hưu Môn'], primaryDeities: ['Lục Hợp', 'Thái Âm', 'Cửu Địa'], avoidDoors: ['Tử Môn', 'Kinh Môn'], avoidDeities: ['Câu Trận', 'Bạch Hổ'], usefulStars: [] },
   'bat-dong-san': PROPERTY_TOPIC,
   'dien-trach': PROPERTY_TOPIC,
   'muu-luoc': { label: 'Mưu Lược / Chiến Lược', primaryDoors: ['Khai Môn', 'Sinh Môn'], primaryDeities: ['Thái Âm', 'Cửu Thiên'], avoidDoors: ['Tử Môn'], avoidDeities: ['Đằng Xà', 'Cửu Địa'], usefulStars: ['Thiên Phụ', 'Thiên Tâm', 'Thiên Nhậm'] },
@@ -163,6 +164,70 @@ export function findUsefulGod(topicKey, chart) {
   const topic = TOPICS[normalizedTopicKey];
   if (!topic) return { error: `Topic không tồn tại: "${topicKey}"` };
   const tkName = chart.solarTerm.name;
+  
+  // Logic luận đoán giới tính thai nhi theo Trương Hải Ban: Cố định Cung Khôn (2)
+  if (normalizedTopicKey === 'mang-thai') {
+    const p2 = chart.palaces[2];
+    const score = p2.score || 0;
+    const verdict = score >= 5 ? { label: 'Cát', color: 'cat' } : score >= 0 ? { label: 'Bình', color: 'binh' } : { label: 'Hung', color: 'hung' };
+    return {
+      topic: topic.label,
+      usefulGodPalace: 2, usefulGodDir: PALACE_META[2].dir,
+      usefulGodPalaceName: PALACE_META[2].name,
+      score, verdict, reasons: ['Dụng thần quy định: Cung Khôn (Người mẹ / Thai nhi)'],
+      allCandidates: [{ palace: 2, score, reasons: ['Dụng thần quy định (sách Trương Hải Ban)'] }],
+      actionAdvice: generateAdvice('mang-thai', { palace: 2, score }, chart),
+    };
+  }
+
+  // Logic luận sự nghiệp: Cố định Cung có Khai Môn (Sách Trương Hải Ban)
+  if (normalizedTopicKey === 'su-nghiep') {
+    let targetPalace = null;
+    let score = 0;
+    for (let p = 1; p <= 9; p++) {
+      if (p !== 5 && chart.palaces[p]?.mon?.name === 'Khai Môn') {
+        targetPalace = p;
+        break;
+      }
+    }
+    if (targetPalace) {
+      score = chart.palaces[targetPalace].score || 0;
+      const verdict = score >= 5 ? { label: 'Cát', color: 'cat' } : score >= 0 ? { label: 'Bình', color: 'binh' } : { label: 'Hung', color: 'hung' };
+      return {
+        topic: topic.label,
+        usefulGodPalace: targetPalace, usefulGodDir: PALACE_META[targetPalace].dir,
+        usefulGodPalaceName: PALACE_META[targetPalace].name,
+        score, verdict, reasons: ['Dụng thần quy định: Cửa Khai (Sự nghiệp)'],
+        allCandidates: [{ palace: targetPalace, score, reasons: ['Sách Trương Hải Ban: Sự nghiệp xem Cửa Khai'] }],
+        actionAdvice: generateAdvice('su-nghiep', { palace: targetPalace, score }, chart),
+      };
+    }
+  }
+
+  // Logic luận tài vận: Cố định Cung có Sinh Môn (Sách Trương Hải Ban)
+  if (normalizedTopicKey === 'tai-van') {
+    let targetPalace = null;
+    let score = 0;
+    for (let p = 1; p <= 9; p++) {
+      if (p !== 5 && chart.palaces[p]?.mon?.name === 'Sinh Môn') {
+        targetPalace = p;
+        break;
+      }
+    }
+    if (targetPalace) {
+      score = chart.palaces[targetPalace].score || 0;
+      const verdict = score >= 5 ? { label: 'Cát', color: 'cat' } : score >= 0 ? { label: 'Bình', color: 'binh' } : { label: 'Hung', color: 'hung' };
+      return {
+        topic: topic.label,
+        usefulGodPalace: targetPalace, usefulGodDir: PALACE_META[targetPalace].dir,
+        usefulGodPalaceName: PALACE_META[targetPalace].name,
+        score, verdict, reasons: ['Dụng thần quy định: Cửa Sinh (Lợi Nhuận)'],
+        allCandidates: [{ palace: targetPalace, score, reasons: ['Sách Trương Hải Ban: Đầu tư xem Cửa Sinh và Can Mậu'] }],
+        actionAdvice: generateAdvice('tai-van', { palace: targetPalace, score }, chart),
+      };
+    }
+  }
+
   const candidates = [];
 
   for (let p = 1; p <= 9; p++) {
@@ -170,18 +235,11 @@ export function findUsefulGod(topicKey, chart) {
     const pal = chart.palaces[p];
     let score = 0; const reasons = [];
 
+    // Đã phân tích cứng ở trên, nhưng giữ đề phòng rớt rơi
     if (normalizedTopicKey === 'hoc-tap' || normalizedTopicKey === 'thi-cu') {
       const studyScore = scoreStudyPalace(normalizedTopicKey, p, pal, tkName);
       score = studyScore.score;
       reasons.push(...studyScore.reasons);
-      candidates.push({ palace: p, score, reasons });
-      continue;
-    }
-
-    if (normalizedTopicKey === 'tai-van') {
-      const wealthScore = scoreWealthPalace(p, pal, tkName);
-      score = wealthScore.score;
-      reasons.push(...wealthScore.reasons);
       candidates.push({ palace: p, score, reasons });
       continue;
     }
@@ -272,8 +330,10 @@ export function generateAdvice(topicKey, best, chart) {
         ? `Bầu không khí đang trở nên ấm áp hơn. Một cuộc trò chuyện sâu sắc hoặc một buổi hẹn nhẹ nhàng sẽ là khởi đầu tốt để thấu hiểu đối phương.`
         : `Sóng năng lượng đang bị nhiễu. Có thể có sự hiểu lầm hoặc kỳ vọng quá cao. Hãy lùi lại một bước, cho nhau không gian để tự soi chiếu lại cảm xúc.`}`,
 
-    'su-nghiep': `${ok} Hành động hướng ${dir}. ${can} × ${mon} — ${cat
-      ? `Cánh cửa quan lộc đang rộng mở. Vị thế của bạn được khẳng định, hồ sơ hoặc đề xuất của bạn có sức nặng rất lớn. Hãy tự tin bước lên sân khấu chính.`
+    'su-nghiep': `${ok} Phân tích Sự nghiệp (Khai Môn) hướng ${dir}. ${star} × ${than} — ${cat
+      ? `Cánh cửa quan lộc đang mở. Vị thế chuyên môn của bạn được khẳng định vững chắc. Hãy tự tin bước lên, hành động và dấn thân.`
+      : pal?.khongVong || than === 'Huyền Vũ' || can === 'Nhâm' || can === 'Quý' 
+      ? `Sự nghiệp (Cửa Khai) hiện đang vướng thế bất lợi (Huyền Vũ/Biến Động hoặc Không Vong). Cảnh giác với tiểu nhân thị phi, hoặc đây chỉ là ảo ảnh công việc. Cần cân nhắc kỹ lưỡng nếu muốn thay đổi, đừng vứt bỏ nền tảng sẵn có.`
       : `Gió ngược đang thổi. Môi trường công sở có thể đang có những biến số ngầm. Hãy chuẩn bị kỹ năng chuyên môn thật sắc bén và giữ thái độ trung lập để quan sát thế trận.`}`,
 
     'kinh-doanh': `${ok} Khai trương/Kinh doanh hướng ${dir}. ${mon} × ${than} — ${cat
@@ -319,6 +379,12 @@ export function generateAdvice(topicKey, best, chart) {
     'xin-viec': `${ok} Phỏng vấn hướng ${dir}. ${mon} × ${can} — ${cat
       ? `Bạn chính là mảnh ghép mà doanh nghiệp đang tìm kiếm. Hãy tự tin tỏa sáng bằng kinh nghiệm thực tế, cơ hội để bạn đạt được thỏa thuận lương thưởng như ý rất gần.`
       : `Tỉ lệ cạnh tranh đang rất cao hoặc yêu cầu công việc chưa thực sự khớp với bạn. Hãy làm nổi bật những giá trị khác biệt (USP) của bản thân để gây ấn tượng mạnh.`}`,
+
+    'mang-thai': `${ok} Phân tích thai sản (Cung Khôn - Thế Mẹ/Con). ${star} × ${mon} — ${
+      ['Thiên Bồng', 'Thiên Nhậm', 'Thiên Xung', 'Thiên Phụ', 'Thiên Cầm'].includes(star)
+        ? `Sao ${star} là Dương Tinh, dự báo thai nhi là BÉ TRAI.`
+        : `Sao ${star} là Âm Tinh, dự báo thai nhi là BÉ GÁI.`
+    } ${cat ? 'Tình trạng thai nhi ổn định, mẹ bầu nghỉ ngơi tốt, sinh nở thuận lợi.' : 'Mẹ bầu cần đặc biệt tĩnh dưỡng, chú ý khám thai định kỳ và tránh áp lực tinh thần.'}`,
 
     'bat-dong-san': `${ok} Giao dịch nhà đất hướng ${dir}. ${than} × ${mon} — ${cat
       ? `Cung này mở cửa giao dịch, nhưng chỉ nên đi tiếp sau khi đã soi đủ pháp lý, người đứng tên, quy hoạch và điều kiện thoát deal. Đẹp trên giấy chưa đủ; phải sạch ở thực địa.`

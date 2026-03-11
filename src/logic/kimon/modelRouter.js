@@ -14,7 +14,7 @@ import { buildStrategyPrompt, buildStrategySystemInstruction } from './strategyP
 
 const MODELS = {
   flash: 'gemini-2.5-flash',
-  pro: 'gemini-2.5-pro',
+  pro: 'gemini-2.0-flash-thinking-exp-01-21',
 };
 
 const TIER_CONFIG = {
