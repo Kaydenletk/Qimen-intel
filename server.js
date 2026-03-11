@@ -14,10 +14,11 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 import { analyze, analyzeSafely, ANALYZE_FALLBACK_MESSAGE } from './src/index.js';
 import { generateDeterministicEnergyFlow } from './src/logic/dungThan/index.js';
 import { resolveDungThanMarker } from './src/logic/kimon/dungThanHelper.js';
-import { getAIHints } from './src/logic/dungThan/injector.js';
 import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
 import { parseKimonJsonResponse, toKimonResponseSchema } from './src/logic/kimon/jsonResponse.js';
 import { detectDeepDive, detectTopicHybrid } from './src/logic/kimon/detectTopic.js';
+import { detectQuestionIntent } from './src/logic/kimon/questionIntent.js';
+import { getKimonGroundingBundle, toClientGroundingMeta } from './src/logic/kimon/grounding.js';
 import { selectModel, buildPromptByTier, getTierRuntimeConfig } from './src/logic/kimon/modelRouter.js';
 import {
   ORDER as SLOT_ORDER,
@@ -44,7 +45,7 @@ const isMainServerModule =
   && process.argv[1]
   && path.resolve(process.argv[1]) === __filename;
 
-const PORT = Number.parseInt(process.env.PORT || '3000', 10) || 3000;
+const PORT = Number.parseInt(process.env.PORT || '3002', 10) || 3002;
 const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 3072;
 const KYMON_MAX_OUTPUT_TOKENS = 5120;
 const KYMON_PARTIAL_LEAD = 'Kymon chưa trả lời trọn vẹn.';
@@ -130,7 +131,18 @@ async function withTimeout(run, timeoutMs, label = 'Operation') {
   }
 }
 
-function createKimonFallbackPayload({ tier = 'topic', topic = 'chung', message = KIMON_SERVICE_UNAVAILABLE_MESSAGE } = {}) {
+function attachGroundingMeta(payload, groundingBundle = null) {
+  const grounding = toClientGroundingMeta(groundingBundle);
+  if (grounding) payload.grounding = grounding;
+  return payload;
+}
+
+function createKimonFallbackPayload({
+  tier = 'topic',
+  topic = 'chung',
+  message = KIMON_SERVICE_UNAVAILABLE_MESSAGE,
+  groundingBundle = null,
+} = {}) {
   const payload = toKimonResponseSchema({
     mode: 'interpretation',
     lead: message,
@@ -147,7 +159,7 @@ function createKimonFallbackPayload({ tier = 'topic', topic = 'chung', message =
   payload.schema = 'fallback';
   payload._tier = tier;
   payload._topic = topic;
-  return payload;
+  return attachGroundingMeta(payload, groundingBundle);
 }
 
 const KIMON_STREAM_SAFETY_SETTINGS = [
@@ -227,8 +239,9 @@ function respondWithKimonFallback(res, {
   tier = 'topic',
   topic = 'chung',
   message = KIMON_SERVICE_UNAVAILABLE_MESSAGE,
+  groundingBundle = null,
 } = {}) {
-  const payload = createKimonFallbackPayload({ tier, topic, message });
+  const payload = createKimonFallbackPayload({ tier, topic, message, groundingBundle });
   res.writeHead(statusCode, {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-store',
@@ -241,8 +254,9 @@ function endSseWithFallback(res, {
   tier = 'topic',
   topic = 'chung',
   message = KIMON_SERVICE_UNAVAILABLE_MESSAGE,
+  groundingBundle = null,
 } = {}) {
-  const payload = createKimonFallbackPayload({ tier, topic, message });
+  const payload = createKimonFallbackPayload({ tier, topic, message, groundingBundle });
   writeSseData(res, { __ERROR__: message });
   writeSseData(res, { __DONE__: true, parsed: payload });
   if (!res.writableEnded) res.end();
@@ -501,15 +515,6 @@ function resolveTopicDetailLookup(qmdjData = {}) {
   return {};
 }
 
-function normalizeHintTopicKey(topicKey = '') {
-  if (topicKey === 'thi-cu') return 'hoc-tap';
-  if (topicKey === 'tinh-yeu') return 'tinh-duyen';
-  if (topicKey === 'dien-trach') return 'bat-dong-san';
-  if (topicKey === 'chien-luoc') return 'muu-luoc';
-  if (topicKey === 'gia-dinh') return 'gia-dao';
-  return topicKey;
-}
-
 function extractHintElementsFromPalace(palace = {}, chart = {}) {
   const elements = [];
   const doorName = palace?.mon?.name || palace?.mon?.displayName || palace?.mon?.displayShort || '';
@@ -527,12 +532,6 @@ function extractHintElementsFromPalace(palace = {}, chart = {}) {
   if (chart?.isPhanNgam) elements.push('Phản Ngâm');
 
   return elements;
-}
-
-function buildTopicAiHints(topicKey = '', palace = null, chart = {}) {
-  const normalizedTopicKey = normalizeHintTopicKey(topicKey);
-  if (!normalizedTopicKey || normalizedTopicKey === 'chung' || !palace) return '';
-  return getAIHints(normalizedTopicKey, extractHintElementsFromPalace(palace, chart));
 }
 
 function extractTopicFlagsFromPalace(palace = {}, chart = {}) {
@@ -568,9 +567,16 @@ function getCriticalTopicFlagCombos(selectedTopicFlags = []) {
 }
 
 const FLASH_LOCK_TOPICS = new Set(['hoc-tap', 'thi-cu']);
+const VERDICT_STRATEGY_AXES = new Set(['yes_no', 'timing', 'pricing', 'state', 'person']);
 
 function topicAllowsCriticalFlagEscalation(topic = '') {
   return !FLASH_LOCK_TOPICS.has(topic);
+}
+
+function shouldForceVerdictStrategy({ topic = '', userContext = '' } = {}) {
+  if (!topic || topic === 'chung') return false;
+  const intent = detectQuestionIntent(userContext);
+  return VERDICT_STRATEGY_AXES.has(intent?.key || '');
 }
 
 function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '', userContext = '') {
@@ -614,7 +620,6 @@ function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '', userConte
     selectedTopic: detail.chipLabel || detail.topic || qmdjData.selectedTopic || normalizedTopicKey,
     selectedTopicResult: detail.promptTopicResult || qmdjData.selectedTopicResult || '',
     insight: detail.promptInsight || qmdjData.insight || '',
-    aiHints: detail.aiHints || qmdjData.aiHints || '',
     selectedTopicFlags: Array.isArray(detail.flags) ? detail.flags : (Array.isArray(qmdjData.selectedTopicFlags) ? qmdjData.selectedTopicFlags : []),
     selectedTopicUsefulPalace: detail.usefulGodPalace || qmdjData.selectedTopicUsefulPalace || '',
     selectedTopicUsefulPalaceName: detail.usefulGodPalaceName || qmdjData.selectedTopicUsefulPalaceName || '',
@@ -653,15 +658,38 @@ function buildKimonGenerationContext({
   userContext = 'chung',
   isAutoLoad = false,
   includeSafetySettings = false,
+  groundingBundle = null,
 } = {}) {
   const runtimeConfig = getTierRuntimeConfig(tier);
   const { model: modelName, maxTokens } = selectModel(tier);
+  const resolvedGroundingBundle = groundingBundle || getKimonGroundingBundle({
+    topic,
+    qmdjData,
+    userContext,
+    isAutoLoad,
+  });
+  const fallbackResponseFormat = tier === 'companion' ? 'text' : 'json';
+
+  if (resolvedGroundingBundle.mode === 'no_source') {
+    return {
+      runtimeConfig,
+      modelName,
+      maxTokens,
+      responseFormat: fallbackResponseFormat,
+      userPrompt: '',
+      model: null,
+      groundingBundle: resolvedGroundingBundle,
+      skipModelCall: true,
+    };
+  }
+
   const { systemPrompt, userPrompt, responseFormat } = buildPromptByTier({
     tier,
     topic: topic || 'chung',
     qmdjData,
     userContext,
     isAutoLoad,
+    groundingBundle: resolvedGroundingBundle,
   });
 
   const generationConfig = {
@@ -694,17 +722,25 @@ function buildKimonGenerationContext({
     maxTokens,
     responseFormat,
     userPrompt,
+    groundingBundle: resolvedGroundingBundle,
+    skipModelCall: false,
     model: genAI.getGenerativeModel(modelConfig),
   };
 }
 
-function finalizeKimonParsedPayload({ responseFormat = 'json', rawText = '', tier = 'topic', topic = 'chung' } = {}) {
+function finalizeKimonParsedPayload({
+  responseFormat = 'json',
+  rawText = '',
+  tier = 'topic',
+  topic = 'chung',
+  groundingBundle = null,
+} = {}) {
   const parsed = responseFormat === 'text'
     ? shapeCompanionTextPayload(rawText)
     : toKimonResponseSchema(parseKimonJsonResponse(rawText), rawText);
   parsed._tier = tier;
   parsed._topic = topic;
-  return parsed;
+  return attachGroundingMeta(parsed, groundingBundle);
 }
 
 async function generateKimonJsonResponse({
@@ -714,6 +750,7 @@ async function generateKimonJsonResponse({
   qmdjData = {},
   userContext = 'chung',
   isAutoLoad = false,
+  groundingBundle = null,
 } = {}) {
   const {
     runtimeConfig,
@@ -722,6 +759,8 @@ async function generateKimonJsonResponse({
     responseFormat,
     userPrompt,
     model,
+    groundingBundle: resolvedGroundingBundle,
+    skipModelCall,
   } = buildKimonGenerationContext({
     apiKey,
     tier,
@@ -729,9 +768,24 @@ async function generateKimonJsonResponse({
     qmdjData,
     userContext,
     isAutoLoad,
+    groundingBundle,
   });
 
   console.log(`[Kimon][json] tier=${tier} topic=${topic} model=${modelName} maxTokens=${maxTokens} format=${responseFormat}`);
+
+  if (skipModelCall) {
+    return {
+      parsed: createKimonFallbackPayload({
+        tier,
+        topic,
+        message: resolvedGroundingBundle.reason,
+        groundingBundle: resolvedGroundingBundle,
+      }),
+      modelName,
+      maxTokens,
+      responseFormat,
+    };
+  }
 
   const result = await withTimeout(
     () => model.generateContent(userPrompt),
@@ -740,7 +794,13 @@ async function generateKimonJsonResponse({
   );
   const rawText = await result.response.text();
   logKimonModelMeta('/api/kimon', result.response, rawText);
-  const parsed = finalizeKimonParsedPayload({ responseFormat, rawText, tier, topic });
+  const parsed = finalizeKimonParsedPayload({
+    responseFormat,
+    rawText,
+    tier,
+    topic,
+    groundingBundle: resolvedGroundingBundle,
+  });
 
   return {
     parsed,
@@ -749,6 +809,13 @@ async function generateKimonJsonResponse({
     responseFormat,
   };
 }
+
+export const __test = {
+  attachGroundingMeta,
+  buildKimonGenerationContext,
+  createKimonFallbackPayload,
+  finalizeKimonParsedPayload,
+};
 
 function generateHTML(date, hour, minute = 0, options = {}) {
   const { chart, evaluation, topicResults } = analyze(date, hour);
@@ -1157,7 +1224,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const usefulGodDir = Number.isFinite(usefulPalaceNum)
       ? palaceLabelFromNum(usefulPalaceNum)
       : t.usefulGodDir;
-    const aiHints = buildTopicAiHints(t.key, usefulPalace, chart);
     const usefulGodFlags = extractTopicFlagsFromPalace(usefulPalace, chart);
     const actionLabel = strategic ? mapStrategicAction(strategic.score) : (insight?.actionLabel || fallbackActionLabel(t.score));
     const oneLiner = strategic?.coreMessage || insight?.oneLiner || t.actionAdvice || '';
@@ -1188,7 +1254,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       narrative: counselorNarrative,
       confidence: insightConfidence,
       confidencePct: Math.round(insightConfidence * 100),
-      aiHints,
       markersForAI: strategic?.markersForAI || null,
       nguHanhRelation: strategic?.nguHanhRelation || null,
       formationEvidence,
@@ -3040,6 +3105,40 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       font-family: inherit;
     }
 
+    .kymon-lead strong:first-of-type,
+    .kymon-lead b:first-of-type {
+      display: inline-block;
+      margin-bottom: 8px;
+      font-size: 1.08rem;
+      line-height: 1.38;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .kymon-verdict-card {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background:
+        linear-gradient(180deg, rgba(96, 165, 250, 0.14) 0%, rgba(15, 23, 42, 0.56) 100%);
+      border: 1px solid rgba(96, 165, 250, 0.22);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .kymon-verdict-card strong:first-of-type,
+    .kymon-verdict-card b:first-of-type {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 1.2rem;
+      line-height: 1.34;
+      color: var(--surface-highlight-text);
+    }
+
+    .kymon-verdict-card br {
+      display: block;
+      content: "";
+      margin-top: 10px;
+    }
+
     .kymon-time-hint {
       margin: 0;
       color: var(--muted);
@@ -3711,7 +3810,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             data-display-palaces="${escapeHTML(JSON.stringify(displayChart.palaces || {}))}"
             data-palace-summaries="${escapeHTML(JSON.stringify(palaceSummaries || {}).replace(/</g, '\\u003c'))}"
             data-all-topics="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ topic: t.topic, score: t.score, action: t.actionAdvice, verdict: t.verdict }))))}"
-            data-all-topic-details="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ key: t.key, topic: t.topic, chipLabel: t.chipLabel, promptTopicResult: t.promptTopicResult, promptInsight: t.promptInsight, aiHints: t.aiHints || '', flags: Array.isArray(t.flags) ? t.flags : [], usefulGodPalace: t.usefulGodPalace || '', usefulGodPalaceName: t.usefulGodPalaceName || '', markersForAI: t.markersForAI || null, nguHanhRelation: t.nguHanhRelation || null }))).replace(/</g, '\\u003c'))}"
+            data-all-topic-details="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ key: t.key, topic: t.topic, chipLabel: t.chipLabel, promptTopicResult: t.promptTopicResult, promptInsight: t.promptInsight, flags: Array.isArray(t.flags) ? t.flags : [], usefulGodPalace: t.usefulGodPalace || '', usefulGodPalaceName: t.usefulGodPalaceName || '', markersForAI: t.markersForAI || null, nguHanhRelation: t.nguHanhRelation || null }))).replace(/</g, '\\u003c'))}"
             data-mon="${escapeHTML(energyFlow.metadata?.door || '')}"
             data-than="${escapeHTML(energyFlow.metadata?.deity || '')}"
             data-tinh="${escapeHTML(energyFlow.metadata?.star || '')}"
@@ -4704,7 +4803,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       if (data.schema === 'deep-dive' && data.tongQuan) {
         pushSection(createKimonTextSection({
           label: 'Tổng quan',
-          className: 'kymon-lead',
+          className: 'kymon-lead kymon-verdict-card',
           rawText: data.tongQuan,
           seenParagraphs,
         }));
@@ -4743,7 +4842,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       if (data.schema === 'strategy') {
         pushSection(createKimonTextSection({
           label: 'Nhận định',
-          className: 'kymon-lead',
+          className: 'kymon-lead kymon-verdict-card',
           rawText: data.verdict || data.lead || '',
           seenParagraphs,
         }));
@@ -4794,8 +4893,8 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       }
 
       pushSection(createKimonTextSection({
-        label: 'Mở bài',
-        className: 'kymon-lead',
+        label: 'Nhận định',
+        className: 'kymon-lead kymon-verdict-card',
         rawText: data.lead || data.summary || data.quickTake || '',
         seenParagraphs,
       }));
@@ -6431,6 +6530,7 @@ export default function handler(req, res) {
 
       let resolvedTopic = 'chung';
       let resolvedTier = 'topic';
+      let resolvedGroundingBundle = null;
       try {
         const body = JSON.parse(bodyData);
         const { qmdjData, userContext = 'chung' } = body;
@@ -6463,22 +6563,40 @@ export default function handler(req, res) {
           selectedSecondaryTopicKey: secondaryTopic,
           selectedTopicCandidates: topicCandidates,
         };
+        const groundingBundle = getKimonGroundingBundle({
+          topic: topic || 'chung',
+          qmdjData: enrichedQmdjData,
+          userContext,
+          isAutoLoad,
+        });
+        resolvedGroundingBundle = groundingBundle;
         const criticalTopicFlagCombos = getCriticalTopicFlagCombos(enrichedQmdjData?.selectedTopicFlags);
         const allowCriticalFlagEscalation = topicAllowsCriticalFlagEscalation(topic);
         const hasCriticalTopicFlags = allowCriticalFlagEscalation && criticalTopicFlagCombos.length > 0;
         const forceStrategyTopic = ['tai-van', 'muu-luoc', 'chien-luoc'].includes(topic);
-        const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
+        const forceVerdictStrategy = shouldForceVerdictStrategy({ topic, userContext });
+        const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic || forceVerdictStrategy) ? 'strategy' : tier;
         resolvedTier = effectiveTier;
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { responseFormat } = buildPromptByTier({
-          tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
+          tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad, groundingBundle,
         });
-        console.log(`[Kimon][stream] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} flagCombos=${hasCriticalTopicFlags ? criticalTopicFlagCombos.map(combo => combo.id).join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat}`);
+        console.log(`[Kimon][stream] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} verdictStrategy=${forceVerdictStrategy} flagCombos=${hasCriticalTopicFlags ? criticalTopicFlagCombos.map(combo => combo.id).join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat} grounding=${groundingBundle.mode}`);
+        if (groundingBundle.mode === 'no_source') {
+          endSseWithFallback(res, {
+            tier: effectiveTier,
+            topic: topic || 'chung',
+            message: groundingBundle.reason,
+            groundingBundle,
+          });
+          return;
+        }
         if (!apiKey) {
           endSseWithFallback(res, {
             tier: effectiveTier,
             topic: topic || 'chung',
             message: GEMINI_API_CONFIG_MESSAGE,
+            groundingBundle,
           });
           return;
         }
@@ -6499,9 +6617,17 @@ export default function handler(req, res) {
             userContext,
             isAutoLoad,
             includeSafetySettings: true,
+            groundingBundle,
           });
 
-          writeSseData(res, { __META__: { connected: true, tier: attemptTier, topic: topic || 'chung' } });
+          writeSseData(res, {
+            __META__: {
+              connected: true,
+              tier: attemptTier,
+              topic: topic || 'chung',
+              grounding: toClientGroundingMeta(groundingBundle),
+            },
+          });
 
           const streamOutcome = await withTimeout(async () => {
             const streamResult = await model.generateContentStream(userPrompt);
@@ -6531,6 +6657,7 @@ export default function handler(req, res) {
             rawText: streamOutcome.fullText,
             tier: attemptTier,
             topic: topic || 'chung',
+            groundingBundle,
           });
           writeSseData(res, { __DONE__: true, parsed });
           return { aborted: false };
@@ -6558,6 +6685,7 @@ export default function handler(req, res) {
           tier: resolvedTier,
           topic: resolvedTopic,
           message: getSafeKimonErrorMessage(error),
+          groundingBundle: resolvedGroundingBundle,
         });
       } finally {
         stopHeartbeat();
@@ -6584,6 +6712,7 @@ export default function handler(req, res) {
 
       let resolvedTopic = 'chung';
       let resolvedTier = 'topic';
+      let resolvedGroundingBundle = null;
       try {
         const body = JSON.parse(bodyData);
         const { qmdjData, userContext = 'chung' } = body;
@@ -6605,23 +6734,42 @@ export default function handler(req, res) {
           selectedSecondaryTopicKey: secondaryTopic,
           selectedTopicCandidates: topicCandidates,
         };
+        const groundingBundle = getKimonGroundingBundle({
+          topic: topic || 'chung',
+          qmdjData: enrichedQmdjData,
+          userContext,
+          isAutoLoad,
+        });
+        resolvedGroundingBundle = groundingBundle;
         const criticalTopicFlagCombos = getCriticalTopicFlagCombos(enrichedQmdjData?.selectedTopicFlags);
         const allowCriticalFlagEscalation = topicAllowsCriticalFlagEscalation(topic);
         const hasCriticalTopicFlags = allowCriticalFlagEscalation && criticalTopicFlagCombos.length > 0;
         const forceStrategyTopic = ['tai-van', 'muu-luoc', 'chien-luoc'].includes(topic);
-        const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic) ? 'strategy' : tier;
+        const forceVerdictStrategy = shouldForceVerdictStrategy({ topic, userContext });
+        const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic || forceVerdictStrategy) ? 'strategy' : tier;
         resolvedTier = effectiveTier;
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { responseFormat } = buildPromptByTier({
-          tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad,
+          tier: effectiveTier, topic: topic || 'chung', qmdjData: enrichedQmdjData, userContext, isAutoLoad, groundingBundle,
         });
-        console.log(`[Kimon][json] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} flagCombos=${hasCriticalTopicFlags ? criticalTopicFlagCombos.map(combo => combo.id).join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat}`);
+        console.log(`[Kimon][json] tier=${effectiveTier} topic=${topic} model=${modelName} confidence=${confidence} deepDive=${isDeepDive} verdictStrategy=${forceVerdictStrategy} flagCombos=${hasCriticalTopicFlags ? criticalTopicFlagCombos.map(combo => combo.id).join('|') : 'none'} maxTokens=${maxTokens} format=${responseFormat} grounding=${groundingBundle.mode}`);
+        if (groundingBundle.mode === 'no_source') {
+          respondWithKimonFallback(res, {
+            statusCode: 200,
+            tier: effectiveTier,
+            topic: topic || 'chung',
+            message: groundingBundle.reason,
+            groundingBundle,
+          });
+          return;
+        }
         if (!apiKey) {
           respondWithKimonFallback(res, {
             statusCode: 200,
             tier: effectiveTier,
             topic: topic || 'chung',
             message: GEMINI_API_CONFIG_MESSAGE,
+            groundingBundle,
           });
           return;
         }
@@ -6635,6 +6783,7 @@ export default function handler(req, res) {
             qmdjData: enrichedQmdjData,
             userContext,
             isAutoLoad,
+            groundingBundle,
           }));
         } catch (primaryError) {
           if (!shouldRetryStrategyAsTopic(primaryError, { effectiveTier, topic })) {
@@ -6649,6 +6798,7 @@ export default function handler(req, res) {
             qmdjData: enrichedQmdjData,
             userContext,
             isAutoLoad,
+            groundingBundle,
           }));
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -6659,6 +6809,7 @@ export default function handler(req, res) {
           tier: resolvedTier,
           topic: resolvedTopic,
           message: getSafeKimonErrorMessage(error),
+          groundingBundle: resolvedGroundingBundle,
         });
       }
     });

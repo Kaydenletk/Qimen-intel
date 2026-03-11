@@ -122,6 +122,7 @@ assert.match(serverSource, /label:\s*'Tổng quan'/, 'Deep-dive phải có subti
 assert.match(serverSource, /label:\s*'Nhận định'/, 'Strategy phải có subtitle Nhận định');
 assert.match(serverSource, /label:\s*'Phân tích thế trận'/, 'Strategy phải có subtitle Phân tích thế trận');
 assert.match(serverSource, /label:\s*'Nước đi đề xuất'/, 'Strategy phải có subtitle Nước đi đề xuất');
+assert.match(serverSource, /className:\s*'kymon-lead kymon-verdict-card'/, 'Lead/verdict phải được render bằng verdict card class');
 assert.match(serverSource, /function createKimonQuoteSection\(\{ className, rawText, seenParagraphs, modeLabel = '' \}\)/, 'Renderer phải có helper quote footer riêng');
 assert.match(serverSource, /modeLabel:\s*String\(modeLabel \|\| ''\)\.trim\(\)/, 'Quote footer phải giữ mode label để render ở mép phải');
 assert.match(serverSource, /schema:\s*'kymon-pro'/, 'Frontend phải detect schema Kymon Pro riêng');
@@ -155,6 +156,9 @@ assert.match(serverSource, /\.kymon-clean-layout \{/, 'Phải có clean layout c
 assert.match(serverSource, /\.kymon-section-block \{/, 'Section block phải có spacing riêng');
 assert.match(serverSource, /\.kymon-lead \{/, 'Lead phải có style riêng');
 assert.match(serverSource, /\.kymon-lead \{[\s\S]*font-weight: 400;/, 'Lead không được bold toàn khối nữa');
+assert.match(serverSource, /\.kymon-lead strong:first-of-type,/, 'Lead phải có style riêng cho cụm bold đầu tiên');
+assert.match(serverSource, /\.kymon-verdict-card \{/, 'Verdict card phải có style riêng');
+assert.match(serverSource, /\.kymon-verdict-card strong:first-of-type,/, 'Verdict card phải đẩy mạnh bold verdict đầu tiên');
 assert.match(serverSource, /\.kymon-time-hint \{/, 'Time hint phải có style riêng');
 assert.match(serverSource, /\.kymon-analysis-flow \{/, 'Analysis flow phải có style riêng');
 assert.match(serverSource, /\.kymon-action-footer \{/, 'Closing/action footer phải có style riêng');
@@ -180,9 +184,9 @@ assert.match(serverSource, /import \{ parseKimonJsonResponse, toKimonResponseSch
 assert.match(serverSource, /import \{ [^}]*detectTopicHybrid[^}]*\} from '\.\/src\/logic\/kimon\/detectTopic\.js';/, 'Server phải import detectTopicHybrid từ detectTopic.js');
 assert.match(serverSource, /import \{ selectModel, buildPromptByTier, getTierRuntimeConfig \} from '\.\/src\/logic\/kimon\/modelRouter\.js';/, 'Server phải import tiered router');
 assert.match(serverSource, /toKimonResponseSchema\(parseKimonJsonResponse\(rawText\), rawText\)/, 'Route non-stream phải trả về đúng schema mới');
-assert.match(serverSource, /function finalizeKimonParsedPayload\(\{ responseFormat = 'json', rawText = '', tier = 'topic', topic = 'chung' \} = \{\}\)/, 'Server nên gom logic shape payload vào helper chung');
+assert.match(serverSource, /function finalizeKimonParsedPayload\(\{\s*responseFormat = 'json',\s*rawText = '',\s*tier = 'topic',\s*topic = 'chung',\s*groundingBundle = null,\s*\} = \{\}\)/s, 'Server nên gom logic shape payload vào helper chung');
 assert.match(serverSource, /const parsed = responseFormat === 'text'\s*\?\s*shapeCompanionTextPayload\(rawText\)\s*:\s*toKimonResponseSchema\(parseKimonJsonResponse\(rawText\), rawText\);/s, 'Helper chung phải shape payload đúng schema mới');
-assert.match(serverSource, /const parsed = finalizeKimonParsedPayload\(\{\s*responseFormat: attemptResponseFormat,\s*rawText: streamOutcome\.fullText,\s*tier: attemptTier,\s*topic: topic \|\| 'chung',\s*\}\);/s, 'Route stream phải dùng helper chung để shape parsed payload');
+assert.match(serverSource, /const parsed = finalizeKimonParsedPayload\(\{\s*responseFormat: attemptResponseFormat,\s*rawText: streamOutcome\.fullText,\s*tier: attemptTier,\s*topic: topic \|\| 'chung',\s*groundingBundle,\s*\}\);/s, 'Route stream phải dùng helper chung để shape parsed payload');
 assert.match(serverSource, /function stripMarkdownForSpeech\(rawText\)/, 'Phải có helper làm sạch markdown trước khi đọc');
 assert.match(serverSource, /function ensureKimonAudioSource\(session\)/, 'Phải có helper tải audio từ ElevenLabs');
 assert.match(serverSource, /function createKimonSpeechHandler\(session\)/, 'Phải có play\/pause handler theo audio session');

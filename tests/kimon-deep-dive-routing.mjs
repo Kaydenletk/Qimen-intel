@@ -8,11 +8,14 @@ const strategyPromptSource = readFileSync(new URL('../src/logic/kimon/strategyPr
 const modelRouterSource = readFileSync(new URL('../src/logic/kimon/modelRouter.js', import.meta.url), 'utf8');
 
 assert.match(serverSource, /import \{ detectDeepDive, detectTopicHybrid \} from '\.\/src\/logic\/kimon\/detectTopic\.js';/);
+assert.match(serverSource, /import \{ detectQuestionIntent \} from '\.\/src\/logic\/kimon\/questionIntent\.js';/);
 assert.doesNotMatch(serverSource, /import \{ detectFlagCombos \} from '\.\/src\/logic\/dungThan\/flagCombos\.js';/);
 assert.match(serverSource, /const isDeepDive = !isAutoLoad && detectDeepDive\(userContext\);/);
 assert.match(serverSource, /function getCriticalTopicFlagCombos\(selectedTopicFlags = \[\]\)/);
 assert.match(serverSource, /const FLASH_LOCK_TOPICS = new Set\(\['hoc-tap', 'thi-cu'\]\);/);
 assert.match(serverSource, /function topicAllowsCriticalFlagEscalation\(topic = ''\) \{\s*return !FLASH_LOCK_TOPICS\.has\(topic\);\s*\}/s);
+assert.match(serverSource, /const VERDICT_STRATEGY_AXES = new Set\(\['yes_no', 'timing', 'pricing', 'state', 'person'\]\);/);
+assert.match(serverSource, /function shouldForceVerdictStrategy\(\{ topic = '', userContext = '' \} = \{\}\) \{\s*if \(!topic \|\| topic === 'chung'\) return false;\s*const intent = detectQuestionIntent\(userContext\);\s*return VERDICT_STRATEGY_AXES\.has\(intent\?\.key \|\| ''\);\s*\}/s);
 assert.match(serverSource, /function getGeminiApiKey\(\)/);
 assert.match(serverSource, /function getSafeKimonErrorMessage\(error\)/);
 assert.match(serverSource, /function shouldRetryStrategyAsTopic\(error, \{ effectiveTier = '', topic = '' \} = \{\}\)/);
@@ -27,7 +30,9 @@ assert.match(serverSource, /flags: \['Không Vong', 'Phục Ngâm'\]/);
 assert.match(serverSource, /flags: \['Không Vong', 'Phản Ngâm'\]/);
 assert.doesNotMatch(serverSource, /HORSE_VOID/);
 assert.match(serverSource, /const forceStrategyTopic = \['tai-van', 'muu-luoc', 'chien-luoc'\]\.includes\(topic\);/);
-assert.match(serverSource, /const effectiveTier = \(isDeepDive \|\| hasCriticalTopicFlags \|\| forceStrategyTopic\) \? 'strategy' : tier;/);
+assert.match(serverSource, /const forceVerdictStrategy = shouldForceVerdictStrategy\(\{ topic, userContext \}\);/);
+assert.match(serverSource, /const effectiveTier = \(isDeepDive \|\| hasCriticalTopicFlags \|\| forceStrategyTopic \|\| forceVerdictStrategy\) \? 'strategy' : tier;/);
+assert.match(serverSource, /verdictStrategy=\$\{forceVerdictStrategy\}/);
 assert.match(serverSource, /function getKimonResponseModeLabel\(data = \{\}\)/);
 assert.match(serverSource, /if \(tier === 'strategy'\) return 'thinking';/);
 assert.match(serverSource, /if \(tier === 'topic' \|\| tier === 'companion'\) return 'flash';/);
@@ -68,11 +73,14 @@ assert.match(strategyPromptSource, /\[SHADOW ANALYSIS - GÓC KHUẤT BẮT BUỘ
 assert.match(strategyPromptSource, /dễ tự huyễn hoặc/i);
 assert.match(strategyPromptSource, /cái giá phải trả/i);
 assert.match(strategyPromptSource, /follow-up question thật trúng/i);
-assert.match(strategyPromptSource, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
-assert.match(strategyPromptSource, /buildStrategySystemInstruction\(\) \{\s*return KYMON_PRO_SYSTEM_PROMPT;/s);
+assert.match(strategyPromptSource, /\[OUTPUT FORMAT - STRATEGY JSON BẮT BUỘC\]/);
+assert.match(strategyPromptSource, /markdown bold/i);
+assert.match(strategyPromptSource, /KHÔNG VUỐT VE/i);
+assert.match(strategyPromptSource, /JSON object với chính xác 5 key sau/i);
+assert.match(strategyPromptSource, /buildStrategySystemInstruction\(\{ groundingBundle = null \} = \{\}\) \{\s*return appendGroundingSystemRules\(KYMON_PRO_SYSTEM_PROMPT, groundingBundle\);/s);
 
 assert.match(promptBuilderSource, /export const KYMON_TOPIC_SYSTEM_PROMPT = /);
-assert.match(promptBuilderSource, /buildKimonSystemInstruction\(\{ tier = 'topic' \} = \{\}\) \{\s*void tier;\s*return KYMON_TOPIC_SYSTEM_PROMPT;/s);
+assert.match(promptBuilderSource, /buildKimonSystemInstruction\(\{ tier = 'topic', groundingBundle = null \} = \{\}\) \{\s*void tier;\s*return appendGroundingSystemRules\(KYMON_TOPIC_SYSTEM_PROMPT, groundingBundle\);/s);
 assert.match(promptBuilderSource, /\[INTERNAL INSIGHTS\]/);
 assert.match(promptBuilderSource, /\[PHÂN TÍCH CHỦ ĐỀ:/);
 assert.match(promptBuilderSource, /\[FLAGS ENGINE TẠI DỤNG THẦN/);
@@ -85,6 +93,6 @@ assert.doesNotMatch(promptBuilderSource, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC
 
 assert.match(modelRouterSource, /import \{ buildKimonPrompt, buildCompanionPrompt, buildKimonSystemInstruction \} from '\.\/promptBuilder\.js';/);
 assert.match(modelRouterSource, /import \{ buildStrategyPrompt, buildStrategySystemInstruction \} from '\.\/strategyPrompt\.js';/);
-assert.match(modelRouterSource, /systemPrompt: buildKimonSystemInstruction\(\),/);
+assert.match(modelRouterSource, /systemPrompt: buildKimonSystemInstruction\(\{ groundingBundle \}\),/);
 
 console.log('kimon-deep-dive-routing.mjs: OK');

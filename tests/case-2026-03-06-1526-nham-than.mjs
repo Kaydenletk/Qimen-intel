@@ -50,10 +50,10 @@ assert.equal(chart.trucSuPalace, 9, 'Trực Sử phải ở Ly / P9');
 
 assert.equal(chart.palaces[9]?.mon?.short, 'Hưu', 'P9 phải là Hưu Môn');
 assert.equal(Boolean(chart.palaces[9]?.trucSu), true, 'P9 phải được đánh dấu Trực Sử');
-assert.equal(Boolean(chart.palaces[9]?.trucPhu), false, 'P9 không được mang Trực Phù');
+assert.equal(Boolean(chart.palaces[9]?.trucPhu), false, 'P9 không mang Trực Phù trong bộ tính Self-plus này');
 
 assert.equal(chart.palaces[2]?.mon?.short, 'Sinh', 'P2 phải là Sinh Môn');
-assert.equal(Boolean(chart.palaces[2]?.trucPhu), true, 'P2 phải được đánh dấu Trực Phù');
+assert.equal(Boolean(chart.palaces[2]?.trucPhu), true, 'P2 phải mang Trực Phù sau khi Địa Bàn về đúng tuyến tính');
 assert.equal(Boolean(chart.palaces[2]?.trucSu), false, 'P2 không được mang Trực Sử');
 
 console.log('ASSERTIONS: OK');

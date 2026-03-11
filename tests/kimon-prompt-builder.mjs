@@ -94,6 +94,8 @@ assert.match(systemInstruction, /Trọng lượng phân tích phải nằm ở "
 assert.match(systemInstruction, /Giữ nguyên độ dày cần thiết của nội dung/i);
 assert.match(systemInstruction, /white space rõ ràng/i);
 assert.match(systemInstruction, /mỗi đoạn chỉ nên ôm một ý chính/i);
+assert.match(systemInstruction, /Không được vuốt ve cho người hỏi dễ chịu/i);
+assert.match(systemInstruction, /markdown bold/i);
 
 assert.match(enriched, /\[TÍN HIỆU ĐÈN\]/);
 assert.match(enriched, /Khí giờ đang nghịch, nhưng hành động đúng cách vẫn có cửa/);
@@ -113,14 +115,17 @@ assert.match(prompt, /tone=very-bright; verdict=thuận/);
 assert.match(prompt, /THỜI GIAN HIỆN TẠI.*15:30/);
 assert.match(prompt, /Có nên gọi lúc này không\?/);
 assert.match(prompt, /phán quyết đủ rõ/i);
+assert.match(prompt, /markdown bold/i);
 assert.match(prompt, /hook\/thesis 1-2 câu/i);
 assert.match(prompt, /2-4 lớp để người đọc thấy được toàn cảnh/i);
 assert.match(prompt, /ít nhất 2 tín hiệu đang tương tác/i);
 assert.match(prompt, /Không được rút ngắn phần thân chỉ vì đã có phán quyết/i);
+assert.match(prompt, /Không được dỗ người hỏi cho yên lòng/i);
 assert.match(prompt, /các đoạn ngắn có white space rõ ràng/i);
 assert.match(prompt, /dấu hai chấm vừa phải/i);
 assert.match(prompt, /field "closingLine" riêng/);
 assert.match(prompt, /dùng đúng 3 key: lead, message, closingLine/i);
+assert.match(prompt, /warning, lời khuyên, hoặc quote ngắn/i);
 assert.doesNotMatch(prompt, /\[SYSTEM ROLE & PERSONA\]/);
 assert.doesNotMatch(prompt, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
 assert.doesNotMatch(prompt, /\[YÊU CẦU TRIỂN KHAI\]/);
@@ -143,6 +148,7 @@ assert.match(propertyPricingPrompt, /closingLine phải chốt vào giá, khả 
 assert.match(autoPrompt, /\[BỐI CẢNH TỰ ĐỘNG\]/);
 assert.match(autoPrompt, /\[ĐIỂM CẦN BÁM\]/);
 assert.match(autoPrompt, /Câu mở đầu phải chốt rõ nhịp chính/i);
+assert.match(autoPrompt, /markdown bold/i);
 assert.match(autoPrompt, /lead = mở bài ngắn; message = thân bài chính đủ dày/i);
 assert.match(autoPrompt, /được phép viết dài hơn để diễn tả đủ bức tranh/i);
 assert.match(autoPrompt, /2-4 tầng nghĩa/i);

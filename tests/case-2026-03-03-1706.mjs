@@ -29,19 +29,19 @@ console.log(
 assert.equal(hourCanChi, 'Đinh Dậu', 'Hour Can-Chi must be Đinh Dậu');
 assert.equal(chart.isDuong, true, 'Case must be Yang Ju');
 assert.deepEqual(doorsBySlot, {
-  SE: 'Hưu',
-  S: 'Sinh',
-  SW: 'Thương',
-  E: 'Khai',
-  W: 'Đỗ',
-  NE: 'Kinh',
-  N: 'Tử',
-  NW: 'Cảnh',
-}, 'Door ring must stay anchored to the Tuần Thủ palace');
+  SE: 'Kinh',
+  S: 'Khai',
+  SW: 'Hưu',
+  E: 'Tử',
+  W: 'Sinh',
+  NE: 'Cảnh',
+  N: 'Đỗ',
+  NW: 'Thương',
+}, 'Door ring must follow the linear Self-plus Earth Plate engine');
 
 const lyPalace = chart.palaces[SLOT_TO_PALACE.S];
-assert.equal(lyPalace?.star?.short || '—', 'Nhâm', 'Ly must carry Thiên Nhậm');
-assert.equal(chart.trucPhuPalace, 7, 'Trực Phù must remain at Tây / P7');
-assert.equal(chart.trucSuPalace, 7, 'Trực Sử must remain at Tây / P7');
+assert.equal(lyPalace?.star?.short || '—', 'Tâm', 'Ly must carry Thiên Tâm');
+assert.equal(chart.trucPhuPalace, 9, 'Trực Phù must land at Nam / P9');
+assert.equal(chart.trucSuPalace, 9, 'Trực Sử must land at Nam / P9');
 
 console.log('ASSERTIONS: OK');

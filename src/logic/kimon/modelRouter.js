@@ -69,12 +69,12 @@ export function getTierRuntimeConfig(tier) {
 
 /**
  * buildPromptByTier — Build system + user prompt based on tier
- * @param {{ tier: string, topic: string, qmdjData: object, userContext: string, isAutoLoad?: boolean }} params
+ * @param {{ tier: string, topic: string, qmdjData: object, userContext: string, isAutoLoad?: boolean, groundingBundle?: object|null }} params
  * @returns {{ systemPrompt: string, userPrompt: string, responseFormat: 'json'|'text' }}
  */
-export function buildPromptByTier({ tier, topic, qmdjData, userContext, isAutoLoad = false }) {
+export function buildPromptByTier({ tier, topic, qmdjData, userContext, isAutoLoad = false, groundingBundle = null }) {
   if (tier === 'companion') {
-    const { systemPrompt, userPrompt } = buildCompanionPrompt({ qmdjData, userContext });
+    const { systemPrompt, userPrompt } = buildCompanionPrompt({ qmdjData, userContext, groundingBundle });
     return { systemPrompt, userPrompt, responseFormat: 'text' };
   }
 
@@ -83,14 +83,15 @@ export function buildPromptByTier({ tier, topic, qmdjData, userContext, isAutoLo
       qmdjData,
       userContext,
       topicKey: topic,
+      groundingBundle,
     });
     return { systemPrompt, userPrompt, responseFormat: 'json' };
   }
 
   // Default: topic tier (uses existing Deep Dive prompt)
   return {
-    systemPrompt: buildKimonSystemInstruction(),
-    userPrompt: buildKimonPrompt({ qmdjData, userContext, isAutoLoad }),
+    systemPrompt: buildKimonSystemInstruction({ groundingBundle }),
+    userPrompt: buildKimonPrompt({ qmdjData, userContext, isAutoLoad, groundingBundle }),
     responseFormat: 'json',
   };
 }

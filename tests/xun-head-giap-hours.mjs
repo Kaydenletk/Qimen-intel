@@ -84,11 +84,11 @@ assert.equal(chart.gioPillar.stemName, 'Giáp', 'Case phải là giờ Giáp');
 assert.equal(chart.gioPillar.branchName, 'Tuất', 'Case phải là giờ Giáp Tuất');
 assert.equal(chart.xunHour, 'Giáp Tuất', 'Xun giờ phải là Giáp Tuất');
 assert.equal(chart.leadStem, 'Kỷ', 'Tuần Thủ của Giáp Tuất phải ẩn dưới Kỷ');
-assert.equal(chart.leadStar, 'Thiên Nhuế', 'Giáp Tuất phải dẫn Trực Phù từ Thiên Nhuế, không phải Thiên Bồng');
+assert.equal(chart.leadStar, 'Thiên Nhuế', 'Giáp Tuất phải dẫn Trực Phù từ Thiên Nhuế khi Kỷ nằm ở P2 theo Self-plus');
 assert.equal(chart.trucPhuPalace, 2, 'Trực Phù của case Giáp Tuất phải ở P2');
 assert.equal(chart.trucSuPalace, 2, 'Trực Sử của case Giáp Tuất phải ở P2');
 assert.equal(chart.isPhucAm, true, 'Giáp Tuất offset=0 phải rơi vào Phục Âm');
-assert.equal(chart.leadDoor, 'Tử Môn', 'Giáp Tuất phải lấy cửa gốc tại cung Kỷ / P2');
+assert.equal(chart.leadDoor, 'Tử Môn', 'Giáp Tuất phải lấy cửa gốc tại cung Kỷ / P2 sau khi Địa Bàn xoay');
 assert.equal(resolveHourPalace(chart), 2, 'resolveHourPalace(...) phải trả P2 cho giờ Giáp Tuất khi Kỷ nằm ở P2');
 assert.equal(chart.hourMarkerPalace, 2, 'Cung Giờ phải ở P2');
 assert.equal(chart.hourMarkerResolutionSource, 'heaven-stem', 'Cung Giờ phải resolve từ Heaven Plate');
@@ -99,9 +99,9 @@ assert.equal(Boolean(chart.palaces[2]?.trucPhu), true, 'P2 phải được đán
 assert.equal(Boolean(chart.palaces[2]?.trucSu), true, 'P2 phải được đánh dấu Trực Sử');
 assert.equal(Boolean(chart.palaces[2]?.hourMarker), true, 'Badge Giờ phải xuất hiện ở P2');
 assert.deepEqual(
-  displayChart.palaces[2]?.temporalBadgeLabels?.map(label => label.displayShort).filter(label => label === 'Giờ'),
-  ['Giờ'],
-  'Display layer phải gắn badge Giờ vào đúng P2'
+  displayChart.palaces[2]?.temporalBadgeLabels?.map(label => label.displayShort),
+  ['Ngày', 'Giờ'],
+  'Display layer phải gắn đủ badge Ngày/Giờ vào đúng P2'
 );
 
 const expectedStars = {
@@ -129,7 +129,14 @@ const expectedDoors = {
 for (const palace of [1, 2, 3, 4, 6, 7, 8, 9]) {
   assert.equal(chart.palaces[palace]?.star?.short, expectedStars[palace], `P${palace} phải giữ nguyên sao gốc`);
   assert.equal(chart.palaces[palace]?.mon?.short, expectedDoors[palace], `P${palace} phải giữ nguyên môn gốc`);
-  assert.equal(chart.palaces[palace]?.can?.name, chart.palaces[palace]?.earthStem, `P${palace} phải có Thiên Can trùng Địa Can`);
+  const sourcePalace = chart.palaces[palace]?.star?.palace;
+  assert.equal(
+    chart.palaces[palace]?.can?.name,
+    chart.palaces[sourcePalace]?.earthStem,
+    `P${palace} phải mang Thiên Can từ quê gốc của sao`
+  );
 }
+
+assert.equal(chart.palaces[2]?.sentCan?.name, 'Nhâm', 'Thiên Can của Trung Cung phải ký gửi theo Thiên Cầm');
 
 console.log('ASSERTIONS: OK');

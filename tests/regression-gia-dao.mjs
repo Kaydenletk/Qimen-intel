@@ -64,7 +64,6 @@ const giaDaoPrompt = buildKimonPrompt({
     selectedTopicFlags: ['Không Vong'],
     selectedTopicUsefulPalace: 8,
     selectedTopicUsefulPalaceName: 'Đông Bắc',
-    aiHints: '[GỢI Ý ẨN DỤ CHO AI]\n- Đối với [Không Vong]: Hãy ẩn dụ nó là "nhà có người nhưng lòng cách xa".',
   },
   userContext: 'Nhà Khanh hiện tại ra sao?',
   isAutoLoad: false,
@@ -76,6 +75,8 @@ assert.match(giaDaoPrompt, /tổ ấm|hòa khí|nếp nhà/);
 assert.match(giaDaoPrompt, /Lục Hợp đi cùng Không Vong/i);
 assert.match(giaDaoPrompt, /nhà có người nhưng lòng cách xa/i);
 assert.match(giaDaoPrompt, /Tránh dùng: giao dịch, pháp lý, đầu tư/i);
+assert.match(giaDaoPrompt, /\[KHO TRI THỨC QMDJ\]/);
+assert.doesNotMatch(giaDaoPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
 
 const giaDaoStrategyPrompt = buildStrategyPrompt({
   qmdjData: {

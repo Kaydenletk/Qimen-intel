@@ -1,3 +1,5 @@
+import { normalizeLooseVietnameseText, normalizeVietnameseBase } from './textNormalization.js';
+
 /**
  * detectTopic.js — Hybrid Topic Detection
  *
@@ -328,23 +330,12 @@ const VALID_TOPICS = new Set([
   'xuat-hanh', 'xin-viec', 'bat-dong-san', 'muu-luoc', 'chien-luoc', 'chung',
 ]);
 
-// ══════════════════════════════════════════════════════════════════════════════
-// NORMALIZE — strip diacritics for fuzzy matching
-// ══════════════════════════════════════════════════════════════════════════════
-
-function normalize(text) {
-  return text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd');
+function normalizeLooseText(text) {
+  return normalizeLooseVietnameseText(text);
 }
 
-function normalizeLooseText(text) {
-  return normalize(text)
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+function normalize(text) {
+  return normalizeVietnameseBase(text);
 }
 
 function isSmallTalkMessage(userMessage) {

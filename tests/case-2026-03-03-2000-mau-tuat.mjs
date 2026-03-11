@@ -31,10 +31,11 @@ assert.equal(chart.gioPillar.branchName, 'Tuất', 'Hour branch must be Tuất')
 assert.equal(chart.isDuong, true, 'Case must be Yang Dun');
 assert.equal(chart.cucSo, 3, 'Case must be Dương 3 Cục');
 
-assert.equal(chart.leadDoor, 'Đỗ Môn', 'Lead door must follow the Tuần Thủ palace');
-assert.equal(chart.trucPhuPalace, 1, 'Trực Phù must remain at Khảm 1');
-assert.equal(chart.trucSuPalace, 8, 'Trực Sử must land at Cấn 8');
-assert.equal(chart.palaces[1]?.star?.short, 'Phụ', 'Khảm 1 must carry Thiên Phụ');
-assert.equal(Boolean(chart.palaces[1]?.trucPhu), true, 'Khảm 1 must be marked Trực Phù');
+assert.equal(chart.leadDoor, 'Khai Môn', 'Lead door must follow the Tuần Thủ palace after linear Earth Plate distribution');
+assert.equal(chart.trucPhuPalace, 3, 'Trực Phù must land at Đông / P3');
+assert.equal(chart.trucSuPalace, 1, 'Trực Sử must land at Bắc / P1');
+assert.equal(chart.palaces[3]?.star?.short, 'Tâm', 'Đông / P3 must carry Thiên Tâm');
+assert.equal(chart.palaces[1]?.sentStar?.short, 'Cầm', 'Bắc / P1 must also carry Thiên Cầm');
+assert.equal(Boolean(chart.palaces[3]?.trucPhu), true, 'Đông / P3 must be marked Trực Phù');
 
 console.log('ASSERTIONS: OK');

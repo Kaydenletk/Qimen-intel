@@ -144,51 +144,55 @@ assert.equal(chart.khongVong.void1.name, 'Ngọ');
 assert.equal(chart.khongVong.void2.name, 'Mùi');
 assert.equal(chart.dichMa?.horseBranch, 'Tỵ');
 assert.equal(chart.dichMa?.palace, 4);
-assert.equal(chart.trucSuPalace, 1, 'Trực Sử must land at Bắc / Khảm for this case');
-assert.equal(chart.trucPhuPalace, 4, 'Trực Phù must land at SE/Tốn for this case');
+assert.equal(chart.trucSuPalace, 9, 'Trực Sử must land at Nam / P9 for this case');
+assert.equal(chart.trucPhuPalace, 6, 'Trực Phù must land at Tây Bắc / P6 for this case');
 
 // Reference chart assertions (Tuần Thủ anchored Chuyển Bàn)
 const se = slotSnapshot(chart, 'SE');
-assert.equal(se.door, 'Tử');
-assert.equal(se.star, 'Xung');
-assert.equal(se.deity, 'Trực Phù');
-assert.equal(se.trucPhu, true);
+assert.equal(se.door, 'Cảnh');
+assert.equal(se.star, 'Nhâm');
+assert.equal(se.deity, 'Câu Trận');
+assert.equal(se.trucPhu, false);
 
 const s = slotSnapshot(chart, 'S');
-assert.equal(s.door, 'Kinh');
-assert.equal(s.star, 'Phụ');
-assert.equal(s.deity, 'Đằng Xà');
+assert.equal(s.door, 'Tử');
+assert.equal(s.star, 'Xung');
+assert.equal(s.deity, 'Chu Tước');
+assert.equal(s.trucSu, true);
 
 const sw = slotSnapshot(chart, 'SW');
-assert.equal(sw.door, 'Khai');
-assert.equal(sw.star, 'Anh');
-assert.equal(sw.deity, 'Thái Âm');
+assert.equal(sw.door, 'Kinh');
+assert.equal(sw.star, 'Phụ');
+assert.equal(sw.deity, 'Cửu Địa');
+assert.equal(sw.trucPhu, false);
 
 const e = slotSnapshot(chart, 'E');
-assert.equal(e.door, 'Cảnh');
-assert.equal(e.star, 'Nhâm');
-assert.equal(e.deity, 'Cửu Thiên');
+assert.equal(e.door, 'Đỗ');
+assert.equal(e.star, 'Bồng');
+assert.equal(e.deity, 'Lục Hợp');
 
 const w = slotSnapshot(chart, 'W');
-assert.equal(w.door, 'Hưu');
-assert.equal(w.star, 'Cầm');
-assert.equal(w.deity, 'Lục Hợp');
+assert.equal(w.door, 'Khai');
+assert.equal(w.star, 'Anh');
+assert.equal(w.deity, 'Cửu Thiên');
+assert.equal(w.trucSu, false);
 
 const ne = slotSnapshot(chart, 'NE');
-assert.equal(ne.door, 'Đỗ');
-assert.equal(ne.star, 'Bồng');
-assert.equal(ne.deity, 'Cửu Địa');
+assert.equal(ne.door, 'Thương');
+assert.equal(ne.star, 'Tâm');
+assert.equal(ne.deity, 'Thái Âm');
 assert.equal(ne.trucSu, false);
 
 const n = slotSnapshot(chart, 'N');
-assert.equal(n.door, 'Thương');
-assert.equal(n.star, 'Tâm');
-assert.equal(n.deity, 'Chu Tước');
-assert.equal(n.trucSu, true);
+assert.equal(n.door, 'Sinh');
+assert.equal(n.star, 'Trụ');
+assert.equal(n.deity, 'Đằng Xà');
+assert.equal(n.trucSu, false);
 
 const nw = slotSnapshot(chart, 'NW');
-assert.equal(nw.door, 'Sinh');
-assert.equal(nw.star, 'Trụ');
-assert.equal(nw.deity, 'Câu Trận');
+assert.equal(nw.door, 'Hưu');
+assert.equal(nw.star, 'Cầm');
+assert.equal(nw.deity, 'Trực Phù');
+assert.equal(nw.trucPhu, true);
 
 console.log('\nASSERTIONS: OK');

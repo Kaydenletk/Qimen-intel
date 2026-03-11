@@ -1,13 +1,4 @@
-function normalize(text = '') {
-  return String(text)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+import { normalizeLooseVietnameseText } from './textNormalization.js';
 
 const QUESTION_AXES = [
   {
@@ -74,7 +65,7 @@ const QUESTION_AXES = [
 ];
 
 export function detectQuestionIntent(userContext = '') {
-  const normalized = normalize(userContext);
+  const normalized = normalizeLooseVietnameseText(userContext);
   if (!normalized) return null;
 
   for (const axis of QUESTION_AXES) {

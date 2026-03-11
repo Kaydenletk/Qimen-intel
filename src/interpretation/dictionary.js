@@ -6,6 +6,8 @@
  * trạng thái tâm lý, năng lượng và chiến lược quản trị hiện đại.
  */
 
+import { QMDJ_DICTIONARY as QMDJ_TOPIC_DICT } from '../logic/dungThan/qmdjDictionary.js';
+
 export const DICTIONARY = {
   // ── BÁT MÔN (Trạng thái Năng Lượng & Hành Động) ──────────────────────────
   doors: {
@@ -208,3 +210,59 @@ export const getInterpretation = (category, key) => {
   }
   return { name: key, summary: '', psychology: 'Không rõ.' };
 };
+
+const TOPIC_ALIASES = {
+  'thi-cu': 'hoc-tap',
+  'tinh-yeu': 'tinh-duyen',
+  'dien-trach': 'bat-dong-san',
+  'chien-luoc': 'muu-luoc',
+  'gia-dinh': 'gia-dao',
+};
+
+function normalizeTopicKey(topicKey = '') {
+  return TOPIC_ALIASES[topicKey] || topicKey || '';
+}
+
+function extractDefaultText(entry = {}) {
+  if (!entry || typeof entry !== 'object') return '';
+  return entry.default || '';
+}
+
+export const QMDJ_DICT = Object.freeze(
+  Object.fromEntries(
+    Object.entries(QMDJ_TOPIC_DICT).map(([category, entries]) => [
+      category,
+      Object.fromEntries(
+        Object.entries(entries).map(([label, payload]) => [label, extractDefaultText(payload)])
+      ),
+    ])
+  )
+);
+
+export { QMDJ_TOPIC_DICT };
+
+export function lookupQmdjDictionaryEntry(label = '', topicKey = '') {
+  if (!label) return null;
+  const normalizedTopicKey = normalizeTopicKey(topicKey);
+
+  for (const [category, entries] of Object.entries(QMDJ_TOPIC_DICT)) {
+    const payload = entries?.[label];
+    if (!payload) continue;
+    return {
+      category,
+      label,
+      text: payload[normalizedTopicKey] || payload.default || '',
+      defaultText: payload.default || '',
+      topicKey: normalizedTopicKey,
+    };
+  }
+
+  return null;
+}
+
+export function collectQmdjDictionaryEntries(labels = [], topicKey = '') {
+  const uniqueLabels = [...new Set((Array.isArray(labels) ? labels : []).filter(Boolean))];
+  return uniqueLabels
+    .map(label => lookupQmdjDictionaryEntry(label, topicKey))
+    .filter(entry => entry && entry.text);
+}

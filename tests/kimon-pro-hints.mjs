@@ -6,7 +6,6 @@ import { buildPromptByTier, selectModel } from '../src/logic/kimon/modelRouter.j
 const qmdjData = {
   selectedTopicKey: 'hoc-tap',
   selectedTopicResult: 'Headline: Trục học tập đang dịch chuyển.',
-  aiHints: '[GỢI Ý ẨN DỤ CHO AI]\n[QUAN TRỌNG - FLAGS]\n- Đối với [Dịch Mã]: Hãy ẩn dụ nó là "tài liệu đang phi tới rất nhanh".\n- Đối với [Không Vong]: Hãy ẩn dụ nó là "có thể còn rỗng hoặc bị delay".\n- Đối với [Cảnh Môn]: Hãy ẩn dụ nó là "đề cương, tài liệu, thông báo thi".',
   selectedTopicFlags: ['Dịch Mã', 'Không Vong'],
   selectedTopicUsefulPalace: 6,
   selectedTopicUsefulPalaceName: 'Tây Bắc',
@@ -28,7 +27,6 @@ const wealthQmdjData = {
   selectedTopicKey: 'tai-van',
   selectedTopicResult: 'Headline: Đánh Nhanh, Chốt Gọn.\nCore: Đây là cuộc chiến tốc độ.',
   selectedTopicFlags: ['Dịch Mã'],
-  aiHints: '[GỢI Ý ẨN DỤ CHO AI]\n[QUAN TRỌNG - FLAGS]\n- Đối với [Dịch Mã]: Hãy ẩn dụ nó là "thanh khoản chạy rất nhanh".',
 };
 
 const familyQmdjData = {
@@ -72,7 +70,7 @@ assert.match(strategyPrompt.systemPrompt, /\[STRICT CONSTRAINTS - RÀNG BUỘC N
 assert.match(strategyPrompt.systemPrompt, /\[DEEP DIVE & CHAIN OF THOUGHT - CHUỖI TƯ DUY SÂU SẮC\]/);
 assert.match(strategyPrompt.systemPrompt, /\[SHADOW ANALYSIS - GÓC KHUẤT BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /\[VERDICT FIRST - PHÁN QUYẾT MỞ ĐẦU\]/);
-assert.match(strategyPrompt.systemPrompt, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
+assert.match(strategyPrompt.systemPrompt, /\[OUTPUT FORMAT - STRATEGY JSON BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /\[CLOSING LINE - CÂU CHỐT BẮT BUỘC\]/);
 assert.match(strategyPrompt.systemPrompt, /2-4 tầng nghĩa/i);
 assert.match(strategyPrompt.systemPrompt, /Giữ nguyên độ dài cần thiết của bài phân tích/i);
@@ -84,23 +82,32 @@ assert.match(strategyPrompt.systemPrompt, /follow-up question thật trúng/i);
 assert.match(strategyPrompt.systemPrompt, /lăng kính triết gia/i);
 assert.match(strategyPrompt.systemPrompt, /Đằng Xà = Sự rắc rối/);
 assert.match(strategyPrompt.systemPrompt, /Trực Phù = Quý nhân bảo trợ/);
-assert.match(strategyPrompt.systemPrompt, /Mưu Lược Hành Động/);
+assert.match(strategyPrompt.systemPrompt, /KHÔNG VUỐT VE/i);
+assert.match(strategyPrompt.systemPrompt, /tactics/i);
 assert.match(strategyPrompt.systemPrompt, /field "closingLine" riêng/);
 assert.match(strategyPrompt.systemPrompt, /ƯU TIÊN TUYỆT ĐỐI: Bạn phải tìm nhãn \[DỤNG THẦN CHÍNH\]/);
+assert.match(strategyPrompt.systemPrompt, /markdown bold/i);
 
 assert.match(strategyPrompt.userPrompt, /\[PHÂN TÍCH CHỦ ĐỀ: hoc-tap\]/);
 assert.match(strategyPrompt.userPrompt, /\[DỤNG THẦN CHUẨN SÁCH\]/);
+assert.match(strategyPrompt.userPrompt, /\[KHO TRI THỨC QMDJ\]/);
 assert.match(strategyPrompt.userPrompt, /cung 8 \(Cấn\) · Đông Bắc/i);
 assert.match(strategyPrompt.userPrompt, /===> \[DỤNG THẦN CHÍNH - BẮT BUỘC PHÂN TÍCH TRỌNG TÂM TẠI ĐÂY\] <===/);
 assert.match(strategyPrompt.userPrompt, /CỬU CUNG THEO TOPIC/i);
 assert.match(strategyPrompt.userPrompt, /\[FLAGS ENGINE TẠI DỤNG THẦN tại cung 6 · Tây Bắc\]/);
-assert.match(strategyPrompt.userPrompt, /\[ƯU TIÊN FLAGS\]/);
-assert.match(strategyPrompt.userPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
+assert.match(strategyPrompt.userPrompt, /Cờ trọng yếu: Dịch Mã \| Không Vong/);
+assert.match(strategyPrompt.userPrompt, /Dịch Mã:/);
+assert.match(strategyPrompt.userPrompt, /Không Vong:/);
+assert.match(strategyPrompt.userPrompt, /Combo cờ Ngựa chạy vào hố:/);
 assert.match(strategyPrompt.userPrompt, /\[INSIGHT ENGINE\]/);
 assert.match(strategyPrompt.userPrompt, /\[GỢI Ý NGỮ CẢNH HỌC TẬP\]/);
 assert.match(strategyPrompt.userPrompt, /\[YÊU CẦU TRIỂN KHAI\]/);
-assert.match(strategyPrompt.userPrompt, /phán quyết rõ/i);
-assert.match(strategyPrompt.userPrompt, /Xuất đúng JSON 5 key của Kymon Pro/i);
+assert.match(strategyPrompt.userPrompt, /field "verdict"|kết quả chính/i);
+assert.match(strategyPrompt.userPrompt, /markdown bold/i);
+assert.match(strategyPrompt.userPrompt, /có qua không/i);
+assert.match(strategyPrompt.userPrompt, /bẫy phút chót/i);
+assert.match(strategyPrompt.userPrompt, /Xuất đúng JSON 5 key chiến lược/i);
+assert.match(strategyPrompt.userPrompt, /verdict, analysis, adversary, tactics, closingLine/i);
 assert.match(strategyPrompt.userPrompt, /field "closingLine" như một câu chốt riêng/i);
 assert.match(strategyPrompt.userPrompt, /Không được trả lời cụt hoặc quá ngắn/i);
 assert.match(strategyPrompt.userPrompt, /góc khuất|điểm người hỏi dễ hiểu sai/i);
@@ -108,7 +115,7 @@ assert.match(strategyPrompt.userPrompt, /cái giá phải trả/i);
 assert.match(strategyPrompt.userPrompt, /giới hạn của cái xấu/i);
 assert.match(strategyPrompt.userPrompt, /follow-up question thật trúng/i);
 assert.match(strategyPrompt.userPrompt, /chiêm nghiệm kiểu triết gia/i);
-assert.match(strategyPrompt.userPrompt, /Mỗi bước nên giải thích rõ ít nhất 2 tín hiệu/i);
+assert.match(strategyPrompt.userPrompt, /Trong analysis, phải giải thích rõ ít nhất 2 tín hiệu/i);
 assert.match(strategyPrompt.userPrompt, /không được tự rút ngắn phần thân|Giữ nguyên độ dày của bài phân tích/i);
 assert.match(strategyPrompt.userPrompt, /các đoạn ngắn có white space rõ/i);
 
@@ -148,9 +155,10 @@ const topicPrompt = buildKimonPrompt({
   isAutoLoad: false,
 });
 
-assert.match(topicPrompt, /\[NGUYÊN TẮC ĐỌC FLAGS\]/);
 assert.match(topicPrompt, /\[FLAGS ENGINE TẠI DỤNG THẦN tại cung 6 · Tây Bắc\]/);
-assert.match(topicPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
+assert.match(topicPrompt, /\[KHO TRI THỨC QMDJ\]/);
+assert.match(topicPrompt, /Cờ trọng yếu: Dịch Mã \| Không Vong/);
+assert.doesNotMatch(topicPrompt, /\[NGUYÊN TẮC ĐỌC FLAGS\]/);
 assert.match(topicPrompt, /Logic, Data, Memory, Processing/i);
 assert.match(topicPrompt, /\[ĐIỂM CẦN BÁM\]/);
 assert.match(topicPrompt, /phán quyết đủ rõ/i);
@@ -162,6 +170,8 @@ assert.match(topicPrompt, /các đoạn ngắn có white space rõ ràng/i);
 assert.match(topicPrompt, /field "closingLine" riêng/);
 assert.match(topicPrompt, /dùng đúng 3 key: lead, message, closingLine/i);
 assert.doesNotMatch(topicPrompt, /\[SYSTEM ROLE & PERSONA\]/);
+assert.doesNotMatch(topicPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
+assert.doesNotMatch(strategyPrompt.userPrompt, /\[GỢI Ý ẨN DỤ CHO AI\]/);
 
 const wealthTopicPrompt = buildKimonPrompt({
   qmdjData: wealthQmdjData,
@@ -190,7 +200,7 @@ assert.equal(generalTopicBuild.responseFormat, 'json');
 assert.equal(generalTopicBuild.systemPrompt, KYMON_TOPIC_SYSTEM_PROMPT);
 
 assert.equal(selectModel('topic').model, 'gemini-2.5-flash');
-assert.equal(selectModel('strategy').model, 'gemini-2.5-pro');
+assert.equal(selectModel('strategy').model, 'gemini-2.0-flash-thinking-exp-01-21');
 assert.equal(selectModel('companion').maxTokens, 1800);
 assert.equal(selectModel('topic').maxTokens, 4096);
 assert.equal(selectModel('strategy').maxTokens, 5120);

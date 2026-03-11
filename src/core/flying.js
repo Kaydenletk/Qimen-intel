@@ -422,98 +422,28 @@ function calculateTrucSuPalace(tuanThuPalace, canTuanIndex, canGioIndex, isDuong
 // ══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Build the Earth Plate with stems distributed based on Cục number and Yin/Yang
+ * Earth Plate stem distribution - linear palace sequence used by Self-Plus.
  *
- * Yang Cục: Start from Cục palace, fly forward (1→8→3→4→9→2→7→6)
- * Yin Cục:  Start from Cục palace, fly backward (1→6→7→2→9→4→3→8)
+ * Khởi Mậu tại Cục Số (cucSo).
+ * Dương Độn bay tiến: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
+ * Âm Độn bay lùi: 9 → 8 → 7 → 6 → 5 → 4 → 3 → 2 → 1
  *
- * The 9 stems are: Mậu, Kỷ, Canh, Tân, Nhâm, Quý, Đinh, Bính, Ất
- * Palace 5 gets Mậu+Kỷ (or just assigned to follow Thiên Cầm rules)
- */
-function buildEarthPlate(cucSo, isDuong) {
-  const earthPlate = {}; // palace -> { stem, stemIdx, can9Idx }
-
-  // Start at cucSo palace with Mậu (CAN_SEQUENCE_9[0])
-  // For center palace 5: Mậu and Kỷ share it, but in practice we treat 5 as parasitizing on 2
-
-  if (cucSo === 5) {
-    // Special case: Cục 5 means we start at center
-    // Convention: Palace 5 gets Mậu, then we continue from palace 2 (Khôn)
-    earthPlate[5] = { stem: 'Mậu', stemIdx: 4, can9Idx: 0 };
-    earthPlate[2] = { stem: 'Kỷ', stemIdx: 5, can9Idx: 1 };
-
-    // Continue distributing remaining 7 stems
-    let currentPalace = 2;
-    for (let i = 2; i <= 8; i++) {
-      currentPalace = moveOnPerimeter(currentPalace, 1, isDuong);
-      earthPlate[currentPalace] = {
-        stem: CAN_SEQUENCE_9[i].name,
-        stemIdx: CAN_SEQUENCE_9[i].stemIdx,
-        can9Idx: i
-      };
-    }
-  } else {
-    // Normal case: Start at cucSo
-    let currentPalace = cucSo;
-    for (let i = 0; i <= 8; i++) {
-      if (i === 0) {
-        earthPlate[currentPalace] = {
-          stem: CAN_SEQUENCE_9[0].name,
-          stemIdx: CAN_SEQUENCE_9[0].stemIdx,
-          can9Idx: 0
-        };
-      } else {
-        currentPalace = moveOnPerimeter(currentPalace, 1, isDuong);
-        // Skip palace 5 in distribution (it parasitizes on 2)
-        if (currentPalace === 5) {
-          // Palace 5 shares with palace 2's next stem, but we mark it
-          earthPlate[5] = {
-            stem: CAN_SEQUENCE_9[i].name,
-            stemIdx: CAN_SEQUENCE_9[i].stemIdx,
-            can9Idx: i
-          };
-          // Continue to next palace for the actual placement
-          if (i < 8) {
-            i++; // Move to next stem
-            currentPalace = moveOnPerimeter(currentPalace, 1, isDuong);
-          }
-        }
-        if (i <= 8) {
-          earthPlate[currentPalace] = {
-            stem: CAN_SEQUENCE_9[i].name,
-            stemIdx: CAN_SEQUENCE_9[i].stemIdx,
-            can9Idx: i
-          };
-        }
-      }
-    }
-  }
-
-  // Make sure all 9 palaces have a stem
-  // Re-implement with cleaner logic
-  return distributeEarthPlateStems(cucSo, isDuong);
-}
-
-/**
- * Earth Plate stem distribution - FIXED configuration (Joey Yap / SELF PLUS)
- *
- * The 9 stems in QMDJ order: Mậu, Kỷ, Canh, Tân, Nhâm, Quý, Đinh, Bính, Ất
- *
- * CRITICAL: Earth Plate is FIXED and does NOT rotate based on Cục!
- * Stems are always placed in sequential palace order: P1=Mậu, P2=Kỷ, etc.
- * The Cục number affects star/door/deity rotation, but NOT the Earth Plate.
+ * Phân bổ đúng 9 Thiên Can: Mậu, Kỷ, Canh, Tân, Nhâm, Quý, Đinh, Bính, Ất.
  */
 function distributeEarthPlateStems(cucSo, isDuong) {
   const earthPlate = {};
+  const path = isDuong
+    ? [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    : [9, 8, 7, 6, 5, 4, 3, 2, 1];
+  let startIdx = path.indexOf(cucSo);
+  if (startIdx === -1) startIdx = 0;
 
-  // FIXED Earth Plate: stems distributed in sequential palace order (1-9)
-  // This matches the SELF PLUS / Joey Yap reference charts
   for (let i = 0; i < 9; i++) {
-    const palace = i + 1; // Palaces 1-9
-    earthPlate[palace] = {
+    const targetPalace = path[(startIdx + i) % 9];
+    earthPlate[targetPalace] = {
       stem: CAN_SEQUENCE_9[i].name,
       stemIdx: CAN_SEQUENCE_9[i].stemIdx,
-      can9Idx: i
+      can9Idx: i,
     };
   }
 
@@ -687,78 +617,44 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
 
   // ════════════════════════════════════════════════════════════════════════════
   // STEP 6: HEAVEN PLATE STEMS (Thiên Can)
-  // RULE 3: HEAVENLY PLATE ALIGNMENT (Khớp lệnh Thiên Bàn)
-  // The Hour Stem MUST land in the same palace as Trực Phù (after rotation)
-  // Then distribute remaining 8 stems following the original Earth Plate order
-  //
-  // RULE 1: THIÊN CẦM BINDING (Thiên Cầm ký bám Thiên Nhuế)
-  // Palace 5's Earth Stem must follow Thiên Nhuế to wherever it lands
+  // CHIẾN THUẬT: TINH ĐI ĐÂU, CAN THEO ĐÓ (Stars carry Earth stems to Heaven)
+  // Cửu Tinh hạ cánh ở cung nào, mang Thiên Can Địa Bàn từ quê gốc của nó theo.
   // ════════════════════════════════════════════════════════════════════════════
 
-  // Build the Heaven Plate stem distribution
-  const heavenPlateCan = {}; // palace -> stem data
+  const heavenPlateCan = {};
 
-  // RULE 3: Place the Hour Stem at Trực Phù palace
-  // The current hour stem (after Giáp → Tuần Thủ conversion) goes to Trực Phù palace
-  const hourStemData = CAN_SEQUENCE_9.find(c => c.name === hourStemName);
-  heavenPlateCan[trucPhuDestPalace] = hourStemData;
+  for (let p = 1; p <= 9; p++) {
+    if (p === 5) continue;
 
-  // Now distribute remaining 8 stems following Earth Plate sequence
-  // Starting from the palace AFTER trucPhuDestPalace on the perimeter,
-  // place the remaining stems in Earth Plate order (skipping the hour stem)
-  const startPerimIdx = PERIM_INDEX[trucPhuDestPalace];
-  const heavenDirection = isDuong ? 1 : -1;
+    const landedStar = starPlacements[p];
+    if (landedStar) {
+      const origPalace = landedStar.palace;
+      const carriedEarthStem = earthPlate[origPalace];
 
-  // Get the Earth Plate index of the hour stem to start the sequence
-  const hourStemEarthIdx = earthPlate[effectiveHourStemPalace]?.can9Idx ?? 0;
-
-  // Place remaining 8 stems following Earth Plate sequence
-  // 7 go to perimeter positions, 1 goes to palace 5
-  let perimOffset = 1; // Start from position after trucPhuDestPalace
-  for (let i = 1; i <= 8; i++) {
-    const earthIdx = (hourStemEarthIdx + i) % 9;
-    const stemData = CAN_SEQUENCE_9[earthIdx];
-
-    // Find which original Earth Plate palace had this stem
-    let origPalace = null;
-    for (const [palace, data] of Object.entries(earthPlate)) {
-      if (data.can9Idx === earthIdx) {
-        origPalace = parseInt(palace);
-        break;
+      if (carriedEarthStem) {
+        heavenPlateCan[p] = CAN_SEQUENCE_9.find(c => c.name === carriedEarthStem.stem);
       }
-    }
-
-    // If this stem was originally at palace 5, assign to palace 5
-    if (origPalace === 5) {
-      heavenPlateCan[5] = stemData;
-    } else {
-      // Place on perimeter, skipping trucPhuDestPalace
-      const newPerimIdx = ((startPerimIdx + perimOffset * heavenDirection) % 8 + 8) % 8;
-      const targetPalace = PERIMETER[newPerimIdx];
-      heavenPlateCan[targetPalace] = stemData;
-      perimOffset++;
     }
   }
 
-  // RULE 1: Palace 5's stem follows Thiên Nhuế (nhueLandingPalace)
-  // The Earth Stem originally at Palace 5 should appear at Thiên Nhuế's landing spot
+  // RULE 1: THIÊN CẦM BINDING (Thiên Cầm ký bám Thiên Nhuế)
+  // Thiên Can tại cung số 5 (Trung Cung) bị Thiên Cầm cuốn theo và hạ cánh cùng Thiên Nhuế
   const palace5EarthStem = earthPlate[5]?.stem;
   if (palace5EarthStem && nhueLandingPalace !== 5) {
     const palace5StemData = CAN_SEQUENCE_9.find(c => c.name === palace5EarthStem);
-    // Mark that Palace 5's stem is carried by Thiên Cầm to Nhuế's palace
     if (palaces[nhueLandingPalace]) {
       palaces[nhueLandingPalace].sentCan = palace5StemData;
     }
   }
 
-  // Assign Heaven Plate stems to palaces
+  // Khớp lệnh: Gán cấu trúc Thiên Bàn vừa tạo vào ma trận các cung
   for (let p = 1; p <= 9; p++) {
     if (heavenPlateCan[p]) {
       palaces[p].can = heavenPlateCan[p];
     } else if (p === 5) {
-      // Center palace keeps its Earth Plate stem conceptually
-      const earthStem5 = earthPlate[5]?.stem || earthPlate[2]?.stem;
-      palaces[p].can = CAN_SEQUENCE_9.find(c => c.name === earthStem5) || null;
+      palaces[p].can = null;
+    } else {
+      palaces[p].can = null;
     }
   }
 

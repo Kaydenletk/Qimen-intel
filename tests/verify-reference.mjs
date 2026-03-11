@@ -5,9 +5,9 @@ import { ORDER, SLOT_TO_PALACE } from '../src/core/palaceLayout.js';
 const DATE = new Date('2026-03-07T09:24:00');
 const HOUR = '9';
 
-// Golden fixture frozen from the user-provided image 2 reference board.
+// Golden fixture frozen after the linear Self-plus Earth Plate + star-carried Heaven Plate migration.
 // Visual order: Đông Nam → Nam → Tây Nam → Đông → Trung Cung → Tây → Đông Bắc → Bắc → Tây Bắc
-const IMAGE2_REFERENCE = {
+const LUOSHU_REFERENCE = {
   SE: { palace: 4, star: 'Nhuế', sentStar: 'Cầm', door: 'Cảnh', deity: 'Trực Phù', heaven: 'Kỷ', earth: 'Tân', phi: 9, trucPhu: true, trucSu: false },
   S: { palace: 9, star: 'Trụ', sentStar: null, door: 'Tử', deity: 'Đằng Xà', heaven: 'Đinh', earth: 'Ất', phi: 5, trucPhu: false, trucSu: true },
   SW: { palace: 2, star: 'Tâm', sentStar: null, door: 'Kinh', deity: 'Thái Âm', heaven: 'Quý', earth: 'Kỷ', phi: 7, trucPhu: false, trucSu: false },
@@ -16,7 +16,7 @@ const IMAGE2_REFERENCE = {
   W: { palace: 7, star: 'Bồng', sentStar: null, door: 'Khai', deity: 'Lục Hợp', heaven: 'Mậu', earth: 'Đinh', phi: 3, trucPhu: false, trucSu: false },
   NE: { palace: 8, star: 'Phụ', sentStar: null, door: 'Thương', deity: 'Cửu Địa', heaven: 'Tân', earth: 'Bính', phi: 4, trucPhu: false, trucSu: false },
   N: { palace: 1, star: 'Xung', sentStar: null, door: 'Sinh', deity: 'Chu Tước', heaven: 'Canh', earth: 'Mậu', phi: 6, trucPhu: false, trucSu: false },
-  NW: { palace: 6, star: 'Nhậm', sentStar: null, door: 'Hưu', deity: 'Câu Trận', heaven: 'Bính', earth: 'Quý', phi: 2, trucPhu: false, trucSu: false },
+  NW: { palace: 6, star: 'Nhâm', sentStar: null, door: 'Hưu', deity: 'Câu Trận', heaven: 'Bính', earth: 'Quý', phi: 2, trucPhu: false, trucSu: false },
 };
 
 const chart = buildFullChart(DATE, HOUR);
@@ -26,7 +26,7 @@ const normalizeValue = value => value === 'Nhâm' ? 'Nhậm' : value;
 for (const slot of ORDER) {
   const palaceNum = SLOT_TO_PALACE[slot];
   const palace = chart.palaces[palaceNum];
-  const expected = IMAGE2_REFERENCE[slot];
+  const expected = LUOSHU_REFERENCE[slot];
 
   const actual = {
     palace: palaceNum,
@@ -70,8 +70,8 @@ assert.equal(chart.dayPillar.stemName, 'Canh');
 assert.equal(chart.dayPillar.branchName, 'Thìn');
 assert.equal(chart.gioPillar.stemName, 'Tân');
 assert.equal(chart.gioPillar.branchName, 'Tỵ');
-assert.equal(chart.trucPhuPalace, 4, 'Trực Phù phải ở Đông Nam / P4 theo image 2');
-assert.equal(chart.trucSuPalace, 9, 'Trực Sử phải ở Nam / P9 theo image 2');
-assert.equal(mismatches.length, 0, 'Chart vẫn còn mismatch so với image 2 golden fixture');
+assert.equal(chart.trucPhuPalace, 4, 'Trực Phù phải ở Đông Nam / P4 theo golden mới');
+assert.equal(chart.trucSuPalace, 9, 'Trực Sử phải ở Nam / P9 theo golden mới');
+assert.equal(mismatches.length, 0, 'Chart vẫn còn mismatch so với Luo Shu golden fixture');
 
-console.log('IMAGE2 GOLDEN: OK');
+console.log('LUOSHU GOLDEN: OK');

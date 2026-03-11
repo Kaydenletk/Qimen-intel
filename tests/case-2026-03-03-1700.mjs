@@ -30,21 +30,21 @@ console.log('doorsBySlot', JSON.stringify(doorsBySlot));
 
 assert.equal(hourCanChi, 'Đinh Dậu', 'Hour Can-Chi must be Đinh Dậu at 2026-03-03 17:00');
 assert.deepEqual(doorsBySlot, {
-  SE: 'Hưu',
-  S: 'Sinh',
-  SW: 'Thương',
-  E: 'Khai',
-  W: 'Đỗ',
-  NE: 'Kinh',
-  N: 'Tử',
-  NW: 'Cảnh',
-}, 'Door ring must stay anchored to the Tuần Thủ palace');
+  SE: 'Kinh',
+  S: 'Khai',
+  SW: 'Hưu',
+  E: 'Tử',
+  W: 'Sinh',
+  NE: 'Cảnh',
+  N: 'Đỗ',
+  NW: 'Thương',
+}, 'Door ring must follow the linear Self-plus Earth Plate engine');
 
 const ly = chart.palaces[SLOT_TO_PALACE.S];
-assert.equal(ly?.star?.short || '—', 'Nhâm', 'Ly star must be Thiên Nhậm');
-assert.equal(ly?.than?.name || '—', 'Cửu Địa', 'Ly deity must be Cửu Địa');
-assert.equal(chart.trucPhuPalace, 7, 'Trực Phù must remain at Tây / P7');
-assert.equal(chart.trucSuPalace, 7, 'Trực Sử must remain at Tây / P7');
+assert.equal(ly?.star?.short || '—', 'Tâm', 'Ly star must be Thiên Tâm');
+assert.equal(ly?.than?.name || '—', 'Trực Phù', 'Ly deity must be Trực Phù');
+assert.equal(chart.trucPhuPalace, 9, 'Trực Phù must land at Nam / P9');
+assert.equal(chart.trucSuPalace, 9, 'Trực Sử must land at Nam / P9');
 
 const center = chart.palaces[SLOT_TO_PALACE.C];
 assert.ok(center, 'Center palace missing');
