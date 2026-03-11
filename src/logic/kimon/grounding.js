@@ -24,6 +24,7 @@ const SOURCE_REGISTRY = Object.freeze([
     status: READY_SOURCE_STATUS,
     priority: 100,
     language: 'vi',
+    relativePath: 'src/interpretation/corpus/truong-hai-ban.txt',
     fileNameHints: [
       'Kỳ môn đọn giápTrương hải ban.txt',
       'Ky mon don giapTruong hai ban.txt',
@@ -118,6 +119,13 @@ function listRootFiles(repoRoot = REPO_ROOT) {
 }
 
 function resolveSourcePath(entry, repoRoot = REPO_ROOT) {
+  if (entry?.relativePath) {
+    const absolutePath = path.join(repoRoot, entry.relativePath);
+    if (fs.existsSync(absolutePath)) {
+      return absolutePath;
+    }
+  }
+
   if (!entry?.fileNameHints?.length) return null;
   const rootFiles = listRootFiles(repoRoot);
   const normalizedHints = new Set(entry.fileNameHints.map(hint => normalizeLooseVietnameseText(hint)));
