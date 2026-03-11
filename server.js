@@ -1,7 +1,7 @@
 /**
  * Simple HTTP server for QMDJ Engine
  * Run: node server.js
- * Access: http://localhost:3000
+ * Access: http://localhost:<PORT>
  */
 
 import http from 'http';
@@ -44,7 +44,7 @@ const isMainServerModule =
   && process.argv[1]
   && path.resolve(process.argv[1]) === __filename;
 
-const PORT = 3000;
+const PORT = Number.parseInt(process.env.PORT || '3000', 10) || 3000;
 const PREVIOUS_KYMON_MAX_OUTPUT_TOKENS = 3072;
 const KYMON_MAX_OUTPUT_TOKENS = 5120;
 const KYMON_PARTIAL_LEAD = 'Kymon chưa trả lời trọn vẹn.';
@@ -936,6 +936,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     bright: 'Sáng',
     neutral: 'Trung',
     dim: 'Sẫm',
+    softDark: 'Sẫm',
     dark: 'Tối',
   }[tone] || 'Trung');
   const renderLabel = (label, fallback = '—') => {
@@ -979,8 +980,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     return entries.join(', ');
   };
   const formatBackgroundReasons = backgroundDebug => Array.isArray(backgroundDebug?.reasons)
-    ? backgroundDebug.reasons.join(' | ')
-    : '';
+    ? backgroundDebug.reasons
+      .map(reason => String(reason || '').trim())
+      .filter(Boolean)
+    : [];
   const buildCounselorNarrative = ({ topic, pal, actionLabel, coreMessage, fallbackNarrative }) => {
     const doorName = pal?.mon?.displayName || pal?.mon?.displayShort || 'Môn chưa xác định';
     const starName = pal?.star?.displayName || pal?.star?.displayShort || 'Tinh chưa xác định';
@@ -994,55 +997,106 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     return `Đọc dòng năng lượng: Tôi quan sát thấy Dụng thần ${doorName} đang đóng tại ${topic.usefulGodDir} (cung ${topic.usefulGodPalace}), đi cùng ${starName} và ${deityName}. Lời khuyên thực chiến: ${advice} ${actionDirective}`;
   };
 
-  const palaceRows = [];
+  const getExpertLabelText = (entity, fallback = '—') => {
+    if (!entity) return fallback;
+    if (typeof entity === 'string') return entity.trim() || fallback;
+    return entity.displayShort
+      || entity.displayName
+      || entity.internalName
+      || entity.name
+      || fallback;
+  };
+  const getExpertToneKey = rawTone => {
+    const tone = String(rawTone || '').trim();
+    if (['bright', 'very-bright'].includes(tone)) return 'positive';
+    if (['dark', 'softDark', 'dim'].includes(tone)) return 'negative';
+    return 'neutral';
+  };
+  const formatExpertList = (items, fallback = '—') => {
+    const safeItems = Array.isArray(items)
+      ? items
+        .map(item => getExpertLabelText(item, ''))
+        .map(item => item.trim())
+        .filter(Boolean)
+      : [];
+    return safeItems.length ? safeItems.join(', ') : fallback;
+  };
+  const formatExpertStemPair = pal => {
+    const heavenText = getExpertLabelText(pal?.can, '—');
+    const earthText = getExpertLabelText(pal?.earthStemLabel, '—');
+    return `${heavenText} / ${earthText}`;
+  };
+  const formatExpertBackgroundBase = backgroundDebug => {
+    const rawScore = backgroundDebug?.baseScore;
+    return Number.isFinite(Number(rawScore)) ? formatDebugScore(rawScore) : '—';
+  };
+  const formatExpertTagSummary = backgroundDebug => formatTagAdjustments(backgroundDebug) || '—';
+  const renderExpertValue = (value, fallback = '—') => {
+    const text = String(value ?? '').trim() || fallback;
+    return `<span class="expert-copy-value">${escapeHTML(text)}</span>`;
+  };
+  const renderExpertField = (label, value, options = {}) => {
+    const { multiline = false } = options;
+    return `
+      <div class="expert-copy-row${multiline ? ' expert-copy-row--multiline' : ''}">
+        <dt class="expert-copy-label">${escapeHTML(label)}</dt>
+        <dd class="expert-copy-data">${value}</dd>
+      </div>
+    `;
+  };
+  const renderExpertReasons = reasons => {
+    const safeReasons = Array.isArray(reasons) ? reasons.filter(Boolean) : [];
+    if (!safeReasons.length) {
+      return renderExpertValue('—');
+    }
+    return `
+      <ul class="expert-copy-sublist">
+        ${safeReasons.map(reason => `<li>${escapeHTML(reason)}</li>`).join('')}
+      </ul>
+    `;
+  };
+
+  const expertRows = [];
   for (const [dir, pal] of getVisualPalaceEntries(palacesByNum)) {
     const p = SLOT_TO_PALACE[dir];
     const directionLabel = pal?.directionLabel?.displayShort || getDirectionLabel(dir);
-    if (dir === 'C') {
-      palaceRows.push(`
-        <tr>
-          <td>5</td>
-          <td>${pal?.phiTinhNum ?? ''}</td>
-          <td>${renderLabel(pal?.directionLabel, 'Trung Cung')}</td>
-          <td>—</td>
-          <td>—</td>
-          <td>${renderLabel(pal?.earthStemLabel, '')}</td>
-          <td>—</td>
-          <td>—</td>
-          <td></td>
-          <td>${formatPalaceScore(pal?.score ?? 0)}</td>
-          <td>${escapeHTML(pal?.tone || 'neutral')}</td>
-          <td>${escapeHTML(formatDebugScore(pal?.backgroundDebug?.baseScore ?? 0))}</td>
-          <td>${escapeHTML(formatTagAdjustments(pal?.backgroundDebug) || '—')}</td>
-          <td>${escapeHTML(pal?.backgroundTone || pal?.tone || 'neutral')}</td>
-          <td>${escapeHTML(formatBackgroundReasons(pal?.backgroundDebug) || '—')}</td>
-        </tr>
-      `);
-      continue;
-    }
     if (!pal) continue;
-    const flags = Array.isArray(pal.flagLabels)
-      ? pal.flagLabels.map(flag => `${flag.displayShort}${flag.internalName && flag.internalName !== flag.displayShort ? ` (${flag.internalName})` : ''}`).join(', ')
-      : '';
+    const rawTone = pal?.backgroundTone || pal?.tone || 'neutral';
+    const toneKey = getExpertToneKey(rawTone);
+    const directionText = getExpertLabelText(pal.directionLabel, directionLabel || '—');
+    const phiText = pal?.phiTinhNum ?? '—';
+    const scoreText = formatPalaceScore(pal?.score ?? 0);
+    const toneText = toneLabelFromKey(rawTone);
+    const coreTitle = `Cung ${p}`;
+    const reasons = formatBackgroundReasons(pal?.backgroundDebug);
+    const flagText = formatExpertList(pal?.flagLabels);
+    const markerText = formatExpertList(pal?.temporalBadgeLabels);
+    const bgBaseText = formatExpertBackgroundBase(pal?.backgroundDebug);
+    const bgTagsText = formatExpertTagSummary(pal?.backgroundDebug);
+    const toneDebugText = `${toneText} (${rawTone || 'neutral'})`;
 
-    palaceRows.push(`
-      <tr>
-        <td>${p}</td>
-        <td>${pal.phiTinhNum}</td>
-        <td>${renderLabel(pal.directionLabel, directionLabel)}</td>
-        <td>${renderEntity(pal.star)}</td>
-        <td>${renderEntity(pal.can)}</td>
-        <td>${renderLabel(pal.earthStemLabel)}</td>
-        <td>${renderEntity(pal.mon)}</td>
-        <td>${renderEntity(pal.than)}</td>
-        <td>${flags}</td>
-        <td>${formatPalaceScore(pal?.score ?? 0)}</td>
-        <td>${escapeHTML(pal?.tone || 'neutral')}</td>
-        <td>${escapeHTML(formatDebugScore(pal?.backgroundDebug?.baseScore ?? 0))}</td>
-        <td>${escapeHTML(formatTagAdjustments(pal?.backgroundDebug) || '—')}</td>
-        <td>${escapeHTML(pal?.backgroundTone || pal?.tone || 'neutral')}</td>
-        <td>${escapeHTML(formatBackgroundReasons(pal?.backgroundDebug) || '—')}</td>
-      </tr>
+    expertRows.push(`
+      <article class="expert-copy-card expert-copy-card--${toneKey}" data-palace="${p}" data-tone="${escapeHTML(rawTone)}">
+        <div class="expert-copy-card-head">
+          <div>
+            <h4 class="expert-copy-card-title">${escapeHTML(coreTitle)} · ${escapeHTML(directionText)}</h4>
+            <p class="expert-copy-card-meta">Phi Tinh #${escapeHTML(String(phiText))} · Score ${escapeHTML(scoreText)} · Tone ${escapeHTML(toneText)}</p>
+          </div>
+        </div>
+        <dl class="expert-copy-list">
+          ${renderExpertField('Tinh', renderExpertValue(getExpertLabelText(pal?.star)))}
+          ${renderExpertField('Môn', renderExpertValue(getExpertLabelText(pal?.mon)))}
+          ${renderExpertField('Thần', renderExpertValue(getExpertLabelText(pal?.than)))}
+          ${renderExpertField('Thiên can / Địa can', renderExpertValue(formatExpertStemPair(pal)))}
+          ${renderExpertField('Cờ', renderExpertValue(flagText))}
+          ${renderExpertField('Marker', renderExpertValue(markerText))}
+          ${renderExpertField('Score', renderExpertValue(scoreText))}
+          ${renderExpertField('Tone', renderExpertValue(toneDebugText))}
+          ${renderExpertField('BG Base', renderExpertValue(bgBaseText))}
+          ${renderExpertField('BG Tags', renderExpertValue(bgTagsText), { multiline: bgTagsText !== '—' })}
+          ${renderExpertField('BG Reasons', renderExpertReasons(reasons), { multiline: true })}
+        </dl>
+      </article>
     `);
   }
 
@@ -1277,12 +1331,20 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   const selectedMinute = minute;
   const selectedTimeText = `${String(hour).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`;
   const timeBasis = 'Theo giờ bạn nhập (floating time, không khóa timezone)';
-  const structureModeLabel = `${displayChart.sections.structure} ${chart.cucSo} ${displayChart.sections.structurePolarity}`;
+  const getPillarDisplayText = pillar => {
+    const stemText = pillar?.stem?.displayShort || pillar?.stemName || '';
+    const branchText = pillar?.branch?.displayShort || pillar?.branchName || '';
+    return [stemText, branchText].filter(Boolean).join(' ').trim() || '—';
+  };
   const timeStripItems = [
-    { label: getSectionLabel('Giờ'), pillar: displayChart.gioPillar, markerPalace: hourPalaceNum, direction: hourDirText },
-    { label: getSectionLabel('Ngày'), pillar: displayChart.dayPillar, markerPalace: dayPalaceNum, direction: dayDirText },
-    { label: getSectionLabel('Tháng'), pillar: displayChart.monthPillar, markerPalace: displayChart.monthMarkerPalace || chart.monthMarkerPalace || null, direction: palaceLabelFromNum(displayChart.monthMarkerPalace || chart.monthMarkerPalace || 5) },
-    { label: getSectionLabel('Năm'), pillar: displayChart.yearPillar, markerPalace: null, direction: '' },
+    { shortLabel: 'G', label: getSectionLabel('Giờ'), pillar: displayChart.gioPillar, markerPalace: hourPalaceNum, direction: hourDirText },
+    { shortLabel: 'Ng', label: getSectionLabel('Ngày'), pillar: displayChart.dayPillar, markerPalace: dayPalaceNum, direction: dayDirText },
+    { shortLabel: 'Th', label: getSectionLabel('Tháng'), pillar: displayChart.monthPillar, markerPalace: displayChart.monthMarkerPalace || chart.monthMarkerPalace || null, direction: palaceLabelFromNum(displayChart.monthMarkerPalace || chart.monthMarkerPalace || 5) },
+    { shortLabel: 'Na', label: getSectionLabel('Năm'), pillar: displayChart.yearPillar, markerPalace: null, direction: '' },
+  ];
+  const centerLunarRows = [
+    timeStripItems.slice(0, 2),
+    timeStripItems.slice(2, 4),
   ];
   const timeStripMarkup = `
     <div class="board-time-strip">
@@ -1292,8 +1354,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             <span class="time-strip-label">${escapeHTML(item.label)}</span>
           </div>
           <div class="time-strip-pillar">
-            <span>${escapeHTML(item.pillar?.stem?.displayShort || item.pillar?.stemName || '—')}</span>
-            <span>${escapeHTML(item.pillar?.branch?.displayShort || item.pillar?.branchName || '—')}</span>
+            <span>${escapeHTML(getPillarDisplayText(item.pillar))}</span>
           </div>
           <div class="time-strip-meta">
             ${item.markerPalace ? `P${escapeHTML(String(item.markerPalace))} · ${escapeHTML(item.direction || '')}` : '&nbsp;'}
@@ -1316,13 +1377,20 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             <span class="palace-num">P5</span>
           </div>
           <div class="center-time" id="liveClockValue">${escapeHTML(selectedTimeText)}</div>
-          <div class="palace-line palace-line-center">
-            <span class="palace-item">${escapeHTML(displayChart.dayPillar?.stem?.displayShort || chart.dayPillar?.stemName || '—')} ${escapeHTML(displayChart.dayPillar?.branch?.displayShort || chart.dayPillar?.branchName || '—')}</span>
+          <div class="center-lunar-stack" aria-label="Âm lịch / Can Chi">
+            ${centerLunarRows.map(row => `
+              <div class="center-lunar-row">
+                ${row.map((item, index) => `
+                  ${index > 0 ? '<span class="center-lunar-separator" aria-hidden="true">·</span>' : ''}
+                  <span class="center-lunar-item">
+                    <span class="center-lunar-prefix">${escapeHTML(item.shortLabel)}</span>
+                    <span class="center-lunar-value">${escapeHTML(getPillarDisplayText(item.pillar))}</span>
+                  </span>
+                `).join('')}
+              </div>
+            `).join('')}
           </div>
-          <div class="palace-line palace-line-center">
-            <span class="palace-item">${escapeHTML(structureModeLabel)}</span>
-          </div>
-          <div class="palace-line palace-line-center">
+          <div class="palace-line palace-line-center center-meta-line">
             <span class="palace-item">#${pal?.phiTinhNum ?? '—'}</span>
           </div>
         </article>
@@ -2299,27 +2367,98 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       display: grid;
       gap: 12px;
     }
-    .expert table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.84rem;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
+    .expert-copy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 12px;
     }
-    .expert th,
-    .expert td {
-      border-bottom: 1px solid var(--table-row-border);
-      padding: 8px 9px;
-      text-align: left;
+    .expert-copy-card {
+      display: grid;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: color-mix(in srgb, var(--card) 93%, rgba(255, 255, 255, 0.02));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
     }
-    .expert th {
-      background: var(--table-head-bg);
+    .expert-copy-card--positive {
+      border-color: rgba(16, 185, 129, 0.28);
+      box-shadow: inset 3px 0 0 rgba(16, 185, 129, 0.5);
+    }
+    .expert-copy-card--negative {
+      border-color: rgba(249, 115, 22, 0.28);
+      box-shadow: inset 3px 0 0 rgba(249, 115, 22, 0.5);
+    }
+    .expert-copy-card--neutral {
+      border-color: rgba(148, 163, 184, 0.18);
+      box-shadow: inset 3px 0 0 rgba(100, 116, 139, 0.42);
+    }
+    .expert-copy-card-head {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+    .expert-copy-card-title {
+      margin: 0;
+      font-size: 0.98rem;
+      font-weight: 800;
       color: var(--text-soft);
-      font-weight: 700;
+      letter-spacing: 0.01em;
     }
-    .expert tr:last-child td { border-bottom: none; }
+    .expert-copy-card-meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+    .expert-copy-list {
+      margin: 0;
+      display: grid;
+      gap: 8px;
+    }
+    .expert-copy-row {
+      display: grid;
+      grid-template-columns: 124px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      padding-top: 8px;
+      border-top: 1px solid rgba(148, 163, 184, 0.12);
+    }
+    .expert-copy-row:first-child {
+      padding-top: 0;
+      border-top: 0;
+    }
+    .expert-copy-row--multiline {
+      align-items: stretch;
+    }
+    .expert-copy-label {
+      margin: 0;
+      font-size: 0.73rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .expert-copy-data {
+      margin: 0;
+      min-width: 0;
+    }
+    .expert-copy-value {
+      display: block;
+      color: var(--text-soft);
+      font-size: 0.9rem;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+    .expert-copy-sublist {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 6px;
+      color: var(--text-soft);
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
     a.link {
       color: var(--info);
       text-decoration: none;
@@ -2357,6 +2496,37 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         justify-content: center;
       }
     }
+    @media (max-width: 820px) {
+      .expert {
+        padding: 12px;
+      }
+      .expert-content {
+        gap: 10px;
+      }
+      .expert-copy-grid {
+        grid-template-columns: 1fr;
+      }
+      .expert-copy-card {
+        padding: 13px 14px;
+      }
+      .expert-copy-row {
+        grid-template-columns: 112px minmax(0, 1fr);
+      }
+    }
+    @media (max-width: 540px) {
+      .expert-copy-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+      .expert-copy-label {
+        letter-spacing: 0.03em;
+      }
+      .expert-copy-card-meta,
+      .expert-copy-value,
+      .expert-copy-sublist {
+        font-size: 0.85rem;
+      }
+    }
     /* 9-Palace Grid Styles */
     .palace-grid-section {
       padding: 18px;
@@ -2375,6 +2545,17 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--muted);
+    }
+    .palace-grid-heading {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+    .palace-grid-subtitle {
+      font-size: 0.84rem;
+      color: var(--text-soft);
+      font-weight: 600;
+      line-height: 1.35;
     }
     .palace-grid-toolbar {
       display: flex;
@@ -2414,9 +2595,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .time-strip-pillar {
       display: grid;
-      grid-auto-flow: column;
       justify-content: start;
-      gap: 6px;
       font-size: 1rem;
       font-weight: 700;
       color: var(--text);
@@ -2638,7 +2817,51 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       color: var(--palace-center-time);
       text-align: center;
       line-height: 1.1;
-      margin-bottom: 2px;
+      margin-bottom: 6px;
+    }
+    .center-lunar-stack {
+      display: grid;
+      gap: 4px;
+      width: 100%;
+      margin: 0 0 6px;
+    }
+    .center-lunar-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-width: 0;
+      font-size: 0.78rem;
+      line-height: 1.35;
+      color: var(--text);
+    }
+    .center-lunar-item {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 4px;
+      min-width: 0;
+    }
+    .center-lunar-prefix {
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .center-lunar-value {
+      font-weight: 600;
+      min-width: 0;
+      word-break: break-word;
+    }
+    .center-lunar-separator {
+      color: var(--muted);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .center-meta-line {
+      margin-top: 2px;
     }
     .palace-corner-top-right .display-label {
       color: var(--palace-hot-text);
@@ -2662,6 +2885,19 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       .palace-center-door { max-width: 84%; }
       .palace-center-door .display-label { font-size: 1rem; }
       .palace-corner { font-size: 0.72rem; max-width: 50%; }
+      .palace-grid-subtitle {
+        font-size: 0.78rem;
+      }
+      .center-time {
+        font-size: 1.26rem;
+      }
+      .center-lunar-row {
+        font-size: 0.72rem;
+        gap: 4px;
+      }
+      .center-lunar-prefix {
+        font-size: 0.62rem;
+      }
     }
     /* ── Kimon Chat ────────────────────────────────────────── */
     .kimon-terminal-container {
@@ -3410,7 +3646,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
         <section class="card palace-grid-section palace-grid-overview">
           <div class="palace-grid-toolbar">
-            <div class="palace-grid-title">Trụ Cột Thời Gian</div>
+            <div class="palace-grid-heading">
+              <div class="palace-grid-title">Trụ Cột Thời Gian</div>
+              <div class="palace-grid-subtitle">Âm lịch / Can Chi</div>
+            </div>
           </div>
           ${timeStripMarkup}
           ${hourLegendMarkup}
@@ -3542,31 +3781,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           </summary>
           <div class="expert-content">
             <p id="expertCopyStatus" class="expert-copy-status" aria-live="polite"></p>
-            <!-- Visual grid removed per user request for a cleaner, AI-focused UI -->
-            <table id="topicAnalysisTable">
-              <thead>
-                <tr>
-                  <th>${getSectionLabel('Cung')}</th>
-                  <th>${getSectionLabel('Phi Tinh')}</th>
-                  <th>${getSectionLabel('Hướng')}</th>
-                  <th>${getSectionLabel('Tinh')}</th>
-                  <th>${getSectionLabel('Thiên Can')}</th>
-                  <th>${getSectionLabel('Địa Can')}</th>
-                  <th>${getSectionLabel('Môn')}</th>
-                  <th>${getSectionLabel('Thần')}</th>
-                  <th>${getSectionLabel('Flags')}</th>
-                  <th>Score</th>
-                  <th>Tone</th>
-                  <th>BG Base</th>
-                  <th>BG Tags</th>
-                  <th>BG Tone</th>
-                  <th>BG Reasons</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${palaceRows.join('')}
-              </tbody>
-            </table>
+            <div id="topicAnalysisTable" class="expert-copy-grid">
+              ${expertRows.join('')}
+            </div>
             <!--
             <table>
               <thead>
@@ -4079,6 +4296,43 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       return { temporal, flags };
     }
 
+    function formatExpertExportScore(score) {
+      const numeric = Number(score);
+      return Number.isFinite(numeric) ? (numeric >= 0 ? '+' : '') + numeric : '—';
+    }
+
+    function formatExpertExportDebugScore(score) {
+      const numeric = Number(score);
+      return Number.isFinite(numeric) ? (numeric >= 0 ? '+' : '') + (Math.round(numeric * 100) / 100) : '—';
+    }
+
+    function formatExpertExportTone(rawTone) {
+      return ({
+        'very-bright': 'Rất sáng',
+        bright: 'Sáng',
+        neutral: 'Trung',
+        dim: 'Sẫm',
+        softDark: 'Sẫm',
+        dark: 'Tối',
+      }[String(rawTone || '').trim()] || 'Trung');
+    }
+
+    function formatExpertExportTagAdjustments(backgroundDebug) {
+      const components = backgroundDebug?.tagAdjustments || {};
+      const entries = Object.entries(components)
+        .filter(([, value]) => Number(value) !== 0)
+        .map(([key, value]) => key + ':' + formatExpertExportDebugScore(value));
+      return entries.join(', ');
+    }
+
+    function formatExpertExportReasons(backgroundDebug) {
+      return Array.isArray(backgroundDebug?.reasons)
+        ? backgroundDebug.reasons
+          .map(reason => String(reason || '').trim())
+          .filter(Boolean)
+        : [];
+    }
+
     function buildExpertCopyText() {
       const base = getBaseQmdjData();
       const displayPalaces = base?.displayPalaces || {};
@@ -4135,6 +4389,14 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         const deity = getPalaceExportValue(palace.than);
         const sentStar = getPalaceExportValue(palace.sentStar, '');
         const badges = getPalaceBadgeList(palace);
+        const rawTone = String(palace?.backgroundTone || palace?.tone || 'neutral').trim() || 'neutral';
+        const toneText = formatExpertExportTone(rawTone);
+        const backgroundDebug = palace?.backgroundDebug || null;
+        const bgBase = Number.isFinite(Number(backgroundDebug?.baseScore))
+          ? formatExpertExportDebugScore(backgroundDebug.baseScore)
+          : '—';
+        const bgTags = formatExpertExportTagAdjustments(backgroundDebug) || '—';
+        const bgReasons = formatExpertExportReasons(backgroundDebug);
         const lines = [
           direction + ' (P' + palaceNum + ')',
           palace?.phiTinhNum ? '- Phi Tinh: #' + palace.phiTinhNum : '',
@@ -4145,6 +4407,11 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           earthStem !== '—' ? '- Địa Can: ' + earthStem : '',
           badges.flags.length ? '- Cờ: ' + badges.flags.join(', ') : '',
           badges.temporal.length ? '- Marker: ' + badges.temporal.join(', ') : '',
+          Number.isFinite(Number(palace?.score)) ? '- Score: ' + formatExpertExportScore(palace.score) : '',
+          '- Tone: ' + toneText + ' (' + rawTone + ')',
+          '- BG Base: ' + bgBase,
+          '- BG Tags: ' + bgTags,
+          bgReasons.length ? '- BG Reasons: ' + bgReasons.join(' | ') : '- BG Reasons: —',
         ].filter(Boolean);
         return lines.join('\\n');
       }).filter(Boolean).join('\\n\\n');
