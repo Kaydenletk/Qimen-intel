@@ -200,7 +200,7 @@ assert.equal(generalTopicBuild.responseFormat, 'json');
 assert.equal(generalTopicBuild.systemPrompt, KYMON_TOPIC_SYSTEM_PROMPT);
 
 assert.equal(selectModel('topic').model, 'gemini-2.5-flash');
-assert.equal(selectModel('strategy').model, 'gemini-2.0-flash-thinking-exp-01-21');
+assert.equal(selectModel('strategy').model, 'gemini-2.5-pro');
 assert.equal(selectModel('companion').maxTokens, 1800);
 assert.equal(selectModel('topic').maxTokens, 4096);
 assert.equal(selectModel('strategy').maxTokens, 5120);

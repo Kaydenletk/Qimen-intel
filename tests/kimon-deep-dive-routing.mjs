@@ -7,7 +7,7 @@ const promptBuilderSource = readFileSync(new URL('../src/logic/kimon/promptBuild
 const strategyPromptSource = readFileSync(new URL('../src/logic/kimon/strategyPrompt.js', import.meta.url), 'utf8');
 const modelRouterSource = readFileSync(new URL('../src/logic/kimon/modelRouter.js', import.meta.url), 'utf8');
 
-assert.match(serverSource, /import \{ detectDeepDive, detectTopicHybrid \} from '\.\/src\/logic\/kimon\/detectTopic\.js';/);
+assert.match(serverSource, /import \{ canonicalizeTopicKey, detectDeepDive, detectTopicHybrid \} from '\.\/src\/logic\/kimon\/detectTopic\.js';/);
 assert.match(serverSource, /import \{ detectQuestionIntent \} from '\.\/src\/logic\/kimon\/questionIntent\.js';/);
 assert.doesNotMatch(serverSource, /import \{ detectFlagCombos \} from '\.\/src\/logic\/dungThan\/flagCombos\.js';/);
 assert.match(serverSource, /const isDeepDive = !isAutoLoad && detectDeepDive\(userContext\);/);
@@ -16,6 +16,7 @@ assert.match(serverSource, /const FLASH_LOCK_TOPICS = new Set\(\['hoc-tap', 'thi
 assert.match(serverSource, /function topicAllowsCriticalFlagEscalation\(topic = ''\) \{\s*return !FLASH_LOCK_TOPICS\.has\(topic\);\s*\}/s);
 assert.match(serverSource, /const VERDICT_STRATEGY_AXES = new Set\(\['yes_no', 'timing', 'pricing', 'state', 'person'\]\);/);
 assert.match(serverSource, /function shouldForceVerdictStrategy\(\{ topic = '', userContext = '' \} = \{\}\) \{\s*if \(!topic \|\| topic === 'chung'\) return false;\s*const intent = detectQuestionIntent\(userContext\);\s*return VERDICT_STRATEGY_AXES\.has\(intent\?\.key \|\| ''\);\s*\}/s);
+assert.match(serverSource, /function normalizeHintTopicKey\(topicKey = ''\) \{\s*return canonicalizeTopicKey\(String\(topicKey \|\| ''\)\.trim\(\)\.toLowerCase\(\)\) \|\| 'chung';\s*\}/s);
 assert.match(serverSource, /function getGeminiApiKey\(\)/);
 assert.match(serverSource, /function getSafeKimonErrorMessage\(error\)/);
 assert.match(serverSource, /function shouldRetryStrategyAsTopic\(error, \{ effectiveTier = '', topic = '' \} = \{\}\)/);

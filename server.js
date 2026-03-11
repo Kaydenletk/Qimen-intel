@@ -16,7 +16,7 @@ import { generateDeterministicEnergyFlow } from './src/logic/dungThan/index.js';
 import { resolveDungThanMarker } from './src/logic/kimon/dungThanHelper.js';
 import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
 import { parseKimonJsonResponse, toKimonResponseSchema } from './src/logic/kimon/jsonResponse.js';
-import { detectDeepDive, detectTopicHybrid } from './src/logic/kimon/detectTopic.js';
+import { canonicalizeTopicKey, detectDeepDive, detectTopicHybrid } from './src/logic/kimon/detectTopic.js';
 import { detectQuestionIntent } from './src/logic/kimon/questionIntent.js';
 import { getKimonGroundingBundle, toClientGroundingMeta } from './src/logic/kimon/grounding.js';
 import { selectModel, buildPromptByTier, getTierRuntimeConfig } from './src/logic/kimon/modelRouter.js';
@@ -577,6 +577,10 @@ function shouldForceVerdictStrategy({ topic = '', userContext = '' } = {}) {
   if (!topic || topic === 'chung') return false;
   const intent = detectQuestionIntent(userContext);
   return VERDICT_STRATEGY_AXES.has(intent?.key || '');
+}
+
+function normalizeHintTopicKey(topicKey = '') {
+  return canonicalizeTopicKey(String(topicKey || '').trim().toLowerCase()) || 'chung';
 }
 
 function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '', userContext = '') {
