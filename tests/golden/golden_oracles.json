@@ -1,0 +1,427 @@
+[
+  {
+    "id": "case_1_basic",
+    "description": "Giờ Tý ngày Giáp Tý (Cơ bản)",
+    "scenario": "Bắt đầu của chu kỳ Lục Thập Hoa Giáp, dễ dàng đối chiếu với sách cổ.",
+    "solarTerm": "dong_zhi",
+    "yinYangDun": "yang",
+    "juNumber": 1,
+    "xunShou": "jia_zi",
+    "zhiFu": "star_grass",
+    "zhiShi": "door_rest",
+    "palaces": [
+      {
+        "palace": 1,
+        "heavenStem": "wu",
+        "earthStem": "wu",
+        "god": "god_chief",
+        "star": "star_grass",
+        "door": "door_rest"
+      },
+      {
+        "palace": 2,
+        "heavenStem": "gui",
+        "earthStem": "gui",
+        "god": "god_harmony",
+        "star": "star_grain",
+        "door": "door_death"
+      },
+      {
+        "palace": 3,
+        "heavenStem": "bing",
+        "earthStem": "bing",
+        "god": "god_moon",
+        "star": "star_destructor",
+        "door": "door_harm"
+      },
+      {
+        "palace": 4,
+        "heavenStem": "xin",
+        "earthStem": "xin",
+        "god": "god_snake",
+        "star": "star_assistant",
+        "door": "door_delusion"
+      },
+      {
+        "palace": 5,
+        "heavenStem": "ji",
+        "earthStem": "ji",
+        "god": null,
+        "star": "star_bird",
+        "door": null
+      },
+      {
+        "palace": 6,
+        "heavenStem": "geng",
+        "earthStem": "geng",
+        "god": "god_white_tiger",
+        "star": "star_heart",
+        "door": "door_open"
+      },
+      {
+        "palace": 7,
+        "heavenStem": "ding",
+        "earthStem": "ding",
+        "god": "god_black_tortoise",
+        "star": "star_pillar",
+        "door": "door_fear"
+      },
+      {
+        "palace": 8,
+        "heavenStem": "ren",
+        "earthStem": "ren",
+        "god": "god_nine_heavens",
+        "star": "star_ambassador",
+        "door": "door_life"
+      },
+      {
+        "palace": 9,
+        "heavenStem": "yi",
+        "earthStem": "yi",
+        "god": "god_nine_earths",
+        "star": "star_hero",
+        "door": "door_scenery"
+      }
+    ]
+  },
+  {
+    "id": "case_2_yang_dun",
+    "description": "Ngày Dương Độn điển hình",
+    "scenario": "Kiểm tra hướng bay của phi tinh, thần sát tiến lên theo chiều thuận (Dương).",
+    "solarTerm": "chun_fen",
+    "yinYangDun": "yang",
+    "juNumber": 3,
+    "xunShou": "jia_xu",
+    "zhiFu": "star_ambassador",
+    "zhiShi": "door_life",
+    "palaces": [
+      {
+        "palace": 1,
+        "heavenStem": "ji",
+        "earthStem": "xin",
+        "god": "god_nine_earths",
+        "star": "star_grass",
+        "door": "door_fear"
+      },
+      {
+        "palace": 2,
+        "heavenStem": "yi",
+        "earthStem": "bing",
+        "god": "god_moon",
+        "star": "star_grain",
+        "door": "door_open"
+      },
+      {
+        "palace": 3,
+        "heavenStem": "xin",
+        "earthStem": "wu",
+        "god": "god_nine_heavens",
+        "star": "star_destructor",
+        "door": "door_scenery"
+      },
+      {
+        "palace": 4,
+        "heavenStem": "ren",
+        "earthStem": "gui",
+        "god": "god_chief",
+        "star": "star_assistant",
+        "door": "door_rest"
+      },
+      {
+        "palace": 5,
+        "heavenStem": "geng",
+        "earthStem": "geng",
+        "god": null,
+        "star": "star_bird",
+        "door": null
+      },
+      {
+        "palace": 6,
+        "heavenStem": "ding",
+        "earthStem": "ren",
+        "god": "god_black_tortoise",
+        "star": "star_heart",
+        "door": "door_death"
+      },
+      {
+        "palace": 7,
+        "heavenStem": "wu",
+        "earthStem": "ding",
+        "god": "god_white_tiger",
+        "star": "star_pillar",
+        "door": "door_harm"
+      },
+      {
+        "palace": 8,
+        "heavenStem": "gui",
+        "earthStem": "geng",
+        "god": "god_snake",
+        "star": "star_ambassador",
+        "door": "door_life"
+      },
+      {
+        "palace": 9,
+        "heavenStem": "bing",
+        "earthStem": "yi",
+        "god": "god_harmony",
+        "star": "star_hero",
+        "door": "door_delusion"
+      }
+    ]
+  },
+  {
+    "id": "case_3_yin_dun",
+    "description": "Ngày Âm Độn điển hình",
+    "scenario": "Kiểm tra hướng bay của phi tinh, bát thần đi ngược chiều (Âm).",
+    "solarTerm": "xia_zhi",
+    "yinYangDun": "yin",
+    "juNumber": 9,
+    "xunShou": "jia_shen",
+    "zhiFu": "star_destructor",
+    "zhiShi": "door_harm",
+    "palaces": [
+       {
+        "palace": 1,
+        "heavenStem": "yi",
+        "earthStem": "wu",
+        "god": "god_harmony",
+        "star": "star_grass",
+        "door": "door_life"
+      },
+      {
+        "palace": 2,
+        "heavenStem": "xin",
+        "earthStem": "ren",
+        "god": "god_nine_earths",
+        "star": "star_grain",
+        "door": "door_harm"
+      },
+      {
+        "palace": 3,
+        "heavenStem": "geng",
+        "earthStem": "xin",
+        "god": "god_nine_heavens",
+        "star": "star_destructor",
+        "door": "door_delusion"
+      },
+      {
+        "palace": 4,
+        "heavenStem": "ji",
+        "earthStem": "yi",
+        "god": "god_chief",
+        "star": "star_assistant",
+        "door": "door_rest"
+      },
+      {
+        "palace": 5,
+        "heavenStem": "wu",
+        "earthStem": "wu",
+        "god": null,
+        "star": "star_bird",
+        "door": null
+      },
+      {
+        "palace": 6,
+        "heavenStem": "gui",
+        "earthStem": "ji",
+        "god": "god_moon",
+        "star": "star_heart",
+        "door": "door_open"
+      },
+      {
+        "palace": 7,
+        "heavenStem": "ding",
+        "earthStem": "ding",
+        "god": "god_snake",
+        "star": "star_pillar",
+        "door": "door_fear"
+      },
+      {
+        "palace": 8,
+        "heavenStem": "bing",
+        "earthStem": "bing",
+        "god": "god_white_tiger",
+        "star": "star_ambassador",
+        "door": "door_death"
+      },
+      {
+        "palace": 9,
+        "heavenStem": "ren",
+        "earthStem": "geng",
+        "god": "god_black_tortoise",
+        "star": "star_hero",
+        "door": "door_scenery"
+      }
+    ]
+  },
+  {
+    "id": "case_4_edge_fuyin",
+    "description": "CỰC ĐOAN: Phục Ngâm toàn cục",
+    "scenario": "Tinh và Môn nằm nguyên tại vị trí gốc (khí ngưng trệ). Test lỗi nhảy nhầm index.",
+    "solarTerm": "dong_zhi",
+    "yinYangDun": "yang",
+    "juNumber": 1,
+    "xunShou": "jia_zi",
+    "zhiFu": "star_bird",
+    "zhiShi": "door_none",
+    "palaces": [
+      {
+        "palace": 1,
+        "heavenStem": "wu",
+        "earthStem": "wu",
+        "god": "god_nine_earths",
+        "star": "star_grass",
+        "door": "door_rest"
+      },
+      {
+        "palace": 2,
+        "heavenStem": "ji",
+        "earthStem": "ji",
+        "god": "god_nine_heavens",
+        "star": "star_grain",
+        "door": "door_death"
+      },
+      {
+        "palace": 3,
+        "heavenStem": "geng",
+        "earthStem": "geng",
+        "god": "god_chief",
+        "star": "star_destructor",
+        "door": "door_harm"
+      },
+      {
+        "palace": 4,
+        "heavenStem": "xin",
+        "earthStem": "xin",
+        "god": "god_snake",
+        "star": "star_assistant",
+        "door": "door_delusion"
+      },
+      {
+        "palace": 5,
+        "heavenStem": "ren",
+        "earthStem": "ren",
+        "god": null,
+        "star": "star_bird",
+        "door": null
+      },
+      {
+        "palace": 6,
+        "heavenStem": "gui",
+        "earthStem": "gui",
+        "god": "god_moon",
+        "star": "star_heart",
+        "door": "door_open"
+      },
+      {
+        "palace": 7,
+        "heavenStem": "ding",
+        "earthStem": "ding",
+        "god": "god_harmony",
+        "star": "star_pillar",
+        "door": "door_fear"
+      },
+      {
+        "palace": 8,
+        "heavenStem": "bing",
+        "earthStem": "bing",
+        "god": "god_white_tiger",
+        "star": "star_ambassador",
+        "door": "door_life"
+      },
+      {
+        "palace": 9,
+        "heavenStem": "yi",
+        "earthStem": "yi",
+        "god": "god_black_tortoise",
+        "star": "star_hero",
+        "door": "door_scenery"
+      }
+    ]
+  },
+  {
+    "id": "case_5_edge_fanyin",
+    "description": "CỰC ĐOAN: Phản Ngâm toàn cục",
+    "scenario": "Tinh và Môn đối xung hoàn toàn so với vị trí gốc qua Trung cung. Đảo chiều hoàn toàn.",
+    "solarTerm": "xia_zhi",
+    "yinYangDun": "yin",
+    "juNumber": 9,
+    "xunShou": "jia_wu",
+    "zhiFu": "star_heart",
+    "zhiShi": "door_open",
+    "palaces": [
+      {
+        "palace": 1,
+        "heavenStem": "yi",
+        "earthStem": "bing",
+        "god": "god_nine_earths",
+        "star": "star_hero",
+        "door": "door_scenery"
+      },
+      {
+        "palace": 2,
+        "heavenStem": "bing",
+        "earthStem": "ding",
+        "god": "god_nine_heavens",
+        "star": "star_ambassador",
+        "door": "door_life"
+      },
+      {
+        "palace": 3,
+        "heavenStem": "ding",
+        "earthStem": "wu",
+        "god": "god_chief",
+        "star": "star_pillar",
+        "door": "door_fear"
+      },
+      {
+        "palace": 4,
+        "heavenStem": "geng",
+        "earthStem": "ji",
+        "god": "god_snake",
+        "star": "star_heart",
+        "door": "door_open"
+      },
+      {
+        "palace": 5,
+        "heavenStem": "xu",
+        "earthStem": "xu",
+        "god": null,
+        "star": "star_bird",
+        "door": null
+      },
+      {
+        "palace": 6,
+        "heavenStem": "ji",
+        "earthStem": "geng",
+        "god": "god_moon",
+        "star": "star_assistant",
+        "door": "door_delusion"
+      },
+      {
+        "palace": 7,
+        "heavenStem": "wu",
+        "earthStem": "xin",
+        "god": "god_harmony",
+        "star": "star_destructor",
+        "door": "door_harm"
+      },
+      {
+        "palace": 8,
+        "heavenStem": "xin",
+        "earthStem": "ren",
+        "god": "god_white_tiger",
+        "star": "star_grain",
+        "door": "door_death"
+      },
+      {
+        "palace": 9,
+        "heavenStem": "ren",
+        "earthStem": "gui",
+        "god": "god_black_tortoise",
+        "star": "star_grass",
+        "door": "door_rest"
+      }
+    ]
+  }
+]
