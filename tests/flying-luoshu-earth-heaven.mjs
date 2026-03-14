@@ -45,6 +45,11 @@ assert.deepEqual(
 );
 
 const luoshuGolden = buildFullChart(new Date('2026-03-07T09:24:00'), '9');
+assert.ok(Array.isArray(luoshuGolden.palaces[1]?.cachCuc), 'Mọi cung biên phải có field cachCuc');
+assert.ok(Array.isArray(luoshuGolden.palaces[1]?.specialPatterns), 'Mọi cung biên phải có field specialPatterns');
+assert.equal(typeof luoshuGolden.palaces[1]?.patternScoreDelta, 'number', 'Mọi cung biên phải có patternScoreDelta');
+assert.deepEqual(luoshuGolden.palaces[5]?.cachCuc, [], 'Trung Cung phải giữ cachCuc rỗng');
+assert.deepEqual(luoshuGolden.palaces[5]?.specialPatterns, [], 'Trung Cung phải giữ specialPatterns rỗng');
 for (const palace of [1, 2, 3, 4, 6, 7, 8, 9]) {
   const currentPalace = luoshuGolden.palaces[palace];
   const sourcePalace = currentPalace?.star?.palace;

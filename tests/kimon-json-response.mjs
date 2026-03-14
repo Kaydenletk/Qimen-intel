@@ -38,13 +38,14 @@ assert.equal(v3.message, 'Nhịp hiện tại chưa thật mở.\n\nTuy nhiên, 
 assert.equal(v3.action, 'Đợi thêm 30-60 phút rồi mới quyết.');
 assert.equal(v3.closingLine, 'Đợi thêm 30-60 phút rồi mới quyết.');
 
-const strategyPayload = parseKimonJsonResponse('{"verdict":"**Sẽ vượt qua được**. Nhưng sẽ phải gồng ở phút cuối.","analysis":"Dụng Thần sáng nhưng Cung Giờ còn một lớp Đỗ Môn.\\n\\nĐẹp ở nền, khó ở tốc độ.","adversary":"Cái bẫy nằm ở tâm lý chủ quan và một lỗ hổng kiến thức chưa vá.","tactics":{"do":["Ôn lại phần hay bỏ qua","Giữ tốc độ làm bài"],"avoid":["Đừng tin mẹo rò đề"],"timing":"Buổi sáng thuận hơn để bứt tốc."},"closingLine":"Qua được, nhưng điểm số sẽ ăn bằng sức bền."}');
+const strategyPayload = parseKimonJsonResponse('{"verdict":"**Sẽ vượt qua được**. Nhưng sẽ phải gồng ở phút cuối.","analysis":"Dụng Thần sáng nhưng Cung Giờ còn một lớp Đỗ Môn.\\n\\nĐẹp ở nền, khó ở tốc độ.","adversary":"Cái bẫy nằm ở tâm lý chủ quan và một lỗ hổng kiến thức chưa vá.","tactics":{"do":["Ôn lại phần hay bỏ qua","Giữ tốc độ làm bài"],"avoid":["Đừng tin mẹo rò đề"],"timing":"Buổi sáng thuận hơn để bứt tốc.","direction":"Ưu tiên Đông Nam, tránh Bắc nếu cần chọn chỗ ngồi hoặc hướng tiếp cận."},"closingLine":"Qua được, nhưng điểm số sẽ ăn bằng sức bền."}');
 assert.equal(strategyPayload.verdict, '**Sẽ vượt qua được**. Nhưng sẽ phải gồng ở phút cuối.');
 assert.equal(strategyPayload.analysis, 'Dụng Thần sáng nhưng Cung Giờ còn một lớp Đỗ Môn.\n\nĐẹp ở nền, khó ở tốc độ.');
 assert.equal(strategyPayload.adversary, 'Cái bẫy nằm ở tâm lý chủ quan và một lỗ hổng kiến thức chưa vá.');
 assert.deepEqual(strategyPayload.tactics.do, ['Ôn lại phần hay bỏ qua', 'Giữ tốc độ làm bài']);
 assert.deepEqual(strategyPayload.tactics.avoid, ['Đừng tin mẹo rò đề']);
 assert.equal(strategyPayload.tactics.timing, 'Buổi sáng thuận hơn để bứt tốc.');
+assert.equal(strategyPayload.tactics.direction, 'Ưu tiên Đông Nam, tránh Bắc nếu cần chọn chỗ ngồi hoặc hướng tiếp cận.');
 assert.equal(strategyPayload.closingLine, 'Qua được, nhưng điểm số sẽ ăn bằng sức bền.');
 
 const duplicated = parseKimonJsonResponse('{"mode":"decision","lead":"Khối 1","timeHint":"","message":"Tin đầu.","closingLine":"Chốt 1"}\n{"mode":"decision","lead":"Khối 2","timeHint":"","message":"Tin hai.","closingLine":"Chốt 2"}');

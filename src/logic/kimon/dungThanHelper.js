@@ -74,6 +74,12 @@ function readEntityLabel(entity = {}, fallbacks = []) {
 
 function normalizeDisplayPalace(palaceNum, palace = {}) {
   const numericPalace = Number(palaceNum);
+  const patternLabels = Array.isArray(palace?.patternLabels)
+    ? palace.patternLabels
+    : [
+      ...(Array.isArray(palace?.specialPatterns) ? palace.specialPatterns : []),
+      ...(Array.isArray(palace?.cachCuc) ? palace.cachCuc : []),
+    ];
   return {
     id: numericPalace,
     huong: palace?.directionLabel?.displayShort || palace?.direction || PALACE_META[numericPalace]?.dir || '',
@@ -86,6 +92,14 @@ function normalizeDisplayPalace(palaceNum, palace = {}) {
     khongVong: Boolean(palace?.khongVong),
     trucSu: Boolean(palace?.trucSu),
     trucPhu: Boolean(palace?.trucPhu),
+    patterns: patternLabels
+      .map(item => {
+        const rawLabel = typeof item?.displayShort === 'string' && item.displayShort.trim()
+          ? item.displayShort
+          : item?.name || item?.displayName || item?.internalName || '';
+        return String(rawLabel).replace(/^[^A-Za-zÀ-ỹ0-9]+/u, '').trim();
+      })
+      .filter(Boolean),
   };
 }
 
@@ -114,6 +128,7 @@ export function normalizeBoardData(boardData = {}) {
         khongVong: Boolean(item?.khongVong),
         trucSu: Boolean(item?.trucSu),
         trucPhu: Boolean(item?.trucPhu),
+        patterns: Array.isArray(item?.patterns) ? item.patterns.filter(Boolean) : [],
       }))
       .filter(item => item.id && item.id !== 5)
       .sort((a, b) => a.id - b.id);
@@ -266,6 +281,11 @@ function formatPalaceText(palace = {}, isDungThan = false) {
   const flags = collectPalaceFlags(palace);
   for (const flag of flags) {
     lines.push(`- Cờ: ${flag}`);
+  }
+
+  const patterns = Array.isArray(palace?.patterns) ? palace.patterns : [];
+  for (const pattern of patterns) {
+    lines.push(`- Pattern: ${pattern}`);
   }
 
   return lines.filter(Boolean).join('\n');

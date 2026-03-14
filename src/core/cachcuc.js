@@ -4,6 +4,36 @@
  */
 
 import { PALACE_META } from './tables.js';
+import QMDJ_DICTIONARY from '../lib/qmdj_dictionary.json' with { type: 'json' };
+
+function normalizeCanName(can) {
+  if (!can) return '';
+  if (typeof can === 'string') return can;
+  if (typeof can === 'object') return can.name || can.displayShort || can.displayName || '';
+  return '';
+}
+
+export function evaluateCachCuc(heavenCan, earthCan) {
+  const heavenCanName = normalizeCanName(heavenCan);
+  const earthCanName = normalizeCanName(earthCan);
+  if (!heavenCanName || !earthCanName) return [];
+
+  const matched = QMDJ_DICTIONARY?.stemStemPatterns?.[heavenCanName]?.[earthCanName];
+  if (!matched) return [];
+
+  return [{
+    id: matched.id || `${heavenCanName}_${earthCanName}`,
+    name: matched.name || `${heavenCanName}/${earthCanName}`,
+    type: matched.type || '',
+    priority: Number(matched.priority || 0),
+    desc: matched.desc || '',
+    scoreDelta: Number(matched.scoreDelta || 0),
+    source: matched.source || 'stem-stem',
+    scope: matched.scope || 'formation',
+    aliases: Array.isArray(matched.aliases) ? matched.aliases : [],
+    tags: Array.isArray(matched.tags) ? matched.tags : [],
+  }];
+}
 
 // Each rule: { id, name, type:'cat'|'hung'|'binh', priority:1-10, desc, condition(palace, palaceNum, chart) }
 export const CACH_CUC_DEFS = [
@@ -105,8 +135,23 @@ export function evaluateChart(chart) {
       } catch (_) { /* skip malformed */ }
     }
   }
+  const dynamicPatterns = Array.isArray(chart?.allSpecialPatterns) ? chart.allSpecialPatterns : [];
+  for (const hit of dynamicPatterns) {
+    const palaceNum = Number(hit?.palace);
+    if (Number.isFinite(palaceNum) && byPalace[palaceNum]) {
+      byPalace[palaceNum].push(hit);
+    }
+    all.push(hit);
+  }
   all.sort((a, b) => b.priority - a.priority);
-  const score = all.reduce((s, f) => s + (f.type === 'cat' ? f.priority : f.type === 'hung' ? -f.priority : 0), 0);
+
+  const score = all.reduce((sum, hit) => {
+    if (Number.isFinite(hit?.formationScore)) return sum + Number(hit.formationScore);
+    if (hit?.type === 'cat') return sum + Number(hit?.priority || 0);
+    if (hit?.type === 'hung') return sum - Number(hit?.priority || 0);
+    return sum;
+  }, 0);
+
   return {
     byPalace, allFormations: all, topFormations: all.slice(0, 8),
     overallScore: score,

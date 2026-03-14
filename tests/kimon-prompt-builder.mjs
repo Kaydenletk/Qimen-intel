@@ -32,8 +32,9 @@ const qmdjData = {
   directEnvoyActionVerdict: 'thuận',
   directEnvoyActionScore: 9,
   quickReadSummary: 'Khí giờ đang nghịch, nhưng hành động đúng cách vẫn có cửa',
-  formations: 'Thiên Nhuế gặp Kinh Môn',
-  allTopics: JSON.stringify([{ topic: 'Gọi điện', verdict: 'Bình', score: -2, action: 'Nhắn ngắn trước, đừng gọi dồn' }]),
+  formations: 'Thiên Nhuế gặp Kinh Môn, Thanh Long bị thương',
+  topFormations: '- Thanh Long bị thương: Mở mà hao.\n- Thiên Nhuế gặp Kinh Môn: Áp lực và bug nền.',
+  allTopics: JSON.stringify([{ topic: 'Gọi điện', verdict: 'Bình', action: 'Nhắn ngắn trước, đừng gọi dồn' }]),
   selectedTopicCanonicalDungThan: {
     palaceNum: 9,
     palaceName: 'Ly',
@@ -44,6 +45,26 @@ const qmdjData = {
   },
   currentHour: 15,
   currentMinute: 30,
+  displayPalaces: {
+    3: {
+      mon: { name: 'Kinh Môn', short: 'Kinh', element: 'Kim', type: 'hung' },
+      star: { name: 'Thiên Nhuế', short: 'Nhuế', element: 'Thổ', type: 'hung' },
+      than: { name: 'Chu Tước', element: 'Hỏa', type: 'hung' },
+      can: { name: 'Nhâm' },
+      earthStem: 'Đinh',
+      khongVong: false,
+    },
+    9: {
+      mon: { name: 'Cảnh Môn', short: 'Cảnh', element: 'Hỏa', type: 'binh' },
+      star: { name: 'Thiên Phụ', short: 'Phụ', element: 'Mộc', type: 'cat' },
+      than: { name: 'Cửu Địa', element: 'Thổ', type: 'cat' },
+      can: { name: 'Bính' },
+      earthStem: 'Canh',
+      khongVong: false,
+      cachCuc: [{ name: 'Thanh Long bị thương', type: 'Hung' }],
+      specialPatterns: [{ name: 'Thanh Long bị thương', type: 'hung' }],
+    },
+  },
 };
 
 const giaDaoQmdjData = {
@@ -101,10 +122,18 @@ assert.match(enriched, /\[TÍN HIỆU ĐÈN\]/);
 assert.match(enriched, /Khí giờ đang nghịch, nhưng hành động đúng cách vẫn có cửa/);
 assert.match(enriched, /Cung Giờ: P3 · Đông · Thần Chu Tước · Môn Kinh · Tinh Nhuế · tone dark/);
 assert.match(enriched, /Cung Trực Sử: P9 · Nam · Thần Cửu Địa · Môn Hưu · Tinh Trụ · tone very-bright/);
+assert.match(enriched, /\[ENERGY STATE\]/);
+assert.match(enriched, /vitality:/i);
+assert.match(enriched, /structure:/i);
+assert.match(enriched, /transparency:/i);
+assert.match(enriched, /tension:/i);
 assert.match(enriched, /Giờ hiện tại: 15:30/);
+assert.doesNotMatch(enriched, /Điểm: /i);
 
 assert.match(prompt, /\[CHỈ DẤU CHO AI\]/);
 assert.match(prompt, /\[TRỤC Kymon Pro\]/);
+assert.match(prompt, /\[ENERGY STATE\]/);
+assert.match(prompt, /\[KẾT LUẬN LỰC THỰC\]/);
 assert.match(prompt, /\[DỤNG THẦN CHUẨN SÁCH\]/);
 assert.match(prompt, /Dụng Thần chuẩn sách: cung 9 · Ly · Môn Cảnh \+ Tinh Phụ/i);
 assert.match(prompt, /===> \[DỤNG THẦN CHÍNH - BẮT BUỘC PHÂN TÍCH TRỌNG TÂM TẠI ĐÂY\] <===/);
@@ -113,6 +142,9 @@ assert.match(prompt, /\[ĐIỂM CẦN BÁM\]/);
 assert.match(prompt, /tone=dark; verdict=nghịch/);
 assert.match(prompt, /tone=very-bright; verdict=thuận/);
 assert.match(prompt, /THỜI GIAN HIỆN TẠI.*15:30/);
+assert.match(prompt, /\[CÁCH CỤC & PATTERN ĐỘNG\]/);
+assert.match(prompt, /\[TOP FORMATIONS\]/);
+assert.match(prompt, /Thanh Long bị thương/i);
 assert.match(prompt, /Có nên gọi lúc này không\?/);
 assert.match(prompt, /phán quyết đủ rõ/i);
 assert.match(prompt, /markdown bold/i);
@@ -126,11 +158,13 @@ assert.match(prompt, /dấu hai chấm vừa phải/i);
 assert.match(prompt, /field "closingLine" riêng/);
 assert.match(prompt, /dùng đúng 3 key: lead, message, closingLine/i);
 assert.match(prompt, /warning, lời khuyên, hoặc quote ngắn/i);
+assert.doesNotMatch(prompt, /\[ĐIỂM TỔNG\]/);
 assert.doesNotMatch(prompt, /\[SYSTEM ROLE & PERSONA\]/);
 assert.doesNotMatch(prompt, /\[OUTPUT FORMAT - QUY TRÌNH 4 BƯỚC BẮT BUỘC\]/);
 assert.doesNotMatch(prompt, /\[YÊU CẦU TRIỂN KHAI\]/);
 
 assert.match(giaDaoPrompt, /\[PERSONA THEO CHỦ ĐỀ\]/);
+assert.match(giaDaoPrompt, /\[ENERGY STATE\]/);
 assert.match(giaDaoPrompt, /Quân sư tâm lý/);
 assert.match(giaDaoPrompt, /tổ ấm|hòa khí|nếp nhà/i);
 assert.match(giaDaoPrompt, /Sinh Môn = hơi ấm/i);
@@ -141,6 +175,7 @@ assert.match(giaDaoPrompt, /nhà có người nhưng lòng cách xa/i);
 assert.match(giaDaoPrompt, /Tránh dùng: giao dịch, pháp lý, đầu tư/i);
 
 assert.match(propertyPricingPrompt, /\[TRỤC CÂU HỎI\]/);
+assert.match(propertyPricingPrompt, /\[ENERGY STATE\]/);
 assert.match(propertyPricingPrompt, /Định giá \/ Giá tiền/);
 assert.match(propertyPricingPrompt, /giá treo, giá chạm, giá chốt/i);
 assert.match(propertyPricingPrompt, /closingLine phải chốt vào giá, khả năng bán, khả năng chốt/i);

@@ -183,6 +183,7 @@ function resolveGlobalFlags(chart, globalFlags = {}) {
 function collectFlags(chart, pal, globalFlags, mappingNotes) {
   const mergedFlags = new Map();
   const normalizedGlobal = resolveGlobalFlags(chart, globalFlags);
+  const specialPatterns = Array.isArray(pal?.specialPatterns) ? pal.specialPatterns : [];
 
   const markFlag = (flag, source) => {
     if (!flag) return;
@@ -210,13 +211,13 @@ function collectFlags(chart, pal, globalFlags, mappingNotes) {
     markFlag('PALACE_COMPELLING', 'derived');
     mappingNotes.push('PALACE_COMPELLING được suy ra từ palace.trucPhu.');
   }
+  if (specialPatterns.some(pattern => /nhập mộ/i.test(String(pattern?.name || '')))) {
+    markFlag('GRAVE', 'specialPattern');
+    mappingNotes.push('GRAVE/Nhập Mộ được suy ra từ palace.specialPatterns.');
+  }
 
   for (const [flag, active] of Object.entries(normalizedGlobal)) {
     if (!active) continue;
-    if (flag === 'GRAVE') {
-      mappingNotes.push('GRAVE/Nhập Mộ chưa có module xác định, bỏ qua multiplier.');
-      continue;
-    }
     if (!library.flags[flag]) {
       mappingNotes.push(`Flag ${flag} chưa có trong library, bỏ qua multiplier.`);
       continue;
@@ -224,9 +225,8 @@ function collectFlags(chart, pal, globalFlags, mappingNotes) {
     markFlag(flag, 'global');
   }
 
-  // Current core does not expose GRAVE/Nhập Mộ detection.
-  if (!normalizedGlobal.GRAVE) {
-    mappingNotes.push('GRAVE/Nhập Mộ chưa có module xác định, confidence giữ nguyên cho cờ này.');
+  if (!normalizedGlobal.GRAVE && !specialPatterns.some(pattern => /nhập mộ/i.test(String(pattern?.name || '')))) {
+    mappingNotes.push('GRAVE/Nhập Mộ chưa active trên cung dụng thần ở ca này.');
   }
 
   return Array.from(mergedFlags.values()).map(flag => ({

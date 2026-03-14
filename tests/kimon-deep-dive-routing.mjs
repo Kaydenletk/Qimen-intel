@@ -78,7 +78,10 @@ assert.match(strategyPromptSource, /\[OUTPUT FORMAT - STRATEGY JSON BẮT BUỘC
 assert.match(strategyPromptSource, /markdown bold/i);
 assert.match(strategyPromptSource, /KHÔNG VUỐT VE/i);
 assert.match(strategyPromptSource, /JSON object với chính xác 5 key sau/i);
+assert.match(strategyPromptSource, /\[NEO NỘI BỘ CHO AI\]/);
+assert.doesNotMatch(strategyPromptSource, /\[BẢN ĐỒ 4 BƯỚC CHO AI\]/);
 assert.match(strategyPromptSource, /buildStrategySystemInstruction\(\{ groundingBundle = null \} = \{\}\) \{\s*return appendGroundingSystemRules\(KYMON_PRO_SYSTEM_PROMPT, groundingBundle\);/s);
+assert.match(serverSource, /\/\/ ── Detect Strategy schema \(verdict\/analysis\/adversary\/tactics\/closingLine\) ──[\s\S]*\/\/ ── Detect Kymon Pro schema \(4 steps \+ closingLine\) ──/s);
 
 assert.match(promptBuilderSource, /export const KYMON_TOPIC_SYSTEM_PROMPT = /);
 assert.match(promptBuilderSource, /buildKimonSystemInstruction\(\{ tier = 'topic', groundingBundle = null \} = \{\}\) \{\s*void tier;\s*return appendGroundingSystemRules\(KYMON_TOPIC_SYSTEM_PROMPT, groundingBundle\);/s);

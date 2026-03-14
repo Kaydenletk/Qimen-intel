@@ -50,7 +50,7 @@ function buildFlagEvidence(flags = {}) {
 export function buildStudyInsight(context) {
   const combo = getPrimaryCombo(context.flags);
   const comboAdvice = combo ? getComboTopicAdvice(combo.id, context.topicKey || 'hoc-tap') : null;
-  let rawScore = context.topicResult?.score || 0;
+  let rawScore = context.effectiveTopicScore ?? context.topicResult?.score ?? 0;
 
   if (context.door === 'Cảnh') rawScore += 4;
   if (context.star === 'Thiên Phụ' || context.star === 'Phụ') rawScore += 3;

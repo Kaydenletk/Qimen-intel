@@ -1,0 +1,78 @@
+{
+  "Mậu": {
+    "Bính": {
+      "id": "thanh_long_phan_thu",
+      "name": "Thanh Long Phản Thủ",
+      "type": "Đại Cát",
+      "priority": 10,
+      "desc": "Rồng xanh quay đầu. Đại cát, quý nhân che chở, vạn sự hanh thông.",
+      "scoreDelta": 5
+    },
+    "Canh": {
+      "id": "thanh_long_bi_thuong",
+      "name": "Thanh Long bị thương",
+      "type": "Hung",
+      "priority": 8,
+      "desc": "Rồng bị chém. Có cửa mở nhưng phải trả giá, hao tổn tài lộc.",
+      "scoreDelta": -3
+    }
+  },
+  "Bính": {
+    "Mậu": {
+      "id": "phi_dieu_diet_huyet",
+      "name": "Phi Điểu Điệt Huyệt",
+      "type": "Đại Cát",
+      "priority": 10,
+      "desc": "Chim sà vào tổ. Cơ hội tự tìm đến, không cầu mà được.",
+      "scoreDelta": 5
+    },
+    "Canh": {
+      "id": "huynh_hoac_nhap_thai_bach",
+      "name": "Huỳnh Hoặc Nhập Thái Bạch",
+      "type": "Hung",
+      "priority": 8,
+      "desc": "Hỏa vào Kim. Bất lợi cho phe chủ, dễ cháy nổ, phá sản, dính pháp lý.",
+      "scoreDelta": -3
+    }
+  },
+  "Tân": {
+    "Ất": {
+      "id": "bach_ho_xuong_cuong",
+      "name": "Bạch Hổ Xương Cuồng",
+      "type": "Đại Hung",
+      "priority": 9,
+      "desc": "Hổ trắng nổi điên. Cực hung, họa huyết quang, phá tài.",
+      "scoreDelta": -5
+    }
+  },
+  "Quý": {
+    "Đinh": {
+      "id": "dang_xa_yeu_kieu",
+      "name": "Đằng Xà Yểu Kiểu",
+      "type": "Đại Hung",
+      "priority": 9,
+      "desc": "Rắn độc uốn khúc. Đại hung, dính thị phi, văn thư lỗi.",
+      "scoreDelta": -4
+    }
+  },
+  "Canh": {
+    "Bính": {
+      "id": "thai_bach_nhap_huynh_hoac",
+      "name": "Thái Bạch Nhập Huỳnh Hoặc",
+      "type": "Hung",
+      "priority": 8,
+      "desc": "Kim vào Hỏa. Bất lợi cho phe khách, dễ sinh đạo tặc, hao tài.",
+      "scoreDelta": -3
+    }
+  },
+  "Ất": {
+    "Tân": {
+      "id": "thanh_long_dao_tau",
+      "name": "Thanh Long Đào Tẩu",
+      "type": "Hung",
+      "priority": 7,
+      "desc": "Rồng xanh bỏ chạy. Mưu sự bại lộ, hao tài tốn của, bế tắc.",
+      "scoreDelta": -2
+    }
+  }
+}

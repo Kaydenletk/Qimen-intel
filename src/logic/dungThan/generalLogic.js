@@ -7,7 +7,7 @@ import {
 } from './sharedRules.js';
 
 export function buildGeneralInsight(context) {
-  const rawScore = context.topicResult?.score || 0;
+  const rawScore = context.effectiveTopicScore ?? context.topicResult?.score ?? 0;
   const scoreSignal = scoreToSignal(rawScore);
   const confidenceCalc = computeConfidence(context.flags);
   const flagEvidence = createFlagEvidence(context.flags);

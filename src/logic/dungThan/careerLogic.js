@@ -24,7 +24,7 @@ export function buildCareerInsight(context, topicKey) {
   const isNegotiation = NEGOTIATION_KEYS.has(topicKey);
   const combo = getPrimaryCombo(context.flags);
   const comboAdvice = combo ? getComboTopicAdvice(combo.id, topicKey || 'su-nghiep') : null;
-  let rawScore = context.topicResult?.score || 0;
+  let rawScore = context.effectiveTopicScore ?? context.topicResult?.score ?? 0;
 
   if (context.deity === 'Trực Phù') rawScore += 3;
   if (['Khai', 'Sinh', 'Cảnh'].includes(context.door)) rawScore += 3;

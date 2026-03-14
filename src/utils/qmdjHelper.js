@@ -7,6 +7,8 @@
  * - Đưa AI vào thế "đọc bàn để tư vấn", không phải "giải bài tập"
  */
 
+import { buildEnergyStateBundle, buildEnergyStateContext } from '../logic/kimon/energyState.js';
+
 // ═══════════════════════════════════════════════════════════════════════════
 // TỪ ĐIỂN NGŨ HÀNH (Thiên Can)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -97,6 +99,16 @@ export const enrichData = (raw) => {
     return '[Chưa có dữ liệu]';
   }
 
+  const energyBundle = raw?.energyStates && raw?.usefulGodState
+    ? {
+      energyStates: raw.energyStates,
+      usefulGodState: raw.usefulGodState,
+      hourState: raw.hourState,
+      directEnvoyState: raw.directEnvoyState,
+      topicStateSummary: raw.topicStateSummary || '',
+    }
+    : buildEnergyStateBundle({ qmdjData: raw });
+
   const parts = [];
   const push = (label, lines = []) => {
     const cleaned = lines.filter(Boolean);
@@ -114,12 +126,20 @@ export const enrichData = (raw) => {
   push('TÍN HIỆU ĐÈN', [
     raw.quickReadSummary || '',
     (hourMarkerPalace || raw.hourDoor || raw.hourStar || raw.hourDeity)
-      ? `Cung Giờ: P${hourMarkerPalace || '—'}${hourDirection ? ` · ${hourDirection}` : ''} · Thần ${raw.hourDeity || '—'} · Môn ${raw.hourDoor || '—'} · Tinh ${raw.hourStar || '—'} · tone ${hourTone || 'neutral'} · verdict ${raw.hourEnergyVerdict || 'trung'} · score ${raw.hourEnergyScore ?? 0}.`
+      ? `Cung Giờ: P${hourMarkerPalace || '—'}${hourDirection ? ` · ${hourDirection}` : ''} · Thần ${raw.hourDeity || '—'} · Môn ${raw.hourDoor || '—'} · Tinh ${raw.hourStar || '—'} · tone ${hourTone || 'neutral'} · verdict ${raw.hourEnergyVerdict || 'trung'}.`
       : '',
     (raw.directEnvoyPalace || raw.directEnvoyDoor)
-      ? `Cung Trực Sử: P${raw.directEnvoyPalace || '—'}${routeDirection ? ` · ${routeDirection}` : ''} · Thần ${raw.directEnvoyDeity || '—'} · Môn ${raw.directEnvoyDoor || '—'} · Tinh ${raw.directEnvoyStar || '—'} · tone ${routeTone || 'neutral'} · verdict ${raw.directEnvoyActionVerdict || 'trung'} · score ${raw.directEnvoyActionScore ?? 0}.`
+      ? `Cung Trực Sử: P${raw.directEnvoyPalace || '—'}${routeDirection ? ` · ${routeDirection}` : ''} · Thần ${raw.directEnvoyDeity || '—'} · Môn ${raw.directEnvoyDoor || '—'} · Tinh ${raw.directEnvoyStar || '—'} · tone ${routeTone || 'neutral'} · verdict ${raw.directEnvoyActionVerdict || 'trung'}.`
       : '',
   ]);
+
+  const energyStateContext = buildEnergyStateContext(energyBundle);
+  if (energyStateContext) {
+    parts.push(energyStateContext);
+  }
+  if (energyBundle?.topicStateSummary) {
+    push('KẾT LUẬN LỰC THỰC', [energyBundle.topicStateSummary]);
+  }
 
   push('MARKER THỜI GIAN', [
     dayMarkerPalace ? `Ngày ở P${dayMarkerPalace}${raw.dayMarkerDirection ? ` ${raw.dayMarkerDirection}` : ''}.` : '',
@@ -201,9 +221,7 @@ export const enrichData = (raw) => {
   // ─────────────────────────────────────────────────────────────────────────
   // 7. ĐIỂM SỐ & METADATA
   // ─────────────────────────────────────────────────────────────────────────
-  const score = raw.score ?? raw.overallScore ?? '';
   const meta = [];
-  if (score) meta.push(`Điểm: ${score}/10`);
   if (raw.cucSo) meta.push(`Cục ${raw.cucSo} ${raw.isDuong ? 'Dương' : 'Âm'}`);
   if (raw.solarTerm) meta.push(raw.solarTerm);
   if (raw.selectedTopic) meta.push(`Chủ đề: ${raw.selectedTopic}`);

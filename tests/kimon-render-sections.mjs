@@ -9,6 +9,9 @@ assert.doesNotMatch(displayMappingsSource, /Đối Chiếu Web1|Đối chiếu w
 
 assert.match(serverSource, /data-display-palaces=/, 'Kimon payload phải embed displayPalaces để lookup cung giờ và trực sử');
 assert.match(serverSource, /const resolvePalaceSignals = palaceNum =>/, 'getBaseQmdjData phải có lookup fallback từ palace grid');
+assert.doesNotMatch(serverSource, /id="totalScoreValue"|data-kimon-score=|data-score="\$\{evaluation\.overallScore\}"/, 'User-facing payload không được còn expose tổng điểm');
+assert.doesNotMatch(serverSource, /data-col="score"|<tr data-topic="\$\{res\.topic\}" data-direction="\$\{res\.usefulGodDir\}" data-score=/, 'User-facing topic rows không được còn render cột score');
+assert.doesNotMatch(serverSource, /\.score-wrap \{|\.score-head \{|\.score-track \{|\.score-fill \{/, 'User-facing CSS không được còn score bar classes');
 
 assert.match(serverSource, /function formatKimonRichText\(/, 'Renderer phải có formatter cho markdown nhẹ');
 assert.ok(serverSource.includes("normalized = normalized.split('\\\\\\\\r\\\\\\\\n').join('\\\\n');"), 'Formatter phải quy đổi literal CRLF escaped thành xuống dòng thật');
@@ -111,17 +114,27 @@ assert.match(serverSource, /function setExpertCopyStatus\(message = '', type = '
 assert.match(serverSource, /function buildExpertCopyText\(\)/, 'Expert mode phải có formatter copy text riêng');
 assert.match(serverSource, /function copyExpertModeData\(\)/, 'Expert mode phải có helper copy clipboard riêng');
 assert.match(serverSource, /\[DANH SÁCH THEO HƯỚNG\]/, 'Text copy expert phải được tổ chức theo danh sách từng hướng');
-assert.match(serverSource, /'- Môn: '/, 'Text copy expert phải liệt kê Môn');
-assert.match(serverSource, /'- Tinh: '/, 'Text copy expert phải liệt kê Tinh');
-assert.match(serverSource, /'- Thần: '/, 'Text copy expert phải liệt kê Thần');
-assert.match(serverSource, /'- Thiên Can: '/, 'Text copy expert phải liệt kê Thiên Can');
-assert.match(serverSource, /'- Địa Can: '/, 'Text copy expert phải liệt kê Địa Can');
-assert.match(serverSource, /'- Cờ: '/, 'Text copy expert phải liệt kê cờ khi có');
+assert.match(serverSource, /Trận đồ: /, 'Expert copy phải mở bằng dòng tóm tắt đủ trụ');
+assert.match(serverSource, /'Sao: '/, 'Text copy expert phải liệt kê Sao');
+assert.match(serverSource, /'Thần: '/, 'Text copy expert phải liệt kê Thần');
+assert.match(serverSource, /'Môn: '/, 'Text copy expert phải liệt kê Môn');
+assert.match(serverSource, /'Can: '/, 'Text copy expert phải liệt kê cặp can');
+assert.match(serverSource, /'Marker: '/, 'Text copy expert phải liệt kê marker khi có');
+assert.match(serverSource, /'Cờ: '/, 'Text copy expert phải liệt kê cờ khi có');
+assert.match(serverSource, /'Cách cục & trạng thái: '/, 'Text copy expert phải gộp cách cục và trạng thái thành một dòng rõ ràng');
+assert.doesNotMatch(serverSource, /'- BG Base: '|'- BG Tags: '|'- BG Reasons: '|'- Tone: '|'- Phi Tinh: '/, 'Expert copy không được mang BG debug, tone hay phi tinh');
+assert.doesNotMatch(serverSource, /'Cách cục: '|'Pattern động: '|'Pattern hợp nhất: '|'- Score: '/, 'Expert copy không nên lặp nhiều field pattern hoặc score khi mục tiêu là copy cho LLM');
 assert.match(serverSource, /navigator\.clipboard\?\.writeText/,'Clipboard copy nên ưu tiên navigator.clipboard');
 assert.match(serverSource, /label:\s*'Tổng quan'/, 'Deep-dive phải có subtitle Tổng quan');
 assert.match(serverSource, /label:\s*'Nhận định'/, 'Strategy phải có subtitle Nhận định');
 assert.match(serverSource, /label:\s*'Phân tích thế trận'/, 'Strategy phải có subtitle Phân tích thế trận');
 assert.match(serverSource, /label:\s*'Nước đi đề xuất'/, 'Strategy phải có subtitle Nước đi đề xuất');
+assert.match(serverSource, /label:\s*'Phương vị'/, 'Strategy phải có subtitle Phương vị');
+assert.match(serverSource, /function renderCachCucList = pal =>|const renderCachCucList = pal =>/, 'Renderer phải có helper render badge Cách cục');
+assert.match(serverSource, /cachcuc-badges/, 'UI phải có vùng badge Cách cục trong ô cung');
+assert.match(serverSource, /patternLabels\)\s*\?\s*pal\.patternLabels\.slice\(0, 2\)/, 'Renderer phải chỉ hiện top 2 pattern labels trên card view');
+assert.match(serverSource, /Cách cục & trạng thái/, 'Expert export phải có field hợp nhất cho cách cục và trạng thái');
+assert.match(serverSource, /data-top-formations=/, 'Payload HTML phải embed top formations chi tiết');
 assert.match(serverSource, /className:\s*'kymon-lead kymon-verdict-card'/, 'Lead/verdict phải được render bằng verdict card class');
 assert.match(serverSource, /function createKimonQuoteSection\(\{ className, rawText, seenParagraphs, modeLabel = '' \}\)/, 'Renderer phải có helper quote footer riêng');
 assert.match(serverSource, /modeLabel:\s*String\(modeLabel \|\| ''\)\.trim\(\)/, 'Quote footer phải giữ mode label để render ở mép phải');

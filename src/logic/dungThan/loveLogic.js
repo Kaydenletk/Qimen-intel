@@ -11,7 +11,7 @@ import { getPrimaryCombo, getComboTopicAdvice } from './flagCombos.js';
 export function buildLoveInsight(context) {
   const combo = getPrimaryCombo(context.flags);
   const comboAdvice = combo ? getComboTopicAdvice(combo.id, 'tinh-duyen') : null;
-  let rawScore = context.topicResult?.score || 0;
+  let rawScore = context.effectiveTopicScore ?? context.topicResult?.score ?? 0;
   if (['Hưu', 'Sinh'].includes(context.door)) rawScore += 3;
   if (['Lục Hợp', 'Thái Âm'].includes(context.deity)) rawScore += 3;
   if (['Tử', 'Kinh'].includes(context.door)) rawScore -= 5;

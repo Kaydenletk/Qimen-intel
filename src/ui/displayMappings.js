@@ -250,6 +250,45 @@ function buildTemporalBadgeLabels(palace) {
   return labels;
 }
 
+function buildCachCucLabels(palace) {
+  if (!Array.isArray(palace?.cachCuc)) return [];
+  return palace.cachCuc
+    .filter(item => item && item.name)
+    .map((item, index) => ({
+      key: `cachCuc_${index}_${item.name}`,
+      internalName: item.name,
+      displayName: `🔥 ${item.name}`,
+      displayShort: `🔥 ${item.name}`,
+      type: item.type || '',
+      desc: item.desc || '',
+      priority: Number(item.priority || 0),
+      source: 'cachCuc',
+    }));
+}
+
+function buildSpecialPatternLabels(palace) {
+  if (!Array.isArray(palace?.specialPatterns)) return [];
+  return palace.specialPatterns
+    .filter(item => item && item.name)
+    .map((item, index) => ({
+      key: `specialPattern_${index}_${item.name}`,
+      internalName: item.name,
+      displayName: `⚠ ${item.name}`,
+      displayShort: `⚠ ${item.name}`,
+      type: item.type || '',
+      desc: item.desc || '',
+      priority: Number(item.priority || 0),
+      source: 'specialPattern',
+    }));
+}
+
+function buildMergedPatternLabels(sourcePalace = {}) {
+  return [
+    ...buildSpecialPatternLabels(sourcePalace),
+    ...buildCachCucLabels(sourcePalace),
+  ].sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
+}
+
 function getSectionLabelObject(rawValue) {
   return {
     internalName: rawValue,
@@ -297,6 +336,9 @@ function buildDisplayPalace(palaceNum, sourcePalace = {}) {
     specialTags: Array.isArray(sourcePalace.specialTags) ? [...sourcePalace.specialTags] : [],
     temporalBadgeLabels: buildTemporalBadgeLabels(sourcePalace),
     flagLabels: buildFlagLabels(sourcePalace),
+    cachCucLabels: buildCachCucLabels(sourcePalace),
+    specialPatternLabels: buildSpecialPatternLabels(sourcePalace),
+    patternLabels: buildMergedPatternLabels(sourcePalace),
   };
 }
 

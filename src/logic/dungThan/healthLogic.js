@@ -57,7 +57,7 @@ export function evaluateDoctor(context) {
 export function buildHealthInsight(context) {
   const combo = getPrimaryCombo(context.flags);
   const comboAdvice = combo ? getComboTopicAdvice(combo.id, 'suc-khoe') : null;
-  let rawScore = context.topicResult?.score || 0;
+  let rawScore = context.effectiveTopicScore ?? context.topicResult?.score ?? 0;
 
   if (context.star === 'Tâm' || context.door === 'Sinh') rawScore += 4;
   if (context.flags.DOOR_COMPELLING || context.flags.PALACE_COMPELLING) rawScore += 1;

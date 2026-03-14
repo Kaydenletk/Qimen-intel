@@ -10,7 +10,7 @@ import { getPrimaryCombo, getComboTopicAdvice } from './flagCombos.js';
 export function buildFamilyInsight(context) {
   const combo = getPrimaryCombo(context.flags);
   const comboAdvice = combo ? getComboTopicAdvice(combo.id, 'gia-dao') : null;
-  let rawScore = context.topicResult?.score || 0;
+  let rawScore = context.effectiveTopicScore ?? context.topicResult?.score ?? 0;
 
   if (context.door === 'Hưu') rawScore += 3;
   if (context.door === 'Thương') rawScore -= 4;

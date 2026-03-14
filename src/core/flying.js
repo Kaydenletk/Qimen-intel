@@ -14,6 +14,8 @@ import { getSolarTermInfo } from './calendar.js';
 import { getDayPillar, getGioChi, getGioCan, getKhongVong, getMonthPillar, getYearPillar } from './stems.js';
 import { resolveHiddenStemForHourStem } from './jiaHiddenStem.js';
 import { annotateTemporalMarkers } from './temporalMarkers.js';
+import { evaluateCachCuc } from './cachcuc.js';
+import { evaluateSpecialPatterns } from './specialPatterns.js';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -506,6 +508,7 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
       sentStar: null,     // Parasite Star (Thiên Cầm)
       sentCan: null,      // Parasite Can
       hasCam: false,      // Flag: Thiên Cầm is here
+      cachCuc: [],
     };
   }
 
@@ -759,6 +762,18 @@ export function buildRotatingChart(cucSo, isDuong, hourStemIdx, hourBranchIdx, d
     palaces[p].phiTinhNum = num;
   }
 
+  for (let p = 1; p <= 9; p++) {
+    if (p === 5) {
+      palaces[p].cachCuc = [];
+      palaces[p].specialPatterns = [];
+      palaces[p].patternScoreDelta = 0;
+      continue;
+    }
+    palaces[p].cachCuc = evaluateCachCuc(palaces[p].can, palaces[p].earthStem);
+    palaces[p].specialPatterns = [];
+    palaces[p].patternScoreDelta = 0;
+  }
+
   return {
     palaces,
     isPhucAm,
@@ -859,7 +874,7 @@ export function buildFullChart(date, hourStr) {
 
   const XU = ['Giáp Tý', 'Giáp Tuất', 'Giáp Thân', 'Giáp Ngọ', 'Giáp Thìn', 'Giáp Dần'];
 
-  return annotateTemporalMarkers({
+  const chartWithMarkers = {
     date,
     hour,
     solarTerm: tk,
@@ -876,16 +891,25 @@ export function buildFullChart(date, hourStr) {
     dichMaDay: dmDay,
     xuName: XU[Math.floor(dayPillar.jiazi / 10) % 6],
     xunHour: chartResult.xunName,
-    // Rotation info
     leadStem: chartResult.leadStemName,
     leadStemPalace: chartResult.leadStemPalace,
     leadStar: chartResult.leadStar,
     leadDoor: chartResult.leadDoor,
     trucPhuPalace: chartResult.trucPhuPalace,
     trucSuPalace: chartResult.trucSuPalace,
-    // The chart
     palaces,
-  });
+  };
+
+  const patternSummary = evaluateSpecialPatterns(chartWithMarkers);
+  for (let palaceNum = 1; palaceNum <= 9; palaceNum++) {
+    palaces[palaceNum].specialPatterns = patternSummary.byPalace[palaceNum] || [];
+    palaces[palaceNum].patternScoreDelta = patternSummary.patternScoreDelta[palaceNum] || 0;
+  }
+
+  chartWithMarkers.allSpecialPatterns = patternSummary.allPatterns;
+  chartWithMarkers.topSpecialPatterns = patternSummary.topPatterns;
+
+  return annotateTemporalMarkers(chartWithMarkers);
 }
 
 // Legacy export for compatibility

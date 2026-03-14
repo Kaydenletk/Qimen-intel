@@ -18,6 +18,7 @@ import { generateQuickSummary } from './src/logic/dungThan/quickSummary.js';
 import { parseKimonJsonResponse, toKimonResponseSchema } from './src/logic/kimon/jsonResponse.js';
 import { canonicalizeTopicKey, detectDeepDive, detectTopicHybrid } from './src/logic/kimon/detectTopic.js';
 import { detectQuestionIntent } from './src/logic/kimon/questionIntent.js';
+import { buildEnergyStateBundle } from './src/logic/kimon/energyState.js';
 import { getKimonGroundingBundle, toClientGroundingMeta } from './src/logic/kimon/grounding.js';
 import { selectModel, buildPromptByTier, getTierRuntimeConfig } from './src/logic/kimon/modelRouter.js';
 import {
@@ -604,10 +605,19 @@ function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '', userConte
       userContext,
       hourPalaceNum: qmdjData?.hourMarkerPalace || null,
     });
+    const energyBundle = buildEnergyStateBundle({
+      qmdjData: {
+        ...qmdjData,
+        selectedTopicCanonicalDungThan: canonicalDungThan || qmdjData.selectedTopicCanonicalDungThan || null,
+        selectedTopicKey: normalizedTopicKey,
+      },
+      usefulPalaceNum: canonicalDungThan?.palaceNum || qmdjData?.selectedTopicUsefulPalace || null,
+    });
     return {
       ...qmdjData,
       selectedTopicKey: normalizedTopicKey,
       selectedTopicCanonicalDungThan: canonicalDungThan || qmdjData.selectedTopicCanonicalDungThan || null,
+      ...energyBundle,
     };
   }
 
@@ -616,6 +626,15 @@ function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '', userConte
     boardData: qmdjData?.displayPalaces || {},
     userContext,
     hourPalaceNum: qmdjData?.hourMarkerPalace || null,
+  });
+  const energyBundle = buildEnergyStateBundle({
+    qmdjData: {
+      ...qmdjData,
+      selectedTopicKey: normalizedTopicKey,
+      selectedTopicUsefulPalace: detail.usefulGodPalace || qmdjData.selectedTopicUsefulPalace || '',
+      selectedTopicCanonicalDungThan: canonicalDungThan || qmdjData.selectedTopicCanonicalDungThan || null,
+    },
+    usefulPalaceNum: detail.usefulGodPalace || canonicalDungThan?.palaceNum || qmdjData?.selectedTopicUsefulPalace || null,
   });
 
   return {
@@ -630,6 +649,7 @@ function enrichQmdjDataWithDetectedTopic(qmdjData = {}, topicKey = '', userConte
     selectedTopicMarkersForAI: detail.markersForAI || qmdjData.selectedTopicMarkersForAI || null,
     selectedTopicNguHanh: detail.nguHanhRelation || qmdjData.selectedTopicNguHanh || null,
     selectedTopicCanonicalDungThan: canonicalDungThan || qmdjData.selectedTopicCanonicalDungThan || null,
+    ...energyBundle,
   };
 }
 
@@ -908,7 +928,18 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   const fallbackActionLabel = score => (score >= 5 ? 'Chủ động' : score <= -5 ? 'Phòng thủ' : 'Quan sát');
   const mapStrategicAction = signal => (signal > 0 ? 'Chủ động' : signal < 0 ? 'Phòng thủ' : 'Quan sát');
   const topFormations = Array.isArray(evaluation.topFormations) ? evaluation.topFormations.slice(0, 8) : [];
-  const formationTypeLabel = type => (type === 'cat' ? 'Cát' : type === 'hung' ? 'Hung' : 'Bình');
+  const normalizeFormationTone = type => {
+    const normalized = String(type || '').toLowerCase();
+    if (normalized.includes('hung')) return 'hung';
+    if (normalized.includes('cat') || normalized.includes('cát')) return 'cat';
+    return 'info';
+  };
+  const formationTypeLabel = type => {
+    const tone = normalizeFormationTone(type);
+    if (tone === 'cat') return 'Cát';
+    if (tone === 'hung') return 'Hung';
+    return 'Bình';
+  };
   const buildFormationEvidence = usefulPalace => {
     const palaceNum = Number(usefulPalace);
     if (!topFormations.length) return [];
@@ -918,14 +949,14 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       : [];
     const picked = palaceHits.length ? palaceHits.slice(0, 2) : topFormations.slice(0, 2);
     const heading = palaceHits.length
-      ? 'Cách cục tại cung Dụng Thần:'
-      : 'Cách cục nổi bật toàn cục:';
+      ? 'Pattern nổi bật tại cung Dụng Thần:'
+      : 'Pattern nổi bật toàn cục:';
 
     return [
       heading,
       ...picked.map(hit => {
         const tone = formationTypeLabel(hit?.type);
-        const name = hit?.name || 'Cách cục';
+        const name = hit?.name || 'Pattern';
         const desc = hit?.desc || 'Chưa có mô tả chi tiết.';
         const palaceText = Number.isFinite(Number(hit?.palace)) ? ` (P${hit.palace})` : '';
         return `[${tone}] ${name}${palaceText} — ${desc}`;
@@ -1038,6 +1069,19 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       </div>
     `;
   };
+  const renderCachCucList = pal => {
+    const patternLabels = Array.isArray(pal?.patternLabels) ? pal.patternLabels.slice(0, 2) : [];
+    if (!patternLabels.length) return '';
+    const patternToneClass = type => {
+      const tone = normalizeFormationTone(type);
+      return tone === 'cat' ? 'cachcuc-badge--cat' : tone === 'hung' ? 'cachcuc-badge--hung' : 'cachcuc-badge--info';
+    };
+    return `
+      <div class="cachcuc-badges">
+        ${patternLabels.map(item => `<span class="cachcuc-badge ${patternToneClass(item?.type)}" title="${escapeHTML(item?.desc || item?.internalName || '')}">${renderLabel(item, item.displayShort)}</span>`).join('')}
+      </div>
+    `;
+  };
   const renderSecondaryEntity = (entity, fallback = '—') => (
     entity ? `<span class="palace-secondary">${renderEntity(entity, fallback)}</span>` : ''
   );
@@ -1097,11 +1141,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const earthText = getExpertLabelText(pal?.earthStemLabel, '—');
     return `${heavenText} / ${earthText}`;
   };
-  const formatExpertBackgroundBase = backgroundDebug => {
-    const rawScore = backgroundDebug?.baseScore;
-    return Number.isFinite(Number(rawScore)) ? formatDebugScore(rawScore) : '—';
-  };
-  const formatExpertTagSummary = backgroundDebug => formatTagAdjustments(backgroundDebug) || '—';
   const renderExpertValue = (value, fallback = '—') => {
     const text = String(value ?? '').trim() || fallback;
     return `<span class="expert-copy-value">${escapeHTML(text)}</span>`;
@@ -1115,18 +1154,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       </div>
     `;
   };
-  const renderExpertReasons = reasons => {
-    const safeReasons = Array.isArray(reasons) ? reasons.filter(Boolean) : [];
-    if (!safeReasons.length) {
-      return renderExpertValue('—');
-    }
-    return `
-      <ul class="expert-copy-sublist">
-        ${safeReasons.map(reason => `<li>${escapeHTML(reason)}</li>`).join('')}
-      </ul>
-    `;
-  };
-
   const expertRows = [];
   for (const [dir, pal] of getVisualPalaceEntries(palacesByNum)) {
     const p = SLOT_TO_PALACE[dir];
@@ -1137,21 +1164,22 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     const directionText = getExpertLabelText(pal.directionLabel, directionLabel || '—');
     const phiText = pal?.phiTinhNum ?? '—';
     const scoreText = formatPalaceScore(pal?.score ?? 0);
-    const toneText = toneLabelFromKey(rawTone);
     const coreTitle = `Cung ${p}`;
-    const reasons = formatBackgroundReasons(pal?.backgroundDebug);
     const flagText = formatExpertList(pal?.flagLabels);
     const markerText = formatExpertList(pal?.temporalBadgeLabels);
-    const bgBaseText = formatExpertBackgroundBase(pal?.backgroundDebug);
-    const bgTagsText = formatExpertTagSummary(pal?.backgroundDebug);
-    const toneDebugText = `${toneText} (${rawTone || 'neutral'})`;
+    const mergedPatternText = formatExpertList(pal?.patternLabels);
+    const headNotes = [
+      markerText !== '—' ? `Marker: ${markerText}` : '',
+      flagText !== '—' ? `Cờ: ${flagText}` : '',
+      mergedPatternText !== '—' ? `Pattern: ${mergedPatternText}` : '',
+    ].filter(Boolean).join(' · ');
 
     expertRows.push(`
       <article class="expert-copy-card expert-copy-card--${toneKey}" data-palace="${p}" data-tone="${escapeHTML(rawTone)}">
         <div class="expert-copy-card-head">
           <div>
             <h4 class="expert-copy-card-title">${escapeHTML(coreTitle)} · ${escapeHTML(directionText)}</h4>
-            <p class="expert-copy-card-meta">Phi Tinh #${escapeHTML(String(phiText))} · Score ${escapeHTML(scoreText)} · Tone ${escapeHTML(toneText)}</p>
+            <p class="expert-copy-card-meta">${escapeHTML(headNotes || 'Dữ liệu lõi để AI đọc trận.')}</p>
           </div>
         </div>
         <dl class="expert-copy-list">
@@ -1161,11 +1189,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           ${renderExpertField('Thiên can / Địa can', renderExpertValue(formatExpertStemPair(pal)))}
           ${renderExpertField('Cờ', renderExpertValue(flagText))}
           ${renderExpertField('Marker', renderExpertValue(markerText))}
-          ${renderExpertField('Score', renderExpertValue(scoreText))}
-          ${renderExpertField('Tone', renderExpertValue(toneDebugText))}
-          ${renderExpertField('BG Base', renderExpertValue(bgBaseText))}
-          ${renderExpertField('BG Tags', renderExpertValue(bgTagsText), { multiline: bgTagsText !== '—' })}
-          ${renderExpertField('BG Reasons', renderExpertReasons(reasons), { multiline: true })}
+          ${renderExpertField('Cách cục & trạng thái', renderExpertValue(mergedPatternText))}
         </dl>
       </article>
     `);
@@ -1303,7 +1327,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   const hourCarrierStar = chart?.palaces?.[hourPalaceNum || 0]?.sentStar?.short || chart?.palaces?.[hourPalaceNum || 0]?.sentStar?.name || '';
   const hourEnergyTone = displayChart.hourEnergyTone || chart.hourEnergyTone || 'neutral';
   const hourEnergyVerdict = displayChart.hourEnergyVerdict || chart.hourEnergyVerdict || 'trung';
-  const hourEnergyScore = displayChart.hourEnergyScore ?? chart.hourEnergyScore ?? 0;
   const routePalaceNum = displayChart.directEnvoyActionPalace || chart.directEnvoyActionPalace || chart.trucSuPalace || null;
   const routePalace = routePalaceNum ? palacesByNum[routePalaceNum] : null;
   const routeDoorText = routePalace?.mon?.displayName || routePalace?.mon?.displayShort || 'Môn chưa xác định';
@@ -1312,7 +1335,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   const routeDirText = routePalaceNum ? palaceLabelFromNum(routePalaceNum) : 'vị trí chưa xác định';
   const routeEnergyTone = displayChart.directEnvoyActionTone || chart.directEnvoyActionTone || 'neutral';
   const routeEnergyVerdict = displayChart.directEnvoyActionVerdict || chart.directEnvoyActionVerdict || 'trung';
-  const routeEnergyScore = displayChart.directEnvoyActionScore ?? chart.directEnvoyActionScore ?? 0;
   const quickReadSummary = displayChart.hourQuickReadSummary || chart.hourQuickReadSummary || 'Khí giờ đang trung tính, cần quan sát thêm trước khi tăng lực';
   const markersSamePalace = Boolean(dayPalaceNum && hourPalaceNum && dayPalaceNum === hourPalaceNum);
   let chiefPalaceNum = null;
@@ -1365,21 +1387,20 @@ function generateHTML(date, hour, minute = 0, options = {}) {
   `;
 
   const topicRows = topicEntries.map(res => `
-    <tr data-topic="${res.topic}" data-direction="${res.usefulGodDir}" data-score="${res.score}">
+    <tr data-topic="${res.topic}" data-direction="${res.usefulGodDir}">
       <td data-col="topic">${res.topic}</td>
         <td data-col="direction">${palaceLabelFromNum(res.usefulGodPalace)}</td>
       <td>${res.usefulGodPalace}</td>
       <td>${res.verdict.label}</td>
-      <td data-col="score">${formatScore(res.score)}</td>
     </tr>
   `).join('');
 
   const signalBadges = evaluation.topFormations.length
     ? evaluation.topFormations.slice(0, 4).map(f => {
-      const tone = f.type === 'cat' ? 'cat' : f.type === 'hung' ? 'hung' : 'info';
-      const safeName = escapeHTML(f.name || 'Cách cục');
+      const tone = normalizeFormationTone(f?.type);
+      const safeName = escapeHTML(f.name || 'Pattern');
       const safeDesc = escapeHTML(f.desc || 'Chưa có mô tả chi tiết.');
-      const safeTitle = escapeHTML(`${f.name || 'Cách cục'}: ${f.desc || 'Chưa có mô tả chi tiết.'}`);
+      const safeTitle = escapeHTML(`${f.name || 'Pattern'}: ${f.desc || 'Chưa có mô tả chi tiết.'}`);
       return `
       <button type="button" class="signal signal-${tone} signal-with-tooltip" title="${safeTitle}" aria-label="${safeTitle}">
         ${safeName}
@@ -1474,6 +1495,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         </div>
         ${renderTemporalBadgeList(pal)}
         ${renderFlagList(pal)}
+        ${renderCachCucList(pal)}
         <div class="palace-body">
           <div class="palace-corner palace-corner-top-left">${renderEntity(pal.than)}</div>
           <div class="palace-corner palace-corner-top-right">${renderEntity(pal.can)}</div>
@@ -1566,7 +1588,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       --topic-chip-bg: #FFFFFF;
       --topic-chip-hover-border: #BFDBFE;
       --insight-card-bg: #FFFFFF;
-      --score-track-bg: #E2E8F0;
       --table-head-bg: #F8FAFC;
       --table-row-border: #EEF2F7;
       --time-strip-bg: #FFFFFF;
@@ -1652,7 +1673,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       --topic-chip-bg: #111827;
       --topic-chip-hover-border: #334155;
       --insight-card-bg: #111827;
-      --score-track-bg: #233145;
       --table-head-bg: #162032;
       --table-row-border: #243041;
       --time-strip-bg: #111827;
@@ -2215,37 +2235,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .verdict-pill.cat { color: var(--cat); border-color: rgba(16,185,129,0.35); background: rgba(16,185,129,0.09); }
     .verdict-pill.hung { color: var(--hung); border-color: rgba(244,63,94,0.35); background: rgba(244,63,94,0.09); }
     .verdict-pill.info { color: var(--info); border-color: rgba(59,130,246,0.35); background: rgba(59,130,246,0.09); }
-    .score-wrap {
-      margin-top: 14px;
-      display: grid;
-      gap: 7px;
-    }
-    .score-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.86rem;
-      color: var(--muted);
-    }
-    .score-head strong {
-      font-size: 1.2rem;
-      color: var(--text);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    .score-track {
-      height: 12px;
-      border-radius: 999px;
-      background: var(--score-track-bg);
-      overflow: hidden;
-    }
-    .score-fill {
-      height: 100%;
-      border-radius: 999px;
-      transition: width 0.28s ease;
-    }
-    .score-fill.cat { background: var(--cat); }
-    .score-fill.hung { background: var(--hung); }
-    .score-fill.info { background: var(--info); }
     .advice {
       margin-top: 14px;
       font-size: 1rem;
@@ -2849,7 +2838,16 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       gap: 6px;
       margin-bottom: 8px;
     }
+    .cachcuc-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: -2px 0 8px;
+    }
     .flag-badge {
+      display: inline-flex;
+    }
+    .cachcuc-badge {
       display: inline-flex;
     }
     .flag-badge .display-label {
@@ -2862,7 +2860,36 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       border: 1px solid var(--badge-border);
       font-weight: 700;
     }
+    .cachcuc-badge .display-label {
+      font-size: 0.68rem;
+      line-height: 1;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(249, 115, 22, 0.14);
+      color: #f97316;
+      border: 1px solid rgba(249, 115, 22, 0.35);
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+    .cachcuc-badge--hung .display-label {
+      background: rgba(248, 113, 113, 0.15);
+      color: #fca5a5;
+      border-color: rgba(248, 113, 113, 0.32);
+    }
+    .cachcuc-badge--cat .display-label {
+      background: rgba(250, 204, 21, 0.16);
+      color: #fde68a;
+      border-color: rgba(250, 204, 21, 0.34);
+    }
+    .cachcuc-badge--info .display-label {
+      background: rgba(148, 163, 184, 0.16);
+      color: rgba(226, 232, 240, 0.92);
+      border-color: rgba(148, 163, 184, 0.32);
+    }
     .flag-badge .internal-label {
+      display: none;
+    }
+    .cachcuc-badge .internal-label {
       display: none;
     }
     .palace-verdict {
@@ -3809,18 +3836,20 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           <p class="eyebrow">Tóm Tắt Chiến Lược</p>
           <h2 id="briefingTitle">${briefingHeading}</h2>
           <p id="briefingContent" class="briefing-narrative">${briefingParagraph}</p>
-          <span id="totalScoreValue" data-kimon-score="${evaluation.overallScore}" hidden>${evaluation.overallScore}</span>
           <span id="kimonAutoData"
             data-display-palaces="${escapeHTML(JSON.stringify(displayChart.palaces || {}))}"
             data-palace-summaries="${escapeHTML(JSON.stringify(palaceSummaries || {}).replace(/</g, '\\u003c'))}"
-            data-all-topics="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ topic: t.topic, score: t.score, action: t.actionAdvice, verdict: t.verdict }))))}"
+            data-all-topics="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ topic: t.topic, action: t.actionAdvice, verdict: t.verdict }))))}"
             data-all-topic-details="${escapeHTML(JSON.stringify(uiTopics.map(t => ({ key: t.key, topic: t.topic, chipLabel: t.chipLabel, promptTopicResult: t.promptTopicResult, promptInsight: t.promptInsight, flags: Array.isArray(t.flags) ? t.flags : [], usefulGodPalace: t.usefulGodPalace || '', usefulGodPalaceName: t.usefulGodPalaceName || '', markersForAI: t.markersForAI || null, nguHanhRelation: t.nguHanhRelation || null }))).replace(/</g, '\\u003c'))}"
             data-mon="${escapeHTML(energyFlow.metadata?.door || '')}"
             data-than="${escapeHTML(energyFlow.metadata?.deity || '')}"
             data-tinh="${escapeHTML(energyFlow.metadata?.star || '')}"
-            data-score="${evaluation.overallScore}"
             data-day-stem="${escapeHTML(chart.dayPillar?.stemName || '')}"
             data-hour-stem="${escapeHTML(chart.gioPillar?.stemName || '')}"
+            data-year-pillar="${escapeHTML(getPillarDisplayText(displayChart.yearPillar))}"
+            data-month-pillar="${escapeHTML(getPillarDisplayText(displayChart.monthPillar))}"
+            data-day-pillar="${escapeHTML(getPillarDisplayText(displayChart.dayPillar))}"
+            data-hour-pillar="${escapeHTML(getPillarDisplayText(displayChart.gioPillar))}"
             data-solar-term="${escapeHTML(chart.solarTerm?.name || '')}"
             data-cuc="${chart.cucSo}"
             data-duong="${chart.isDuong}"
@@ -3847,7 +3876,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             data-hour-deity="${escapeHTML(hourDeityText || '')}"
             data-hour-tone="${escapeHTML(hourEnergyTone || '')}"
             data-hour-verdict="${escapeHTML(hourEnergyVerdict || '')}"
-            data-hour-score="${hourEnergyScore}"
             data-route-palace="${routePalaceNum || ''}"
             data-route-direction="${escapeHTML(routeDirText || '')}"
             data-route-door="${escapeHTML(routeDoorText || '')}"
@@ -3855,9 +3883,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
             data-route-deity="${escapeHTML(routeDeityText || '')}"
             data-route-tone="${escapeHTML(routeEnergyTone || '')}"
             data-route-verdict="${escapeHTML(routeEnergyVerdict || '')}"
-            data-route-score="${routeEnergyScore}"
             data-quick-read-summary="${escapeHTML(quickReadSummary || '')}"
             data-formations="${escapeHTML(evaluation.topFormations?.map(f => f.name).join(', ') || '')}"
+            data-top-formations="${escapeHTML((evaluation.topFormations || []).slice(0, 8).map(f => `- ${f.name}: ${f.desc || ''}`.trim()).join('\n'))}"
             hidden></span>
           <div class="signal-row">${signalBadges}</div>
         </section>
@@ -4450,15 +4478,18 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         base?.cucSo ? 'Cục ' + base.cucSo : '',
         base?.isDuong ? 'Dương Độn' : 'Âm Độn',
       ].filter(Boolean).join(' ');
+      const pillarSummary = [
+        base?.hourPillarText ? 'Giờ ' + base.hourPillarText : '',
+        base?.dayPillarText ? 'Ngày ' + base.dayPillarText : '',
+        base?.monthPillar ? 'Tháng ' + base.monthPillar : '',
+        base?.yearPillar ? 'Năm ' + base.yearPillar : '',
+      ].filter(Boolean).join(', ');
       const headerLines = [
-        'THIÊN BÀN QMDJ',
+        pillarSummary ? 'Trận đồ: ' + pillarSummary : 'Trận đồ QMDJ',
         date ? '- Ngày: ' + date : '',
-        timeLabel ? '- Giờ: ' + timeLabel : '',
-        base?.dayStem ? '- Nhật Can: ' + base.dayStem : '',
-        base?.hourStem ? '- Giờ Can Chi: ' + base.hourStem : '',
+        timeLabel ? '- Giờ nhập: ' + timeLabel : '',
         base?.solarTerm ? '- Tiết khí: ' + base.solarTerm : '',
         structure ? '- Cấu trúc: ' + structure : '',
-        Number.isFinite(base?.overallScore) ? '- Điểm tổng: ' + base.overallScore : '',
       ].filter(Boolean);
 
       const markerLines = [
@@ -4492,29 +4523,21 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         const deity = getPalaceExportValue(palace.than);
         const sentStar = getPalaceExportValue(palace.sentStar, '');
         const badges = getPalaceBadgeList(palace);
-        const rawTone = String(palace?.backgroundTone || palace?.tone || 'neutral').trim() || 'neutral';
-        const toneText = formatExpertExportTone(rawTone);
-        const backgroundDebug = palace?.backgroundDebug || null;
-        const bgBase = Number.isFinite(Number(backgroundDebug?.baseScore))
-          ? formatExpertExportDebugScore(backgroundDebug.baseScore)
-          : '—';
-        const bgTags = formatExpertExportTagAdjustments(backgroundDebug) || '—';
-        const bgReasons = formatExpertExportReasons(backgroundDebug);
+        const mergedPatterns = Array.isArray(palace?.patternLabels) ? palace.patternLabels : [];
+        const headingTags = [];
+        if (badges.flags.includes('Trực Sử')) headingTags.push('Trực Sử');
+        if (badges.flags.includes('Trực Phù')) headingTags.push('Trực Phù');
+        if (!headingTags.length && badges.temporal.length) headingTags.push(...badges.temporal.slice(0, 1));
+        const title = 'Cung ' + palaceNum + ' (' + direction + ')' + (headingTags.length ? ' - ' + headingTags.join(' / ') : '') + ':';
         const lines = [
-          direction + ' (P' + palaceNum + ')',
-          palace?.phiTinhNum ? '- Phi Tinh: #' + palace.phiTinhNum : '',
-          door !== '—' ? '- Môn: ' + door : '',
-          star !== '—' ? '- Tinh: ' + star + (sentStar ? ' | Phụ tinh: ' + sentStar : '') : sentStar ? '- Phụ tinh: ' + sentStar : '',
-          deity !== '—' ? '- Thần: ' + deity : '',
-          heavenStem !== '—' ? '- Thiên Can: ' + heavenStem : '',
-          earthStem !== '—' ? '- Địa Can: ' + earthStem : '',
-          badges.flags.length ? '- Cờ: ' + badges.flags.join(', ') : '',
-          badges.temporal.length ? '- Marker: ' + badges.temporal.join(', ') : '',
-          Number.isFinite(Number(palace?.score)) ? '- Score: ' + formatExpertExportScore(palace.score) : '',
-          '- Tone: ' + toneText + ' (' + rawTone + ')',
-          '- BG Base: ' + bgBase,
-          '- BG Tags: ' + bgTags,
-          bgReasons.length ? '- BG Reasons: ' + bgReasons.join(' | ') : '- BG Reasons: —',
+          title,
+          [star !== '—' ? 'Sao: ' + star : '', deity !== '—' ? 'Thần: ' + deity : '', door !== '—' ? 'Môn: ' + door : ''].filter(Boolean).join(' | '),
+          [heavenStem !== '—' ? heavenStem : '', earthStem !== '—' ? earthStem : ''].filter(Boolean).length
+            ? 'Can: ' + [heavenStem !== '—' ? heavenStem : '', earthStem !== '—' ? earthStem : ''].filter(Boolean).join(' / ')
+            : '',
+          badges.flags.length ? 'Cờ: ' + badges.flags.join(', ') : '',
+          badges.temporal.length ? 'Marker: ' + badges.temporal.join(', ') : '',
+          mergedPatterns.length ? 'Cách cục & trạng thái: ' + mergedPatterns.join(', ') : '',
         ].filter(Boolean);
         return lines.join('\\n');
       }).filter(Boolean).join('\\n\\n');
@@ -4883,6 +4906,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           label: 'Thời điểm',
           className: 'kymon-time-hint',
           rawText: data.tactics?.timing || data.timeHint || '',
+          seenParagraphs,
+        }));
+
+        pushSection(createKimonTextSection({
+          label: 'Phương vị',
+          className: 'kymon-time-hint',
+          rawText: data.tactics?.direction || '',
           seenParagraphs,
         }));
 
@@ -5386,8 +5416,12 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         than: kimonAutoData.dataset.than || '',
         tinh: kimonAutoData.dataset.tinh || '',
         cung: kimonAutoData.dataset.dayPalace || '',
-        score: parseInt(kimonAutoData.dataset.score) || 0,
-        overallScore: parseInt(kimonAutoData.dataset.score) || 0,
+        score: 0,
+        overallScore: 0,
+        yearPillar: kimonAutoData.dataset.yearPillar || '',
+        monthPillar: kimonAutoData.dataset.monthPillar || '',
+        dayPillarText: kimonAutoData.dataset.dayPillar || '',
+        hourPillarText: kimonAutoData.dataset.hourPillar || '',
         dayStem: kimonAutoData.dataset.dayStem || '',
         hourStem: kimonAutoData.dataset.hourStem || '',
         solarTerm: kimonAutoData.dataset.solarTerm || '',
@@ -5402,6 +5436,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         blindSpot: kimonAutoData.dataset.blindSpot || '',
         energyAdvice: kimonAutoData.dataset.energyAdvice || '',
         formations: kimonAutoData.dataset.formations || '',
+        topFormations: kimonAutoData.dataset.topFormations || '',
         dayMarkerPalace: parseInt(kimonAutoData.dataset.dayMarkerPalace) || null,
         dayMarkerDirection: kimonAutoData.dataset.dayMarkerDirection || '',
         dayMarkerResolutionSource: kimonAutoData.dataset.dayMarkerSource || '',
@@ -5417,7 +5452,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         hourDeity: kimonAutoData.dataset.hourDeity || hourSignals.deity || '',
         hourEnergyTone: kimonAutoData.dataset.hourTone || '',
         hourEnergyVerdict: kimonAutoData.dataset.hourVerdict || '',
-        hourEnergyScore: parseInt(kimonAutoData.dataset.hourScore) || 0,
+        hourEnergyScore: 0,
         directEnvoyPalace,
         directEnvoyDirection: kimonAutoData.dataset.routeDirection || '',
         directEnvoyDoor: kimonAutoData.dataset.routeDoor || routeSignals.door || '',
@@ -5425,7 +5460,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         directEnvoyDeity: kimonAutoData.dataset.routeDeity || routeSignals.deity || '',
         directEnvoyActionTone: kimonAutoData.dataset.routeTone || '',
         directEnvoyActionVerdict: kimonAutoData.dataset.routeVerdict || '',
-        directEnvoyActionScore: parseInt(kimonAutoData.dataset.routeScore) || 0,
+        directEnvoyActionScore: 0,
         quickReadSummary: kimonAutoData.dataset.quickReadSummary || '',
         allTopics: kimonAutoData.dataset.allTopics || '[]',
         allTopicDetails,
@@ -5609,33 +5644,6 @@ function generateHTML(date, hour, minute = 0, options = {}) {
         }, rawData);
       }
 
-      // ── Detect Kymon Pro schema (4 steps + closingLine) ──
-      const buoc1 = typeof rawData.buoc1_gocReVanDe === 'string' ? rawData.buoc1_gocReVanDe.trim() : '';
-      const buoc2 = typeof rawData.buoc2_trangThaiMucTieu === 'string' ? rawData.buoc2_trangThaiMucTieu.trim() : '';
-      const buoc3 = typeof rawData.buoc3_noiLucVaTamLy === 'string' ? rawData.buoc3_noiLucVaTamLy.trim() : '';
-      const buoc4 = typeof rawData.buoc4_muuLuocHanhDong === 'string' ? rawData.buoc4_muuLuocHanhDong.trim() : '';
-      const hasKymonProSteps = Boolean(buoc1 || buoc2 || buoc3 || buoc4);
-
-      if (hasKymonProSteps) {
-        const closingLine = typeof rawData.closingLine === 'string'
-          ? rawData.closingLine.trim()
-          : (typeof rawData.kimonQuote === 'string' ? rawData.kimonQuote.trim() : '');
-
-        return attachKimonUiMeta({
-          mode: typeof rawData.mode === 'string' && rawData.mode.trim() ? rawData.mode.trim() : 'interpretation',
-          schema: 'kymon-pro',
-          buoc1_gocReVanDe: buoc1,
-          buoc2_trangThaiMucTieu: buoc2,
-          buoc3_noiLucVaTamLy: buoc3,
-          buoc4_muuLuocHanhDong: buoc4,
-          closingLine,
-          kimonQuote: closingLine,
-          lead: buoc1 || KYMON_PARTIAL_LEAD,
-          timeHint: '',
-          message: [buoc2, buoc3, buoc4].filter(Boolean).join('\\n\\n') || buoc1 || KYMON_UNCLEAR_MESSAGE,
-        }, rawData);
-      }
-
       // ── Detect Strategy schema (verdict/analysis/adversary/tactics/closingLine) ──
       const hasStrategyVerdict = typeof rawData.verdict === 'string' && rawData.verdict.trim();
       const hasStrategyTactics = rawData.tactics && typeof rawData.tactics === 'object' && !Array.isArray(rawData.tactics);
@@ -5661,6 +5669,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           timing: typeof tacticsRaw.timing === 'string'
             ? tacticsRaw.timing.trim()
             : (typeof rawData.timeHint === 'string' ? rawData.timeHint.trim() : ''),
+          direction: typeof tacticsRaw.direction === 'string'
+            ? tacticsRaw.direction.trim()
+            : '',
         };
         const closingLine = typeof rawData.closingLine === 'string'
           ? rawData.closingLine.trim()
@@ -5679,6 +5690,33 @@ function generateHTML(date, hour, minute = 0, options = {}) {
           timeHint: tactics.timing || '',
           message: analysis || verdict || '',
           action: closingLine,
+        }, rawData);
+      }
+
+      // ── Detect Kymon Pro schema (4 steps + closingLine) ──
+      const buoc1 = typeof rawData.buoc1_gocReVanDe === 'string' ? rawData.buoc1_gocReVanDe.trim() : '';
+      const buoc2 = typeof rawData.buoc2_trangThaiMucTieu === 'string' ? rawData.buoc2_trangThaiMucTieu.trim() : '';
+      const buoc3 = typeof rawData.buoc3_noiLucVaTamLy === 'string' ? rawData.buoc3_noiLucVaTamLy.trim() : '';
+      const buoc4 = typeof rawData.buoc4_muuLuocHanhDong === 'string' ? rawData.buoc4_muuLuocHanhDong.trim() : '';
+      const hasKymonProSteps = Boolean(buoc1 || buoc2 || buoc3 || buoc4);
+
+      if (hasKymonProSteps) {
+        const closingLine = typeof rawData.closingLine === 'string'
+          ? rawData.closingLine.trim()
+          : (typeof rawData.kimonQuote === 'string' ? rawData.kimonQuote.trim() : '');
+
+        return attachKimonUiMeta({
+          mode: typeof rawData.mode === 'string' && rawData.mode.trim() ? rawData.mode.trim() : 'interpretation',
+          schema: 'kymon-pro',
+          buoc1_gocReVanDe: buoc1,
+          buoc2_trangThaiMucTieu: buoc2,
+          buoc3_noiLucVaTamLy: buoc3,
+          buoc4_muuLuocHanhDong: buoc4,
+          closingLine,
+          kimonQuote: closingLine,
+          lead: buoc1 || KYMON_PARTIAL_LEAD,
+          timeHint: '',
+          message: [buoc2, buoc3, buoc4].filter(Boolean).join('\\n\\n') || buoc1 || KYMON_UNCLEAR_MESSAGE,
         }, rawData);
       }
 

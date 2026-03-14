@@ -5,6 +5,7 @@ import { appendGroundingSystemRules, buildGroundingUserContext } from './groundi
 import { buildQuestionIntentContext } from './questionIntent.js';
 import { buildFlashTopicPersonaContext } from './topicPersonaProfiles.js';
 import { buildKnowledgeVaultContext } from './knowledgeVault.js';
+import { buildEnergyStateBundle, buildEnergyStateContext } from './energyState.js';
 
 function parseTopics(qmdjData = {}) {
   const raw = qmdjData?.allTopics || '[]';
@@ -20,7 +21,7 @@ function buildTopicsContext(qmdjData = {}) {
   const topics = parseTopics(qmdjData);
   if (!topics.length) return 'Không có dữ liệu chủ đề mở rộng.';
   return topics
-    .map(topic => `- ${topic.topic} (${topic.verdict}, ${topic.score >= 0 ? '+' : ''}${topic.score}): ${topic.action}`)
+    .map(topic => `- ${topic.topic} (${topic.verdict}): ${topic.action}`)
     .join('\n');
 }
 
@@ -31,8 +32,8 @@ function buildColorSignal(qmdjData = {}) {
   const routeVerdict = qmdjData?.directEnvoyActionVerdict || 'trung';
   const quickSummary = qmdjData?.quickReadSummary || '';
   return [
-    `[ĐÈN GIỜ] tone=${tone}; verdict=${verdict}; score=${qmdjData?.hourEnergyScore ?? 0}`,
-    `[ĐƯỜNG HÀNH ĐỘNG] tone=${routeTone}; verdict=${routeVerdict}; score=${qmdjData?.directEnvoyActionScore ?? 0}`,
+    `[ĐÈN GIỜ] tone=${tone}; verdict=${verdict}`,
+    `[ĐƯỜNG HÀNH ĐỘNG] tone=${routeTone}; verdict=${routeVerdict}`,
     quickSummary ? `[KẾT LUẬN NHANH] ${quickSummary}` : '',
   ].filter(Boolean).join('\n');
 }
@@ -255,12 +256,16 @@ Bạn là Kymon — nhà phân tích Kỳ Môn Độn Giáp cho các câu hỏi 
   + Can Ngày (Nhật Can) đại diện cho người hỏi.
   + Can Tháng đại diện cho đồng nghiệp, đối tác.
   + Can Giờ đại diện cho sự việc đang xét.
-- Đọc Cung Dụng Thần Đặc Thù thay vì chỉ đọc Điểm Tổng: Khai Môn (Sự nghiệp), Sinh Môn/Mậu (Lợi nhuận/Vốn), Cảnh Môn (Mưu tính), Tử Môn (Bất động sản hoặc bế tắc).
+- Đọc Cung Dụng Thần Đặc Thù qua Energy State và tượng của cung, không lấy một con số tổng hợp làm xương sống. Khai Môn (Sự nghiệp), Sinh Môn/Mậu (Lợi nhuận/Vốn), Cảnh Môn (Mưu tính), Tử Môn (Bất động sản hoặc bế tắc).
 - Bắt buộc phân tích tính sinh/khắc/tỷ hòa giữa cung [Can Ngày] và cung [Can Giờ/Dụng Thần].
 - Khai thác tối đa Tượng của Thần/Tinh/Môn tại cung đang xét: VD Cửu Địa = vững vàng/cố thủ, Huyền Vũ = tiểu nhân/rủi ro ngầm, Thiên Bồng = làm lớn nhưng rủi ro phá tài, Kinh Môn = lo lắng, Thiên Nhậm = ngang ngược nhưng bền bỉ.
 - Nếu input có block [KHO TRI THỨC QMDJ], coi đó là kho tri thức thực chiến đã bóc sẵn từ thư tịch. Ưu tiên dùng đúng các nét nghĩa và tương tác ở block đó, không tự bẻ sang nghĩa khác.
 - Nếu input có block [PERSONA THEO CHỦ ĐỀ], đó là lớp dịch tượng và từ vựng bắt buộc cho chủ đề đang hỏi.
 - Nếu input có block [TRỤC CÂU HỎI], đó là ưu tiên số 1 cho câu mở đầu và câu chốt. Trả lời đúng cái user hỏi trước, rồi mới diễn giải vì sao trận đi về hướng đó.
+- Nếu input có [CÁCH CỤC & PATTERN ĐỘNG] hoặc [TOP FORMATIONS], phải coi đó là lớp "điều khiển" của sự việc. Nêu tên pattern khi nó thật sự chi phối cung Dụng Thần. Nếu pattern đẹp đi cùng Không Vong, đọc thành hình đẹp nhưng lực thực rỗng.
+- Nếu input có block [ENERGY STATE], đó là hợp đồng năng lượng mới. Không được nhìn tên đẹp/xấu của Môn/Tinh riêng lẻ; bắt buộc đọc vitality, structure, transparency, tension trước rồi mới chốt verdict.
+- Nếu ENERGY STATE ghi structure = Môn Bức hoặc vitality = Tù khí/Tử khí, phải đọc là có tiếng mà không có miếng, lực bất tòng tâm hoặc cát khí bị nghẽn.
+- Nếu ENERGY STATE của Dụng Thần ghi transparency = Không Vong, mặc định đọc là ảo ảnh hoặc hình đẹp nhưng ruột rỗng, trừ khi state ghi rõ điều kiện cứu.
 - KHÔNG BAO GIỜ khuyên người dùng mù quáng "hãy hành động đi" nếu Dụng Thần hoặc Trụ vướng Hung Tinh (Ví dụ Huyền Vũ, Tử Môn). Phải bóc tách cả mảng tối của vấn đề.
 - Khi kết luận điều gì, phải nói rõ đang dựa vào mối tương tác nào giữa Môn, Tinh, Thần, Can hoặc Flags.
 - Nếu tín hiệu chồng lớp, phải bóc ít nhất 2-4 tầng nghĩa để người đọc thấy cả bức tranh, không chỉ một mẩu kết luận.
@@ -290,7 +295,6 @@ Bạn là Kymon — nhà phân tích Kỳ Môn Độn Giáp cho các câu hỏi 
 - Ưu tiên văn xuôi liền mạch. Chỉ dùng bullet trong "message" nếu câu hỏi thật sự cần checklist hành động.`;
 
 export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoLoad = false, groundingBundle = null }) {
-  const overallScore = qmdjData?.overallScore ?? qmdjData?.score ?? 0;
   const extras = [
     qmdjData?.isPhucAm ? 'nhịp trì' : '',
     qmdjData?.isPhanNgam ? 'thế dội ngược' : '',
@@ -302,6 +306,12 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
   const usefulGodFocusContext = buildUsefulGodFocusContext(qmdjData, userContext);
   const questionIntentContext = buildQuestionIntentContext(userContext);
   const groundingContext = buildGroundingUserContext(groundingBundle);
+  const formations = qmdjData?.formations || '';
+  const topFormations = qmdjData?.topFormations || '';
+  const energyBundle = qmdjData?.energyStates && qmdjData?.usefulGodState
+    ? qmdjData
+    : { ...qmdjData, ...buildEnergyStateBundle({ qmdjData }) };
+  const energyStateContext = buildEnergyStateContext(energyBundle);
   const knowledgeVaultContext = buildKnowledgeVaultContext({
     qmdjData,
     userContext,
@@ -340,13 +350,17 @@ export function buildKimonPrompt({ qmdjData = {}, userContext = 'chung', isAutoL
     knowledgeVaultContext,
     usefulGodFocusContext,
     buildPROFrameworkContext(qmdjData),
+    energyStateContext,
+    energyBundle?.topicStateSummary ? `[KẾT LUẬN LỰC THỰC] ${energyBundle.topicStateSummary}` : '',
     '',
     '[CHỈ DẤU CHO AI]',
     colorSignal,
     internalInsights ? `\n[INTERNAL INSIGHTS]\n${internalInsights}` : '',
     selectedTopicContext ? `\n${selectedTopicContext}` : '',
     '',
-    `[ĐIỂM TỔNG] ${overallScore}${qmdjData?.solarTerm ? ` | ${qmdjData.solarTerm}` : ''}${qmdjData?.cucSo ? ` | Cục ${qmdjData.cucSo} ${qmdjData?.isDuong ? 'Dương' : 'Âm'}` : ''}${extras ? ` | ${extras}` : ''}`,
+    `[BỐI CẢNH NỀN]${qmdjData?.solarTerm ? ` ${qmdjData.solarTerm}` : ''}${qmdjData?.cucSo ? ` | Cục ${qmdjData.cucSo} ${qmdjData?.isDuong ? 'Dương' : 'Âm'}` : ''}${extras ? ` | ${extras}` : ''}`,
+    formations ? `[CÁCH CỤC & PATTERN ĐỘNG] ${formations}` : '',
+    topFormations ? `[TOP FORMATIONS]\n${topFormations}` : '',
     '',
     '[CÁC CHỦ ĐỀ KHÁC]',
     topicsContext,

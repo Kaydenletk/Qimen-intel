@@ -25,21 +25,6 @@ assert.match(
 );
 assert.match(
   serverSource,
-  /renderExpertField\('BG Reasons', renderExpertReasons\(reasons\), \{ multiline: true \}\)/,
-  'Expert mode phải hiển thị BG Reasons trực tiếp theo label để tiện copy'
-);
-assert.match(
-  serverSource,
-  /renderExpertField\('BG Base', renderExpertValue\(bgBaseText\)\)/,
-  'Expert mode phải hiển thị BG Base'
-);
-assert.match(
-  serverSource,
-  /renderExpertField\('BG Tags', renderExpertValue\(bgTagsText\), \{ multiline: bgTagsText !== '—' \}\)/,
-  'Expert mode phải hiển thị BG Tags'
-);
-assert.match(
-  serverSource,
   /renderExpertField\('Marker', renderExpertValue\(markerText\)\)/,
   'Expert mode phải giữ marker riêng để copy đủ ngữ cảnh thời gian'
 );
@@ -47,6 +32,26 @@ assert.match(
   serverSource,
   /renderExpertField\('Cờ', renderExpertValue\(flagText\)\)/,
   'Expert mode phải giữ cờ riêng để copy đủ ngữ cảnh'
+);
+assert.match(
+  serverSource,
+  /renderExpertField\('Cách cục & trạng thái', renderExpertValue\(mergedPatternText\)\)/,
+  'Expert mode phải gộp cách cục và trạng thái thành một field sạch cho AI'
+);
+assert.doesNotMatch(
+  serverSource,
+  /renderExpertField\('BG Base'|renderExpertField\('BG Tags'|renderExpertField\('BG Reasons'|renderExpertField\('Tone'/,
+  'Expert mode không được còn nhồi BG debug và tone vào card copy-first'
+);
+assert.doesNotMatch(
+  serverSource,
+  /renderExpertField\('Cách cục', renderExpertValue\(cachCucText\)\)|renderExpertField\('Pattern động', renderExpertValue\(specialPatternText\)\)|renderExpertField\('Pattern hợp nhất'/,
+  'Expert mode không nên còn tách pattern thành nhiều field trùng nghĩa'
+);
+assert.doesNotMatch(
+  serverSource,
+  /Phi Tinh #\$\{escapeHTML\(String\(phiText\)\)\} · Score/,
+  'Card expert không nên còn meta Phi Tinh/Score kiểu debug'
 );
 assert.doesNotMatch(
   serverSource,

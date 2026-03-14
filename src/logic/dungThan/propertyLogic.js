@@ -10,7 +10,7 @@ import { getPrimaryCombo, getComboTopicAdvice } from './flagCombos.js';
 export function buildPropertyInsight(context) {
   const combo = getPrimaryCombo(context.flags);
   const comboAdvice = combo ? getComboTopicAdvice(combo.id, 'bat-dong-san') : null;
-  let rawScore = context.topicResult?.score || 0;
+  let rawScore = context.effectiveTopicScore ?? context.topicResult?.score ?? 0;
 
   if (['Sinh', 'Khai'].includes(context.door)) rawScore += 4;
   if (context.deity === 'Cửu Địa' || context.deity === 'Lục Hợp') rawScore += 3;

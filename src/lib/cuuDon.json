@@ -1,0 +1,35 @@
+[
+  {
+    "id": "cuu_don_thien_don",
+    "name": "Thiên Độn",
+    "type": "Đại Cát",
+    "priority": 9,
+    "desc": "Cửa sinh gặp Bính và Thái Âm. Có đường ẩn để vượt khó, mưu sự dễ được trời giúp khi biết đi mềm.",
+    "scoreDelta": 4,
+    "door": "Sinh",
+    "stem": "Bính",
+    "deity": "Thái Âm"
+  },
+  {
+    "id": "cuu_don_dia_don",
+    "name": "Địa Độn",
+    "type": "Đại Cát",
+    "priority": 9,
+    "desc": "Cửa sinh gặp Ất và Cửu Địa. Có nền đất đỡ lưng, đi chậm mà chắc, giữ được thế bền.",
+    "scoreDelta": 4,
+    "door": "Sinh",
+    "stem": "Ất",
+    "deity": "Cửu Địa"
+  },
+  {
+    "id": "cuu_don_nhan_don",
+    "name": "Nhân Độn",
+    "type": "Đại Cát",
+    "priority": 9,
+    "desc": "Cửa sinh gặp Đinh và Trực Phù. Được người nâng, có đường người cứu, dễ mở nút bằng nhân sự đúng.",
+    "scoreDelta": 4,
+    "door": "Sinh",
+    "stem": "Đinh",
+    "deity": "Trực Phù"
+  }
+]

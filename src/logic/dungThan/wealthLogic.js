@@ -124,7 +124,7 @@ function buildModeCore(context, rhythm, capitalWarnings, scoreSignal) {
 export function buildWealthInsight(context) {
   const combo = getPrimaryCombo(context.flags);
   const comboAdvice = combo ? getComboTopicAdvice(combo.id, context.topicKey || 'tai-van') : null;
-  let rawScore = context.topicResult?.score || 0;
+  let rawScore = context.effectiveTopicScore ?? context.topicResult?.score ?? 0;
 
   if (context.door === 'Sinh') rawScore += 4;
   if (context.door === 'Khai') rawScore += 3;

@@ -96,7 +96,7 @@ export class StrategyEngine {
      return [6]; // Giả định Càn Môn
   }
 
-  // -------------- MODULE 3: THUYẾT KHÁCH - CHỦ --------------
+  // -------------- MODULE 3: VỊ THẾ HAI BÊN --------------
   _analyzeGuestHost() {
       // Đếm các yếu tố biến động (Dịch Mã, Phản Ngâm) hoặc tĩnh (Phục Ngâm, Đỗ/Tử môn)
       // Dựa vào metadata của Chart (ví dụ chart.isFanYin, chart.isFuYin)
@@ -109,16 +109,16 @@ export class StrategyEngine {
       
       if (isFanYin || ['door_scenery', 'door_fear', 'door_harm'].includes(targetDoor)) { // Môn động/hung
           return {
-              role: 'GUEST',
-              strategy: 'Làm KHÁCH: Ra tay trước, thay đổi chiến thuật nhanh chóng, phủ đầu đối phương.',
+              role: 'ACTIVE',
+              strategy: 'Phía bạn (Chủ động), phía sự việc (Tiếp nhận): Ra tay trước, thay đổi chiến thuật nhanh chóng, phủ đầu đối phương.',
               color: 'red'
           };
       } 
       
       if (isFuYin || ['door_delusion', 'door_death'].includes(targetDoor)) { // Đỗ/Tử môn
            return {
-              role: 'HOST',
-              strategy: 'Làm CHỦ: Lấy tĩnh chế động, án binh bất động, phòng thủ chặt chẽ, thu thập thông tin, ai ra mặt trước người đó thiệt.',
+              role: 'RECEPTIVE',
+              strategy: 'Phía bạn (Tiếp nhận), phía sự việc (Chủ động): Lấy tĩnh chế động, án binh bất động, phòng thủ chặt chẽ, thu thập thông tin, ai ra mặt trước người đó thiệt.',
               color: 'blue'
           };
       }

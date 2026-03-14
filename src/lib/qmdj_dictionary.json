@@ -1,0 +1,313 @@
+{
+  "stemStemPatterns": {
+    "Mậu": {
+      "Bính": {
+        "id": "thanh_long_phan_thu",
+        "name": "Thanh Long Phản Thủ",
+        "type": "Đại Cát",
+        "priority": 10,
+        "desc": "Rồng xanh quay đầu. Đại cát, quý nhân che chở, vạn sự hanh thông.",
+        "scoreDelta": 5,
+        "source": "stem-stem",
+        "scope": "formation",
+        "tags": ["can-can", "quy-nhan", "dai-cat"]
+      },
+      "Canh": {
+        "id": "thanh_long_bi_thuong",
+        "name": "Thanh Long bị thương",
+        "type": "Hung",
+        "priority": 8,
+        "desc": "Rồng bị chém. Có cửa mở nhưng phải trả giá, hao tổn tài lộc.",
+        "scoreDelta": -3,
+        "source": "stem-stem",
+        "scope": "formation",
+        "aliases": ["Rồng gãy cánh"],
+        "tags": ["can-can", "hung-cach", "hao-tai"]
+      }
+    },
+    "Bính": {
+      "Mậu": {
+        "id": "phi_dieu_diet_huyet",
+        "name": "Phi Điểu Điệt Huyệt",
+        "type": "Đại Cát",
+        "priority": 10,
+        "desc": "Chim sà vào tổ. Cơ hội tự tìm đến, không cầu mà được.",
+        "scoreDelta": 5,
+        "source": "stem-stem",
+        "scope": "formation",
+        "tags": ["can-can", "dai-cat"]
+      },
+      "Canh": {
+        "id": "huynh_hoac_nhap_thai_bach",
+        "name": "Huỳnh Hoặc Nhập Thái Bạch",
+        "type": "Hung",
+        "priority": 8,
+        "desc": "Hỏa vào Kim. Bất lợi cho phe chủ, dễ cháy nổ, phá sản, dính pháp lý.",
+        "scoreDelta": -3,
+        "source": "stem-stem",
+        "scope": "formation",
+        "tags": ["can-can", "hung-cach", "phap-ly"]
+      }
+    },
+    "Tân": {
+      "Ất": {
+        "id": "bach_ho_xuong_cuong",
+        "name": "Bạch Hổ Xương Cuồng",
+        "type": "Đại Hung",
+        "priority": 9,
+        "desc": "Hổ trắng nổi điên. Cực hung, họa huyết quang, phá tài.",
+        "scoreDelta": -5,
+        "source": "stem-stem",
+        "scope": "formation",
+        "tags": ["can-can", "dai-hung"]
+      }
+    },
+    "Quý": {
+      "Đinh": {
+        "id": "dang_xa_yeu_kieu",
+        "name": "Đằng Xà Yểu Kiểu",
+        "type": "Đại Hung",
+        "priority": 9,
+        "desc": "Rắn độc uốn khúc. Đại hung, dính thị phi, văn thư lỗi.",
+        "scoreDelta": -4,
+        "source": "stem-stem",
+        "scope": "formation",
+        "tags": ["can-can", "dai-hung", "thi-phi"]
+      }
+    },
+    "Canh": {
+      "Bính": {
+        "id": "thai_bach_nhap_huynh_hoac",
+        "name": "Thái Bạch Nhập Huỳnh Hoặc",
+        "type": "Hung",
+        "priority": 8,
+        "desc": "Kim vào Hỏa. Bất lợi cho phe khách, dễ sinh đạo tặc, hao tài.",
+        "scoreDelta": -3,
+        "source": "stem-stem",
+        "scope": "formation",
+        "tags": ["can-can", "hung-cach", "hao-tai"]
+      }
+    },
+    "Ất": {
+      "Tân": {
+        "id": "thanh_long_dao_tau",
+        "name": "Thanh Long Đào Tẩu",
+        "type": "Hung",
+        "priority": 7,
+        "desc": "Rồng xanh bỏ chạy. Mưu sự bại lộ, hao tài tốn của, bế tắc.",
+        "scoreDelta": -2,
+        "source": "stem-stem",
+        "scope": "formation",
+        "tags": ["can-can", "hung-cach", "be-tac"]
+      }
+    }
+  },
+  "cuuDonPatterns": [
+    {
+      "id": "cuu_don_thien_don",
+      "name": "Thiên Độn",
+      "type": "Đại Cát",
+      "priority": 9,
+      "desc": "Cửa sinh gặp Bính và Thái Âm. Có đường ẩn để vượt khó, mưu sự dễ được trời giúp khi biết đi mềm.",
+      "scoreDelta": 4,
+      "door": "Sinh",
+      "stem": "Bính",
+      "deity": "Thái Âm",
+      "source": "cuu-don",
+      "scope": "formation",
+      "tags": ["cuu-don", "dai-cat"]
+    },
+    {
+      "id": "cuu_don_dia_don",
+      "name": "Địa Độn",
+      "type": "Đại Cát",
+      "priority": 9,
+      "desc": "Cửa sinh gặp Ất và Cửu Địa. Có nền đất đỡ lưng, đi chậm mà chắc, giữ được thế bền.",
+      "scoreDelta": 4,
+      "door": "Sinh",
+      "stem": "Ất",
+      "deity": "Cửu Địa",
+      "source": "cuu-don",
+      "scope": "formation",
+      "tags": ["cuu-don", "dai-cat"]
+    },
+    {
+      "id": "cuu_don_nhan_don",
+      "name": "Nhân Độn",
+      "type": "Đại Cát",
+      "priority": 9,
+      "desc": "Cửa sinh gặp Đinh và Trực Phù. Được người nâng, có đường người cứu, dễ mở nút bằng nhân sự đúng.",
+      "scoreDelta": 4,
+      "door": "Sinh",
+      "stem": "Đinh",
+      "deity": "Trực Phù",
+      "source": "cuu-don",
+      "scope": "formation",
+      "tags": ["cuu-don", "dai-cat"]
+    }
+  ],
+  "majorPatterns": {
+    "thanh_long_bi_thuong": {
+      "id": "thanh_long_bi_thuong",
+      "name": "Thanh Long bị thương",
+      "type": "Hung",
+      "priority": 10,
+      "desc": "Có cửa mở nhưng phải trả giá: mở mà hao, đau tiền hoặc đau lực ngay từ lúc khởi sự.",
+      "scoreDelta": -4,
+      "source": "major-pattern",
+      "scope": "formation",
+      "aliases": ["Rồng gãy cánh"],
+      "tags": ["hung-cach", "hao-tai", "hao-luc"]
+    },
+    "thien_la": {
+      "id": "thien_la",
+      "name": "Thiên La",
+      "type": "warning",
+      "priority": 7,
+      "desc": "Lưới vô hình đang giăng ra: vướng thủ tục, ràng buộc, pháp lý hoặc nút thắt khó thoát nhanh.",
+      "scoreDelta": -2,
+      "source": "state-pattern",
+      "scope": "state",
+      "isPhysicalConstraint": true,
+      "tags": ["la-vong", "thu-tuc", "phap-ly"]
+    },
+    "dia_vong": {
+      "id": "dia_vong",
+      "name": "Địa Võng",
+      "type": "warning",
+      "priority": 7,
+      "desc": "Mạng lưới dưới chân đang siết lại: việc dễ mắc vòng, chạm đâu cũng vướng đường lui.",
+      "scoreDelta": -2,
+      "source": "state-pattern",
+      "scope": "state",
+      "isPhysicalConstraint": true,
+      "tags": ["la-vong", "rang-buoc"]
+    },
+    "thien_la_dia_vong": {
+      "id": "thien_la_dia_vong",
+      "name": "Thiên La/Địa Võng",
+      "type": "warning",
+      "priority": 8,
+      "desc": "Lưới thủ tục và ràng buộc vô hình đang quấn quanh cung hành động hoặc Dụng Thần.",
+      "scoreDelta": -3,
+      "source": "state-pattern",
+      "scope": "state",
+      "isPhysicalConstraint": true,
+      "tags": ["la-vong", "phap-ly", "rang-buoc"]
+    },
+    "chu_tuoc_khau_thiet_ao": {
+      "id": "chu_tuoc_khau_thiet_ao",
+      "name": "Chu Tước khẩu thiệt ảo",
+      "type": "Hung",
+      "priority": 9,
+      "desc": "Tin đồn và lời nói gây hoang mang, nhưng bản chất nỗi sợ đang bị thổi phồng hơn thực tế.",
+      "scoreDelta": -3,
+      "source": "major-pattern",
+      "scope": "formation",
+      "aliases": ["Súng không đạn"],
+      "tags": ["chu-tuoc", "khau-thiet", "khong-vong"]
+    },
+    "khong_vong_hoa_ao": {
+      "id": "khong_vong_hoa_ao",
+      "name": "Không Vong hóa ảo",
+      "type": "Hung",
+      "priority": 8,
+      "desc": "Bề mặt nhìn có hứa hẹn nhưng lõi đang rỗng: lời hứa, cơ hội hoặc cát khí dễ thành bánh vẽ.",
+      "scoreDelta": -2,
+      "source": "void-modifier",
+      "scope": "state",
+      "isPhysicalConstraint": true,
+      "tags": ["khong-vong", "ao-anh"]
+    },
+    "nhat_ky_nhap_mo": {
+      "id": "nhat_ky_nhap_mo",
+      "name": "Nhật kỳ nhập mộ",
+      "type": "warning",
+      "priority": 8,
+      "desc": "Chủ thể bị nhốt trong bóng tối của chính mình: thấy đường nhưng chưa bung được lực, cơ hội dễ bị che mờ.",
+      "scoreDelta": -3,
+      "source": "day-stem-grave",
+      "scope": "day",
+      "isPhysicalConstraint": true,
+      "aliases": ["Nhập Mộ", "Ngủ đông cưỡng bức"],
+      "tags": ["mo", "be-tac"]
+    },
+    "nhap_mo": {
+      "id": "nhap_mo",
+      "name": "Nhập Mộ",
+      "type": "warning",
+      "priority": 8,
+      "desc": "Khí bị chôn, việc dễ kẹt, chủ thể hoặc cơ hội khó bung lực ra ngoài.",
+      "scoreDelta": -4,
+      "source": "state-pattern",
+      "scope": "state",
+      "isPhysicalConstraint": true,
+      "aliases": ["Ngủ đông cưỡng bức"],
+      "tags": ["mo", "be-tac"]
+    },
+    "hinh_bach": {
+      "id": "hinh_bach",
+      "name": "Hình Bách",
+      "type": "warning",
+      "priority": 7,
+      "desc": "Can Thiên bàn rơi vào chi xung/hình của cung, tạo lực siết, va đập hoặc kháng cự khó chịu.",
+      "scoreDelta": -2,
+      "source": "state-pattern",
+      "scope": "state",
+      "isPhysicalConstraint": true,
+      "tags": ["hinh-bach", "constraint"]
+    },
+    "phu_ky_tuong_tro": {
+      "id": "phu_ky_tuong_tro",
+      "name": "Phù Kỳ tương trợ",
+      "type": "Cát",
+      "priority": 8,
+      "desc": "Trực Phù đồng cung với Nhật Kỳ: có người đỡ lưng, bản thân dễ gặp trợ lực đúng lúc.",
+      "scoreDelta": 2,
+      "source": "position-pattern",
+      "scope": "day",
+      "tags": ["truc-phu", "nhat-can", "tro-luc"]
+    },
+    "su_gia_dac_the": {
+      "id": "su_gia_dac_the",
+      "name": "Sứ giả đắc thế",
+      "type": "Cát",
+      "priority": 7,
+      "desc": "Trực Sử lâm cung sinh/hòa: đường hành động dễ thông, lệnh phát ra ít bị méo.",
+      "scoreDelta": 2,
+      "source": "position-pattern",
+      "scope": "action",
+      "tags": ["truc-su", "hanh-dong", "thong-lenh"]
+    },
+    "su_gia_bi_vuong": {
+      "id": "su_gia_bi_vuong",
+      "name": "Sứ giả bị vướng",
+      "type": "warning",
+      "priority": 8,
+      "desc": "Trực Sử bị kẹt giữa bàn hoặc dính Không Vong: lệnh không thông, tín hiệu phát ra dễ hụt.",
+      "scoreDelta": -3,
+      "source": "position-pattern",
+      "scope": "action",
+      "isPhysicalConstraint": true,
+      "tags": ["truc-su", "hanh-dong", "ket-lenh"]
+    }
+  },
+  "stateRules": {
+    "stemGraveBranches": {
+      "Bính": "Tuất",
+      "Ất": "Tuất",
+      "Đinh": "Sửu",
+      "Canh": "Sửu",
+      "Nhâm": "Thìn",
+      "Tân": "Mùi"
+    },
+    "dayStemGraveBranches": {
+      "Bính": "Tuất"
+    },
+    "netStems": {
+      "Nhâm": "thien_la",
+      "Quý": "dia_vong"
+    },
+    "hinhBachBranchesByStem": {}
+  }
+}

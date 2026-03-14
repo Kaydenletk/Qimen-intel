@@ -93,10 +93,27 @@ export function normalizeTopicContext({ chart, topicResult }) {
     : null;
   const actionPalaceNum = chart?.trucSuPalace || null;
   const blockerFlags = [];
+  const rawTopicScore = Number(topicResult?.score || 0);
+  let effectiveTopicScore = rawTopicScore;
+  let voidPressure = null;
 
   if (palace?.khongVong) blockerFlags.push('Không Vong');
   if (door.includes('Tử')) blockerFlags.push('Tử Môn');
   if (door.includes('Đỗ')) blockerFlags.push('Đỗ Môn');
+
+  if (palace?.khongVong) {
+    const scoreMagnitude = Math.max(2, Math.ceil(Math.abs(rawTopicScore) * 0.75));
+    effectiveTopicScore = rawTopicScore > 0
+      ? Math.min(0, rawTopicScore - scoreMagnitude)
+      : rawTopicScore - 1;
+    voidPressure = {
+      palaceNum: usefulPalaceNum,
+      palaceName: PALACE_META[usefulPalaceNum]?.name || '',
+      rawTopicScore,
+      effectiveTopicScore,
+      summary: 'Dụng Thần dính Không Vong: điểm đẹp chỉ còn là vỏ bọc, phải hạ nhiệt trước khi luận chiến thuật.',
+    };
+  }
 
   const markersForAI = {
     rootCausePalace: usefulPalaceNum,
@@ -131,6 +148,9 @@ export function normalizeTopicContext({ chart, topicResult }) {
     capitalPalace,
     capitalFlags: deriveFlags(chart, capitalPalace),
     flags: deriveFlags(chart, palace),
+    rawTopicScore,
+    effectiveTopicScore,
+    voidPressure,
     nguHanhRelation,
     markersForAI,
   };

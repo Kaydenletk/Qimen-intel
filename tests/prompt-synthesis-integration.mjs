@@ -36,7 +36,14 @@ try {
   const strategyResult = buildStrategyPrompt({ qmdjData: mockQmdjData, userContext: 'Chiến lược đàm phán', topicKey: 'tai-van' });
   
   assert.ok(strategyResult.systemPrompt.includes('[SYNTHESIS RULES - QUY TẮC TỔNG HỢP NÂNG CAO]'), 'Lỗi: System prompt chưa update luật Synthesis');
-  assert.ok(strategyResult.userPrompt.includes('[BẢN ĐỒ 4 BƯỚC CHO AI]'), 'Lỗi: Strategy user prompt thiếu Bản đồ 4 bước');
+  assert.ok(strategyResult.userPrompt.includes('[NEO NỘI BỘ CHO AI]'), 'Lỗi: Strategy user prompt thiếu block neo nội bộ');
+  assert.ok(strategyResult.userPrompt.includes('Đây là sơ đồ nội bộ để khóa trục suy luận'), 'Lỗi: Strategy user prompt phải dặn rõ đây là neo nội bộ');
+  assert.ok(strategyResult.userPrompt.includes('Neo Dụng Thần:'), 'Lỗi: Strategy user prompt phải có neo Dụng Thần');
+  assert.ok(strategyResult.userPrompt.includes('Neo Tình Trạng:'), 'Lỗi: Strategy user prompt phải có neo Tình Trạng');
+  assert.ok(strategyResult.userPrompt.includes('Neo Người Hỏi:'), 'Lỗi: Strategy user prompt phải có neo Người Hỏi');
+  assert.ok(strategyResult.userPrompt.includes('Neo Hành Động:'), 'Lỗi: Strategy user prompt phải có neo Hành Động');
+  assert.ok(!strategyResult.userPrompt.includes('[BẢN ĐỒ 4 BƯỚC CHO AI]'), 'Lỗi: Strategy user prompt không được còn dùng nhãn Bản đồ 4 bước cũ');
+  assert.ok(!/Bước 1 \\(Gốc rễ\\)|Bước 2 \\(Tình trạng\\)|Bước 3 \\(Tâm lý\\)|Bước 4 \\(Mưu lược\\)/.test(strategyResult.userPrompt), 'Lỗi: Strategy user prompt không được còn lộ nhịp Bước 1/2/3/4 kiểu cũ');
   assert.ok(strategyResult.userPrompt.includes('khắc Dụng Thần'), 'Lỗi: Strategy user prompt thiếu Tương quan ngũ hành');
 
   console.log('✅ prompt-synthesis-integration.mjs — ALL TESTS PASSED! Data pipeline nối LLM hoàn hảo.');

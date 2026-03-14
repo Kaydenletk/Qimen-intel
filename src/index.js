@@ -16,6 +16,7 @@ export * from './core/stems.js';
 export * from './core/flying.js';
 export * from './core/states.js';
 export * from './core/cachcuc.js';
+export * from './core/specialPatterns.js';
 export * from './core/dungthan.js';
 export * from './core/insightEngine.js';
 export * from './core/palaceLayout.js';

@@ -345,6 +345,7 @@ function scorePalaceEnergy(chart, palace) {
         },
         stemRelationScore: 0,
         comboPenaltyScore: 0,
+        patternScoreDelta: 0,
       },
     };
   }
@@ -359,7 +360,8 @@ function scorePalaceEnergy(chart, palace) {
   const flagScore = flagInfo.score;
   const stemRelationScore = scoreStemRelation(palace);
   const comboPenaltyScore = scoreComboPenalty(palace);
-  const score = doorScore + deityScore + starScore + flagScore + stemRelationScore + comboPenaltyScore;
+  const patternScoreDelta = Number(palace?.patternScoreDelta || 0);
+  const score = doorScore + deityScore + starScore + flagScore + stemRelationScore + comboPenaltyScore + patternScoreDelta;
   const { tone, verdict } = toToneAndVerdict(score);
 
   return {
@@ -374,6 +376,7 @@ function scorePalaceEnergy(chart, palace) {
       flagComponents: flagInfo.components,
       stemRelationScore,
       comboPenaltyScore,
+      patternScoreDelta,
     },
   };
 }
