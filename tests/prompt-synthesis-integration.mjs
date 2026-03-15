@@ -25,9 +25,11 @@ try {
   // 2. Test hàm buildKimonPrompt (dùng cho Companion mode hoặc luồng cơ bản)
   const normalPrompt = buildKimonPrompt({ qmdjData: mockQmdjData, userContext: 'Dự án sao rồi?' });
   
-  assert.ok(normalPrompt.includes('[BẢN ĐỒ 4 BƯỚC CHO AI]'), 'Lỗi: Thiếu tiêu đề Bản đồ 4 bước');
-  assert.ok(normalPrompt.includes('Bước 1 (Gốc rễ): Đọc cung 6'), 'Lỗi: Map sai tọa độ rootCausePalace');
-  assert.ok(normalPrompt.includes('Bước 3 (Tâm lý): Đọc cung 9'), 'Lỗi: Map sai tọa độ userPalace');
+  assert.ok(normalPrompt.includes('[NEO NỘI BỘ CHO AI]'), 'Lỗi: Thiếu block Neo nội bộ');
+  assert.ok(normalPrompt.includes('Neo Dụng Thần: cung 6'), 'Lỗi: Map sai tọa độ rootCausePalace');
+  assert.ok(normalPrompt.includes('Neo Người Hỏi: cung 9'), 'Lỗi: Map sai tọa độ userPalace');
+  assert.ok(!normalPrompt.includes('[BẢN ĐỒ 4 BƯỚC CHO AI]'), 'Lỗi: Không được còn nhãn Bản đồ 4 bước cũ');
+  assert.ok(!/Bước 1 \\(Gốc rễ\\)|Bước 2 \\(Tình trạng\\)|Bước 3 \\(Tâm lý\\)|Bước 4 \\(Mưu lược\\)/.test(normalPrompt), 'Lỗi: Không được còn lộ nhịp Bước 1/2/3/4 kiểu cũ');
   assert.ok(normalPrompt.includes('[TƯƠNG QUAN LỰC LƯỢNG]'), 'Lỗi: Thiếu block tương quan ngũ hành');
   assert.ok(normalPrompt.includes('khắc Dụng Thần'), 'Lỗi: Thiếu keyword ngũ hành sinh/khắc');
   assert.ok(normalPrompt.includes('Đỗ Môn'), 'Lỗi: Thiếu Blocker flags');

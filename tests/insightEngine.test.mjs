@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { analyze } from '../src/index.js';
 import { buildInsight, __test } from '../src/core/insightEngine.js';
+import { QMDJ_DICTIONARY } from '../src/logic/dungThan/qmdjDictionary.js';
 
 const DATE = new Date('2026-03-03T12:00:00');
 const HOUR = 5;
@@ -98,8 +99,45 @@ function testBuildInsightContract() {
   assert.ok(Array.isArray(insight.tactics.avoid));
   assert.ok(Array.isArray(insight.learn.usefulGods));
   assert.ok(Array.isArray(insight.learn.flags));
+  assert.ok(insight.learn.pivot && typeof insight.learn.pivot === 'object');
   assert.ok(Array.isArray(insight.learn.mappingNotes));
   assert.ok(insight.learn.mappingNotes.some(n => n.includes('GRAVE/Nhập Mộ')));
+}
+
+function testAnalyzePivotPoints() {
+  const pivot = __test.analyzePivotPoints(
+    {
+      1: {
+        than: { name: 'Trực Phù' },
+        star: { name: 'Thiên Xung' },
+        dichMa: false,
+      },
+      6: {
+        than: { name: 'Câu Trận' },
+      },
+    },
+    1,
+    6
+  );
+
+  assert.equal(pivot.isPivot, true);
+  assert.ok(pivot.tags.includes('Trực Phù giáng lâm'));
+  assert.ok(pivot.tags.includes('Thiên Xung thông mạch'));
+  assert.ok(pivot.tags.includes('Buông bỏ để được'));
+  assert.match(pivot.message, /lệnh bài miễn tử/i);
+  assert.match(pivot.message, /cú hích điện từ/i);
+  assert.match(pivot.message, /buông bớt|buông/i);
+}
+
+function testDictionaryUsesWolfMetaphors() {
+  assert.match(QMDJ_DICTIONARY.Deities['Trực Phù'].default, /lệnh bài miễn tử/i);
+  assert.match(QMDJ_DICTIONARY.Deities['Đằng Xà'].default, /màn sương lắt léo/i);
+  assert.match(QMDJ_DICTIONARY.Deities['Thái Âm'].default, /mưu sĩ thầm lặng/i);
+  assert.match(QMDJ_DICTIONARY.Deities['Lục Hợp'].default, /cánh cửa ngoại giao/i);
+  assert.match(QMDJ_DICTIONARY.Deities['Chu Tước'].default, /loa phóng thanh/i);
+  assert.match(QMDJ_DICTIONARY.Deities['Cửu Địa'].default, /hầm trú ẩn an toàn/i);
+  assert.match(QMDJ_DICTIONARY.Deities['Cửu Thiên'].default, /tầm nhìn đại lộ/i);
+  assert.match(QMDJ_DICTIONARY.Deities['Câu Trận'].default, /sợi dây xích chân/i);
 }
 
 function testGravePlaceholderDoesNotReduceConfidence() {
@@ -165,6 +203,8 @@ testDoorAndStarNormalize();
 testConfidenceMultipliers();
 testActionLabelMapping();
 testBuildInsightContract();
+testAnalyzePivotPoints();
+testDictionaryUsesWolfMetaphors();
 testGravePlaceholderDoesNotReduceConfidence();
 testAnalyzeBackCompatAndInsightPresent();
 testAnalyzeDefaultsUseCanonicalTopicKeys();

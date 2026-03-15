@@ -184,6 +184,7 @@ function collectFlags(chart, pal, globalFlags, mappingNotes) {
   const mergedFlags = new Map();
   const normalizedGlobal = resolveGlobalFlags(chart, globalFlags);
   const specialPatterns = Array.isArray(pal?.specialPatterns) ? pal.specialPatterns : [];
+  const hasLocalGrave = specialPatterns.some(pattern => /nhập mộ/i.test(String(pattern?.name || '')));
 
   const markFlag = (flag, source) => {
     if (!flag) return;
@@ -211,13 +212,17 @@ function collectFlags(chart, pal, globalFlags, mappingNotes) {
     markFlag('PALACE_COMPELLING', 'derived');
     mappingNotes.push('PALACE_COMPELLING được suy ra từ palace.trucPhu.');
   }
-  if (specialPatterns.some(pattern => /nhập mộ/i.test(String(pattern?.name || '')))) {
+  if (hasLocalGrave) {
     markFlag('GRAVE', 'specialPattern');
     mappingNotes.push('GRAVE/Nhập Mộ được suy ra từ palace.specialPatterns.');
   }
 
   for (const [flag, active] of Object.entries(normalizedGlobal)) {
     if (!active) continue;
+    if (flag === 'GRAVE' && !hasLocalGrave) {
+      mappingNotes.push('GRAVE global chỉ là placeholder, chưa chạm đúng cung dụng thần nên bỏ qua multiplier.');
+      continue;
+    }
     if (!library.flags[flag]) {
       mappingNotes.push(`Flag ${flag} chưa có trong library, bỏ qua multiplier.`);
       continue;
@@ -225,7 +230,7 @@ function collectFlags(chart, pal, globalFlags, mappingNotes) {
     markFlag(flag, 'global');
   }
 
-  if (!normalizedGlobal.GRAVE && !specialPatterns.some(pattern => /nhập mộ/i.test(String(pattern?.name || '')))) {
+  if (!normalizedGlobal.GRAVE && !hasLocalGrave) {
     mappingNotes.push('GRAVE/Nhập Mộ chưa active trên cung dụng thần ở ca này.');
   }
 
@@ -243,6 +248,61 @@ function computeConfidence(activeFlags) {
   }
   confidence = Math.max(0.1, Math.min(0.99, confidence));
   return Math.round(confidence * 1000) / 1000;
+}
+
+function normalizeDeityNameVN(raw) {
+  return String(raw || '').trim().toLowerCase();
+}
+
+function normalizeStarNameVN(raw) {
+  return String(raw || '').trim().toLowerCase();
+}
+
+function analyzePivotPoints(palaces = {}, hourPalaceIndex = null, userPalaceIndex = null) {
+  const hourPalace = palaces?.[hourPalaceIndex] || palaces?.[String(hourPalaceIndex)] || null;
+  const userPalace = palaces?.[userPalaceIndex] || palaces?.[String(userPalaceIndex)] || null;
+
+  const energyShift = {
+    isPivot: false,
+    tags: [],
+    message: '',
+  };
+
+  if (!hourPalace) return energyShift;
+
+  const deityName = normalizeDeityNameVN(hourPalace?.than?.name || hourPalace?.deity || '');
+  const starName = normalizeStarNameVN(hourPalace?.star?.name || hourPalace?.star || '');
+
+  const hasTrucPhu = deityName === 'trực phù';
+  const hasThienXung = starName === 'thiên xung' || starName === 'xung';
+  const userHasCauTran = normalizeDeityNameVN(userPalace?.than?.name || userPalace?.deity || '') === 'câu trận';
+  const hourIsDynamic = Boolean(hourPalace?.dichMa) || hasThienXung;
+
+  const messages = [];
+
+  if (hasTrucPhu) {
+    energyShift.isPivot = true;
+    energyShift.tags.push('Trực Phù giáng lâm');
+    messages.push("Sự xuất hiện của Trực Phù tại cung Giờ báo hiệu một luồng sáng cứu giải. Đây là lệnh bài miễn tử: bóng tối bắt đầu tan, tâm trí có chỗ dựa để nhìn xuyên màn sương.");
+  }
+
+  if (hasThienXung) {
+    energyShift.isPivot = true;
+    energyShift.tags.push('Thiên Xung thông mạch');
+    messages.push("Thiên Xung vừa tạo ra một cú hích điện từ giúp đại não thông mạch. Sự sáng ra này không ngẫu nhiên, mà là trực giác đang bật công tắc.");
+  }
+
+  if (userHasCauTran && hourIsDynamic) {
+    energyShift.isPivot = true;
+    energyShift.tags.push('Buông bỏ để được');
+    messages.push("Nhật Can đang bị Câu Trận níu kéo, nhưng giờ đã xuất hiện lực động. Điểm sáng đến từ lúc thôi gồng và chấp nhận buông bớt, để áp lực tự rơi xuống.");
+  }
+
+  if (messages.length) {
+    energyShift.message = uniqueLines(messages).join(' ');
+  }
+
+  return energyShift;
 }
 
 function matchUseful(item, context) {
@@ -395,6 +455,11 @@ export function buildInsight({ chart, topicKey, topicResult, globalFlags = {} })
 
     const activeFlags = collectFlags(chart, pal, globalFlags, mappingNotes);
     const confidence = computeConfidence(activeFlags);
+    const pivot = analyzePivotPoints(
+      chart?.palaces || {},
+      chart?.hourMarkerPalace || null,
+      chart?.dayMarkerPalace || null
+    );
 
     const context = {
       normalizedDoor,
@@ -429,6 +494,9 @@ export function buildInsight({ chart, topicKey, topicResult, globalFlags = {} })
       primaryHits,
       pal,
     });
+    if (pivot.isPivot && pivot.message) {
+      evidence.push(`Pivot Point: ${pivot.message}`);
+    }
 
     const insight = {
       actionLabel,
@@ -439,6 +507,7 @@ export function buildInsight({ chart, topicKey, topicResult, globalFlags = {} })
       learn: {
         usefulGods: primaryHits,
         flags: activeFlags,
+        pivot,
         mappingNotes: uniqueLines(mappingNotes),
       },
     };
@@ -464,5 +533,6 @@ export const __test = {
   normalizeStarName,
   actionLabelFromMode,
   computeConfidence,
+  analyzePivotPoints,
   resolveTopicMapping,
 };

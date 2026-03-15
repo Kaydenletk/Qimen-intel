@@ -6615,9 +6615,9 @@ export default function handler(req, res) {
         const criticalTopicFlagCombos = getCriticalTopicFlagCombos(enrichedQmdjData?.selectedTopicFlags);
         const allowCriticalFlagEscalation = topicAllowsCriticalFlagEscalation(topic);
         const hasCriticalTopicFlags = allowCriticalFlagEscalation && criticalTopicFlagCombos.length > 0;
-        const forceStrategyTopic = ['tai-van', 'muu-luoc', 'chien-luoc'].includes(topic);
-        const forceVerdictStrategy = shouldForceVerdictStrategy({ topic, userContext });
-        const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic || forceVerdictStrategy) ? 'strategy' : tier;
+        const forceStrategyTopic = false;
+        const forceVerdictStrategy = false;
+        const effectiveTier = isDeepDive ? 'strategy' : (tier === 'companion' ? 'companion' : 'topic');
         resolvedTier = effectiveTier;
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { responseFormat } = buildPromptByTier({
@@ -6786,9 +6786,9 @@ export default function handler(req, res) {
         const criticalTopicFlagCombos = getCriticalTopicFlagCombos(enrichedQmdjData?.selectedTopicFlags);
         const allowCriticalFlagEscalation = topicAllowsCriticalFlagEscalation(topic);
         const hasCriticalTopicFlags = allowCriticalFlagEscalation && criticalTopicFlagCombos.length > 0;
-        const forceStrategyTopic = ['tai-van', 'muu-luoc', 'chien-luoc'].includes(topic);
-        const forceVerdictStrategy = shouldForceVerdictStrategy({ topic, userContext });
-        const effectiveTier = (isDeepDive || hasCriticalTopicFlags || forceStrategyTopic || forceVerdictStrategy) ? 'strategy' : tier;
+        const forceStrategyTopic = false;
+        const forceVerdictStrategy = false;
+        const effectiveTier = isDeepDive ? 'strategy' : (tier === 'companion' ? 'companion' : 'topic');
         resolvedTier = effectiveTier;
         const { model: modelName, maxTokens } = selectModel(effectiveTier);
         const { responseFormat } = buildPromptByTier({

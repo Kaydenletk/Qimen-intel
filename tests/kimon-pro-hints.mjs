@@ -22,13 +22,16 @@ const qmdjData = {
   insight: 'Dụng thần đang sáng lên ở cung cần đọc.',
   currentHour: 12,
   currentMinute: 3,
+  hourMarkerPalace: 6,
+  dayMarkerPalace: 1,
+  directEnvoyPalace: 4,
   dayPillar: { stemName: 'Nhâm' },
   displayPalaces: {
     6: {
       palaceName: 'Càn',
       directionLabel: { displayShort: 'Tây Bắc' },
       mon: { name: 'Khai Môn' },
-      star: { name: 'Thiên Tâm' },
+      star: { name: 'Thiên Xung' },
       than: { name: 'Trực Phù' },
       can: { name: 'Canh' },
       earthStem: 'Mậu',
@@ -59,7 +62,7 @@ const qmdjData = {
       directionLabel: { displayShort: 'Bắc' },
       mon: { name: 'Tử Môn' },
       star: { name: 'Thiên Bồng' },
-      than: { name: 'Bạch Hổ' },
+      than: { name: 'Câu Trận' },
       can: { name: 'Canh' },
       earthStem: 'Canh',
       khongVong: true,
@@ -177,16 +180,27 @@ assert.match(strategyPrompt.systemPrompt, /Tuyệt đối không in literal labe
 assert.match(strategyPrompt.systemPrompt, /Nếu dính Thanh Long Đào Tẩu tại cung Lợi nhuận, phải đọc là tiền vừa tới tay đã chạy mất/i);
 assert.match(strategyPrompt.systemPrompt, /Nếu Nhật kỳ nhập mộ rơi vào cung Vốn, phải ví vốn như đang nằm trong quan tài chờ ngày hạ huyệt/i);
 assert.match(strategyPrompt.systemPrompt, /Nếu Thiên La\/Địa Võng xuất hiện, phải đọc là lưới rách nhưng vẫn đủ làm người hỏi ngạt thở vì thủ tục/i);
+assert.match(strategyPrompt.systemPrompt, /Nếu input có block \[PIVOT POINT\]/i);
+assert.match(strategyPrompt.systemPrompt, /Trực Phù, phải đọc là lệnh bài miễn tử/i);
+assert.match(strategyPrompt.systemPrompt, /Thiên Xung, phải đọc là cú hích điện từ/i);
+assert.match(strategyPrompt.systemPrompt, /Câu Trận níu.*buông bỏ để được/i);
 
 assert.match(strategyPrompt.userPrompt, /\[PHÂN TÍCH CHỦ ĐỀ: hoc-tap\]/);
 assert.match(strategyPrompt.userPrompt, /\[TONE CONTROLLER\]/);
 assert.match(strategyPrompt.userPrompt, /Remove all soft\/hedging language/i);
 assert.match(strategyPrompt.userPrompt, /\[ENERGY STATE\]/);
+assert.match(strategyPrompt.userPrompt, /\[PIVOT POINT\]/);
+assert.match(strategyPrompt.userPrompt, /Trực Phù giáng lâm/i);
+assert.match(strategyPrompt.userPrompt, /Thiên Xung thông mạch/i);
+assert.match(strategyPrompt.userPrompt, /Buông bỏ để được/i);
+assert.match(strategyPrompt.userPrompt, /lệnh bài miễn tử/i);
+assert.match(strategyPrompt.userPrompt, /cú hích điện từ/i);
 assert.match(strategyPrompt.userPrompt, /Dụng Thần: cung 8 \(Cấn\) · Đông Bắc/i);
 assert.match(strategyPrompt.userPrompt, /vitality:/i);
 assert.match(strategyPrompt.userPrompt, /structure:/i);
 assert.match(strategyPrompt.userPrompt, /transparency:/i);
 assert.match(strategyPrompt.userPrompt, /tension:/i);
+assert.match(strategyPrompt.userPrompt, /Nhật Can: cung 1 \(Khảm\) · Bắc/i);
 assert.match(strategyPrompt.userPrompt, /\[DỤNG THẦN CHUẨN SÁCH\]/);
 assert.match(strategyPrompt.userPrompt, /\[CÁCH CỤC & PATTERN ĐỘNG\]/);
 assert.match(strategyPrompt.userPrompt, /\[VỊ THẾ HAI BÊN\]/);

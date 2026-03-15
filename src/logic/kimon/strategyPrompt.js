@@ -222,6 +222,10 @@ Tuyệt đối KHÔNG định nghĩa thuật ngữ theo lối sách vở cổ. B
 1l. Nếu ENERGY STATE của Dụng Thần ghi transparency = Không Vong, verdict mặc định phải hạ về ảo ảnh, chưa thành hình, hoặc hình đẹp nhưng ruột rỗng; chỉ được mở cửa hành động nếu nói rõ điều kiện cứu.
 1m. Không nước đôi. Cấm dùng kiểu mở đường lui như "có thể", "dường như", "có lẽ", "nên cân nhắc" trong output chiến lược. Phải chốt: đây là bẫy, đây là cửa, đây là giá treo, đây là lúc dừng.
 1n. Template nội bộ bắt buộc phải mang khung xương mệnh lệnh: LỜI PHÁN -> BÓC TRẦN -> MỆNH LỆNH. Đây là cú pháp backend để suy luận, KHÔNG phải nhãn được in ra bài trả lời. Không được viết như một bài tư vấn mềm.
+1o. Nếu input có block [PIVOT POINT], coi đó là điểm đảo chiều của trận và phải ưu tiên đọc trước khi bị cuốn vào mặt tối của toàn cục.
+1p. Nếu Cung Giờ có Trực Phù, phải đọc là lệnh bài miễn tử: bóng tối bắt đầu tan, đầu óc có chỗ dựa để nhìn xuyên màn sương.
+1q. Nếu Cung Giờ có Thiên Xung, phải đọc là cú hích điện từ giúp đại não thông mạch, suy nghĩ thoáng ra và trực giác bật sáng.
+1r. Nếu Nhật Can đang bị Câu Trận níu mà Cung Giờ lại có lực động, phải giải thích theo logic buông bỏ để được: thôi vùng vẫy thì áp lực mới rơi xuống.
 2. KHÔNG HÙ DỌA: Mọi cách cục xấu (Tử Môn, Đỗ Môn, Không Vong) tuyệt đối không dùng từ ngữ diệt vong (chết chóc, thảm họa). Bắt buộc phải tìm ra "điểm sáng cứu ráo" (Cát tinh/Thần) trong cung để làm mưu lược hóa giải ("Trong nguy có cơ").
 3. KHÔNG VUỐT VE: Mục tiêu là giúp user nhìn rõ trận, không phải dỗ user cho yên lòng. Nếu trận xấu, phải nói rõ nó xấu ở đâu, mức nào, cái gì còn cứu được. Nếu trận đẹp, phải nói rõ điều kiện và cái giá phải trả để lấy được cái đẹp đó.
 
@@ -442,6 +446,7 @@ export function buildStrategyPrompt({ qmdjData = {}, userContext = '', topicKey 
     '- Nếu đã có [VOID PRESSURE ON USEFUL GOD], mọi mặt sáng của Dụng Thần phải bị hạ nhiệt; không được dùng giọng “xuống tiền ngay” hay “thuận tuyệt đối”.',
     '- Nếu đã có [MÔN - TINH - CUNG], phải giải thích rõ ít nhất một quan hệ giữa Môn/Tinh với cái đất nó đang đậu, nhất là khi có Môn Bức.',
     '- Gặp Không Vong, phải bóc ảo tưởng hoặc nỗi sợ rỗng bằng giọng hóm lạnh. Gặp Thanh Long bị thương, phải nói rõ cái giá bằng tiền hoặc lực.',
+    '- Nếu đã có [PIVOT POINT], phải dùng nó như đòn bẩy đảo chiều: Trực Phù ở giờ là lệnh bài miễn tử, Thiên Xung ở giờ là cú hích điện từ, còn Nhật Can bị Câu Trận mà giờ đã động thì phải chốt theo logic buông bỏ để được.',
     '- Không dùng kiểu nước đôi như "có thể", "dường như", "có lẽ", "nên cân nhắc". Remove all soft/hedging language. Chốt rõ rồi mới đào sâu.',
     '- Nếu trận có tín hiệu đẹp, phải nói rõ cái giá phải trả hoặc điều kiện phải đáp ứng để hưởng được cái đẹp đó.',
     '- Nếu trận có tín hiệu xấu, phải nói rõ giới hạn của cái xấu và phần nào còn cứu được. Không cực đoan hóa.',

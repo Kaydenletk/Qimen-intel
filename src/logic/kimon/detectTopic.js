@@ -163,9 +163,14 @@ const HOUSEHOLD_STOPWORD_FOLLOWERS = new Set([
 ]);
 
 const DEEP_DIVE_KEYWORDS = [
-  'cơ sở nào', 'tính sao ra', 'luận kỹ', 'phân tích sâu',
-  'chi tiết hơn', 'tại sao lại chọn', 'vì sao lại chọn',
-  'chiến lược', 'mưu lược', 'giải thích chi tiết',
+  'phân tích sâu',
+  'phantichsau',
+  'chiến lược',
+  'chien luoc',
+  'chiecluoc',
+  'mưu lược',
+  'muu luoc',
+  'muuluoc',
 ];
 
 const SMALL_TALK_EXACT_MATCHES = new Set([
@@ -202,7 +207,12 @@ export function canonicalizeTopicKey(topic) {
 
 export function detectDeepDive(userMessage) {
   const q = normalize(userMessage || '');
-  return DEEP_DIVE_KEYWORDS.some(keyword => q.includes(normalize(keyword)));
+  const compact = q.replace(/\s+/g, '');
+  return DEEP_DIVE_KEYWORDS.some(keyword => {
+    const normalizedKeyword = normalize(keyword);
+    const compactKeyword = normalizedKeyword.replace(/\s+/g, '');
+    return q.includes(normalizedKeyword) || compact.includes(compactKeyword);
+  });
 }
 
 function escapeRegex(text) {

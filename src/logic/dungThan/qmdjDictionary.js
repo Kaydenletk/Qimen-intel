@@ -5,7 +5,7 @@ function withDefault(defaultText, overrides = {}) {
 export const QMDJ_DICTIONARY = {
   Deities: {
     'Trực Phù': withDefault(
-      'quý nhân, người có tiếng nói, thế chống lưng khiến cục diện bớt chông chênh',
+      'lệnh bài miễn tử, thế chống lưng tối cao, chỗ dựa đủ mạnh để biến nguy thành an',
       {
         'hoc-tap': 'thầy cô hoặc người chỉ bài đang đứng ra nâng đỡ, dễ được gợi mở đúng chỗ',
         'su-nghiep': 'có sếp hoặc đầu mối quyền lực chống lưng, lời nói của bạn có trọng lượng hơn',
@@ -13,7 +13,7 @@ export const QMDJ_DICTIONARY = {
       }
     ),
     'Đằng Xà': withDefault(
-      'sự lắt léo, rối rắm, bằng mặt không bằng lòng, thứ làm đầu óc mắc kẹt',
+      'màn sương lắt léo, thứ làm đầu óc mắc kẹt bằng thông tin giả, sự lươn lẹo và nỗi lo không căn cứ',
       {
         'hoc-tap': 'đề bài đánh đố, kiến thức quấn lấy nhau, học mãi vẫn thấy lắt léo',
         'tinh-duyen': 'mập mờ, nghi ngờ, suy diễn, cảm giác bị treo giữa thật và giả',
@@ -22,7 +22,7 @@ export const QMDJ_DICTIONARY = {
       }
     ),
     'Thái Âm': withDefault(
-      'đi đường kín, giữ bài trong tay, làm việc âm thầm thay vì phô ra ngoài',
+      'mưu sĩ thầm lặng, đi đường kín, giữ bài trong tay và giúp đúng lúc mà không phô ra ngoài',
       {
         'tinh-duyen': 'tình cảm kín đáo, nhớ nhiều nhưng nói ít, hợp mở lòng từng lớp',
         'bat-dong-san': 'nên soi điều khoản ngầm, giấy tờ kín, giao dịch càng kín càng dễ giữ thế',
@@ -30,7 +30,7 @@ export const QMDJ_DICTIONARY = {
       }
     ),
     'Lục Hợp': withDefault(
-      'thế hòa, kết nối được với nhau, còn cửa ngồi lại nói chuyện cho ra nhẽ',
+      'cánh cửa ngoại giao, thế hòa còn dùng được, còn cửa ngồi lại để nối người với người',
       {
         'tinh-duyen': 'nhân duyên hợp nhịp, dễ nối lại liên lạc hoặc chốt một cuộc nói chuyện thật',
         'gia-dao': 'sự thấu hiểu, gắn kết và tiếng nói chung giữa các thành viên, dấu hiệu nhà vẫn còn muốn ngồi lại với nhau',
@@ -55,7 +55,7 @@ export const QMDJ_DICTIONARY = {
       }
     ),
     'Cửu Địa': withDefault(
-      'bám nền, đi chậm chắc, giữ thế thủ, lấy ổn định làm lợi thế',
+      'hầm trú ẩn an toàn, nơi tích lũy, chôn giấu, giữ nền và chịu lực đường dài',
       {
         'bat-dong-san': 'đất đai, nền móng, giá trị giữ lâu, thứ nào chắc gốc thì mới đáng xuống tiền',
         'gia-dao': 'chuyện nhà cần người giữ nền, giữ nhịp, không phải người thắng lời qua tiếng lại',
@@ -63,7 +63,7 @@ export const QMDJ_DICTIONARY = {
       }
     ),
     'Cửu Thiên': withDefault(
-      'tầm nhìn cao, bứt tốc, đẩy mọi thứ đi rất nhanh và rất xa',
+      'tầm nhìn đại lộ, đôi cánh đại bàng, thứ đẩy mọi chuyện đi rất nhanh và rất xa',
       {
         'hoc-tap': 'tài liệu hoặc cơ hội học đang phi tới rất nhanh, bắt được nhịp thì tiến cực gắt',
         'su-nghiep': 'có cửa bật lên mạnh, được nhìn thấy hoặc kéo ra vị trí cao hơn',
@@ -71,7 +71,7 @@ export const QMDJ_DICTIONARY = {
       }
     ),
     'Chu Tước': withDefault(
-      'miệng lưỡi, lời ra tiếng vào, thông tin lan nhanh và dễ thành drama',
+      'cái loa phóng thanh, nơi lời ra tiếng vào, giấy tờ và tin đồn bị khuếch đại thành ồn ào',
       {
         'su-nghiep': 'tin đồn văn phòng hoặc phát ngôn sai lúc khiến bạn mất điểm',
         'tinh-duyen': 'nói quá tay, nhắn sai nhịp, để người ngoài chen vào câu chuyện của hai người',
@@ -79,7 +79,7 @@ export const QMDJ_DICTIONARY = {
       }
     ),
     'Câu Trận': withDefault(
-      'ràng buộc, kéo chân, tranh chấp, tình thế mắc lại khó đi nhanh',
+      'sợi dây xích chân, thứ níu bạn lại bằng nợ cũ, tranh chấp cũ hoặc một thế mắc kẹt khó đi nhanh',
       {
         'doi-no': 'cần chứng cứ, giấy tờ, quy trình rõ ràng mới kéo được tiền về',
         'kien-tung': 'thế kiện tụng, bị mắc vào thủ tục hoặc rào cản pháp lý',

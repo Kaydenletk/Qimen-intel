@@ -285,6 +285,65 @@ function summarizeEnergyState(state = {}) {
   return parts.join(' · ');
 }
 
+function hasNamedSignal(items = [], matcher) {
+  if (!Array.isArray(items) || !matcher) return false;
+  return items.some(item => {
+    const name = normalizePatternName(item);
+    return matcher.test(String(name || ''));
+  });
+}
+
+function isDynamicHourState(state = {}) {
+  const star = String(state?.star || '');
+  const flags = Array.isArray(state?.flags) ? state.flags : [];
+  const tension = String(state?.tension || '');
+  return (
+    /Thiên Xung/i.test(star)
+    || flags.includes('Dịch Mã')
+    || tension === 'Xung'
+    || hasNamedSignal(state?.specialPatterns, /thiên độn|nhân độn|dịch mã/i)
+  );
+}
+
+function buildPivotPoint(bundle = {}) {
+  const hourState = bundle?.hourState || null;
+  const userState = bundle?.userState || null;
+  if (!hourState) return null;
+
+  const signals = [];
+
+  if (/Trực Phù/i.test(String(hourState.deity || ''))) {
+    signals.push({
+      key: 'truc_phu_hour',
+      title: 'Trực Phù giáng lâm',
+      summary: 'Trực Phù đã giáng lâm ở Cung Giờ: đây là lệnh bài miễn tử. Dù toàn cục còn âm u, giờ này vẫn có một luồng che chở đủ để nhìn xuyên màn sương.',
+    });
+  }
+
+  if (/Thiên Xung/i.test(String(hourState.star || ''))) {
+    signals.push({
+      key: 'thien_xung_hour',
+      title: 'Thiên Xung thông mạch',
+      summary: 'Thiên Xung nhập giờ như một cú hích điện từ: đại não thông mạch, trực giác bật sáng, nhịp trì trệ bắt đầu gãy.',
+    });
+  }
+
+  if (/Câu Trận/i.test(String(userState?.deity || '')) && isDynamicHourState(hourState)) {
+    signals.push({
+      key: 'let_go_gain',
+      title: 'Buông bỏ để được',
+      summary: 'Nhật Can đang bị Câu Trận níu lại, nhưng giờ đã có lực động. Điểm sáng không đến từ việc gồng thêm, mà đến từ lúc thôi vùng vẫy và để áp lực tự rơi khỏi vai.',
+    });
+  }
+
+  if (!signals.length) return null;
+
+  return {
+    signals,
+    summary: signals.map(item => item.summary).join(' '),
+  };
+}
+
 export function buildPalaceEnergyState({
   palaceNum = null,
   palace = null,
@@ -456,11 +515,36 @@ export function buildEnergyStateBundle({
     })
     : null;
 
+  const userPalaceNum = Number(
+    qmdjData?.selectedTopicMarkersForAI?.userPalace
+    || qmdjData?.dayMarkerPalace
+    || 0
+  ) || null;
+
+  const userState = userPalaceNum
+    ? buildPalaceEnergyState({
+      palaceNum: userPalaceNum,
+      palace: getPalaceByNum(boardData, userPalaceNum),
+      solarTerm,
+      isPhucAm: Boolean(qmdjData?.isPhucAm),
+      isPhanNgam: Boolean(qmdjData?.isPhanNgam),
+      label: 'Nhật Can',
+    })
+    : null;
+
   const energyStates = {
     usefulGod: usefulGodState,
+    user: userState,
     hour: hourState,
     directEnvoy: directEnvoyState,
   };
+
+  const pivotPoint = buildPivotPoint({
+    usefulGodState,
+    userState,
+    hourState,
+    directEnvoyState,
+  });
 
   let topicStateSummary = '';
   if (usefulGodState) {
@@ -469,12 +553,17 @@ export function buildEnergyStateBundle({
       topicStateSummary += ` ${usefulGodState.rescueCondition}`;
     }
   }
+  if (pivotPoint?.summary) {
+    topicStateSummary = [topicStateSummary, pivotPoint.summary].filter(Boolean).join(' ');
+  }
 
   return {
     energyStates,
     usefulGodState,
+    userState,
     hourState,
     directEnvoyState,
+    pivotPoint,
     topicStateSummary,
   };
 }
@@ -509,9 +598,17 @@ function buildSingleStateContext(title, state) {
 export function buildEnergyStateContext(bundle = {}) {
   const parts = [
     buildSingleStateContext('Dụng Thần', bundle?.usefulGodState),
+    buildSingleStateContext('Nhật Can', bundle?.userState),
     buildSingleStateContext('Cung Giờ', bundle?.hourState),
     buildSingleStateContext('Trực Sử', bundle?.directEnvoyState),
   ].filter(Boolean);
-  if (!parts.length) return '';
-  return ['[ENERGY STATE]', ...parts].join('\n');
+  const pivotPoint = bundle?.pivotPoint;
+  const pivotContext = pivotPoint?.signals?.length
+    ? [
+      '[PIVOT POINT]',
+      ...pivotPoint.signals.map(item => `- ${item.title}: ${item.summary}`),
+    ].join('\n')
+    : '';
+  if (!parts.length && !pivotContext) return '';
+  return ['[ENERGY STATE]', ...parts, pivotContext].filter(Boolean).join('\n');
 }

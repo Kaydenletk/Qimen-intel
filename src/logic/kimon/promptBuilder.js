@@ -61,21 +61,22 @@ function buildPROFrameworkContext(qmdjData = {}) {
   if (!markers) return '';
 
   const lines = [
-    '[BẢN ĐỒ 4 BƯỚC CHO AI]',
+    '[NEO NỘI BỘ CHO AI]',
+    '- Đây là sơ đồ nội bộ để khóa trục suy luận. Không được biến các neo này thành heading hay giọng thuyết minh trong output.',
     markers.rootCausePalace
-      ? `- Bước 1 (Gốc rễ): Đọc cung ${markers.rootCausePalace} (${markers.rootCausePalaceName}) — Dụng Thần, gốc rễ vấn đề.`
+      ? `- Neo Dụng Thần: cung ${markers.rootCausePalace} (${markers.rootCausePalaceName}) — nơi phải đâm thẳng vào bản chất sự việc.`
       : '',
     markers.rootCausePalace
-      ? `- Bước 2 (Tình trạng): Đọc Môn + Tinh + Thần tại cung ${markers.rootCausePalace} để thấy nhịp và tính chất sự việc.`
+      ? `- Neo Tình Trạng: đọc Môn + Tinh + Thần tại cung ${markers.rootCausePalace} để thấy nhịp và tính chất sự việc.`
       : '',
     markers.userPalace
-      ? `- Bước 3 (Tâm lý): Đọc cung ${markers.userPalace} (${markers.userPalaceName}) — Nhật Can, tâm lý và vị thế người hỏi.`
-      : '- Bước 3 (Tâm lý): Nhật Can chưa xác định rõ trên bàn, đọc Cung Giờ thay thế.',
+      ? `- Neo Người Hỏi: cung ${markers.userPalace} (${markers.userPalaceName}) — Nhật Can, tâm lý và vị thế người hỏi.`
+      : '- Neo Người Hỏi: Nhật Can chưa xác định rõ trên bàn, đọc Cung Giờ thay thế.',
     markers.actionPalace
-      ? `- Bước 4 (Mưu lược): Đọc cung ${markers.actionPalace} (${markers.actionPalaceName}) — Trực Sử, đường thoát hiểm và hành động.`
-      : '- Bước 4 (Mưu lược): Tìm cung có Cát Tinh/Cát Thần gần nhất.',
+      ? `- Neo Hành Động: cung ${markers.actionPalace} (${markers.actionPalaceName}) — Trực Sử, đường thoát hiểm và hành động.`
+      : '- Neo Hành Động: Tìm cung có Cát Tinh/Cát Thần gần nhất.',
     markers.blockerFlags?.length
-      ? `- Blocker tại cung Dụng Thần: ${markers.blockerFlags.join(', ')}.`
+      ? `- Chốt chặn tại cung Dụng Thần: ${markers.blockerFlags.join(', ')}.`
       : '',
   ];
 
