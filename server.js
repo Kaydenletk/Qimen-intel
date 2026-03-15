@@ -3031,7 +3031,7 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
     .kimon-message { padding: 12px 14px; border-radius: 12px; font-size: 0.9375rem; line-height: 1.65; }
     .kimon-message-ai {
-      background: transparent; border: none; color: var(--kimon-ai-text);
+      background: transparent; border: none; color: var(--kimon-ai-text); padding: 0; border-radius: 0;
     }
     .kimon-message-user {
       background: var(--kimon-user-bubble-bg); border: 1px solid var(--kimon-user-bubble-border); color: var(--kimon-user-bubble-text);
@@ -3049,12 +3049,13 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .kimon-section-title {
       display: block;
       margin: 0 0 10px;
-      font-size: 0.76rem;
-      font-weight: 700;
+      font-size: 0.94rem;
+      font-weight: 800;
       letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--surface-highlight-text);
-      opacity: 0.86;
+      text-transform: none;
+      color: #f8fbff;
+      text-shadow: 0 0 18px rgba(96, 165, 250, 0.16);
+      opacity: 1;
     }
     .kimon-time-note {
       color: var(--muted);
@@ -3118,10 +3119,10 @@ function generateHTML(date, hour, minute = 0, options = {}) {
 
     .kymon-summary-box {
       margin: 0 0 16px;
-      padding: 12px 14px;
-      border-radius: 14px;
-      background: var(--surface-highlight);
-      border: 1px solid var(--surface-highlight-border);
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      border: none;
       color: var(--surface-highlight-text);
       line-height: 1.7;
     }
@@ -3147,21 +3148,21 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
 
     .kymon-verdict-card {
-      padding: 14px 16px;
-      border-radius: 16px;
-      background:
-        linear-gradient(180deg, rgba(96, 165, 250, 0.14) 0%, rgba(15, 23, 42, 0.56) 100%);
-      border: 1px solid rgba(96, 165, 250, 0.22);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      border: none;
+      box-shadow: none;
     }
 
     .kymon-verdict-card strong:first-of-type,
     .kymon-verdict-card b:first-of-type {
       display: block;
       margin-bottom: 10px;
-      font-size: 1.2rem;
+      font-size: 1.22rem;
       line-height: 1.34;
-      color: var(--surface-highlight-text);
+      color: #f8fbff;
+      text-shadow: 0 0 18px rgba(96, 165, 250, 0.14);
     }
 
     .kymon-verdict-card br {
@@ -3195,14 +3196,44 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     .kymon-analysis-flow b,
     .kymon-action-footer strong,
     .kymon-action-footer b {
-      font-weight: 600;
-      color: var(--text);
+      font-weight: 700;
+      color: #f8fbff;
     }
 
     .kymon-analysis-flow br {
       display: block;
       content: "";
       margin-top: 15px;
+    }
+
+    .kymon-clean-layout h3,
+    .kimon-inline-heading {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      line-height: 1.42;
+      font-weight: 800;
+      color: #f8fbff;
+      text-shadow: 0 0 18px rgba(96, 165, 250, 0.16);
+    }
+
+    .kimon-inline-paragraph {
+      margin: 0 0 14px;
+    }
+
+    .kimon-inline-paragraph:last-child {
+      margin-bottom: 0;
+    }
+
+    .kimon-inline-list {
+      margin: 0 0 14px;
+      padding-left: 1.15rem;
+      display: grid;
+      gap: 8px;
+      color: var(--text-soft);
+    }
+
+    .kimon-inline-list:last-child {
+      margin-bottom: 0;
     }
 
     .kymon-action-footer {
@@ -3545,6 +3576,9 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       background: transparent;
       margin-right: auto;
       border: none;
+      padding: 0;
+      border-radius: 0;
+      max-width: 100%;
     }
     .kimon-message-user {
       background: var(--kimon-user-bubble-bg);
@@ -4044,10 +4078,52 @@ function generateHTML(date, hour, minute = 0, options = {}) {
       let normalized = String(raw || '');
       normalized = normalized.split('\\\\r\\\\n').join('\\n');
       normalized = normalized.split('\\\\n').join('\\n');
-      let formatted = escapeHTML(normalized);
-      formatted = replaceDelimitedPairs(formatted, '**', '<strong>', '</strong>');
-      formatted = replaceDelimitedPairs(formatted, '*', '<em>', '</em>');
-      return formatted.split('\\n').join('<br>');
+
+      const applyInlineMarkdown = value => {
+        let formatted = escapeHTML(value);
+        formatted = replaceDelimitedPairs(formatted, '**', '<strong>', '</strong>');
+        formatted = replaceDelimitedPairs(formatted, '*', '<em>', '</em>');
+        return formatted;
+      };
+
+      const lines = normalized.split('\\n');
+      const html = [];
+      let inList = false;
+
+      const closeList = () => {
+        if (!inList) return;
+        html.push('</ul>');
+        inList = false;
+      };
+
+      lines.forEach(line => {
+        const trimmed = String(line || '').trim();
+        if (!trimmed) {
+          closeList();
+          return;
+        }
+
+        if (/^###\\s+/.test(trimmed)) {
+          closeList();
+          html.push('<h3 class="kimon-inline-heading">' + applyInlineMarkdown(trimmed.replace(/^###\\s+/, '')) + '</h3>');
+          return;
+        }
+
+        if (/^(?:\\*|-)\\s+/.test(trimmed)) {
+          if (!inList) {
+            html.push('<ul class="kimon-inline-list">');
+            inList = true;
+          }
+          html.push('<li>' + applyInlineMarkdown(trimmed.replace(/^(?:\\*|-)\\s+/, '')) + '</li>');
+          return;
+        }
+
+        closeList();
+        html.push('<p class="kimon-inline-paragraph">' + applyInlineMarkdown(trimmed) + '</p>');
+      });
+
+      closeList();
+      return html.join('');
     }
 
     function pad2(value) {

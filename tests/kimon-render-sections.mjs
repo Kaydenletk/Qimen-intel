@@ -16,7 +16,10 @@ assert.doesNotMatch(serverSource, /\.score-wrap \{|\.score-head \{|\.score-track
 assert.match(serverSource, /function formatKimonRichText\(/, 'Renderer phải có formatter cho markdown nhẹ');
 assert.ok(serverSource.includes("normalized = normalized.split('\\\\\\\\r\\\\\\\\n').join('\\\\n');"), 'Formatter phải quy đổi literal CRLF escaped thành xuống dòng thật');
 assert.ok(serverSource.includes("normalized = normalized.split('\\\\\\\\n').join('\\\\n');"), 'Formatter phải quy đổi literal newline escaped thành xuống dòng thật');
-assert.ok(serverSource.includes("return formatted.split('\\\\n').join('<br>');"), 'Formatter phải chuyển newline thành <br> an toàn');
+assert.match(serverSource, /const applyInlineMarkdown = value =>/, 'Formatter phải có lớp inline markdown riêng');
+assert.match(serverSource, /<h3 class="kimon-inline-heading">/, 'Formatter phải đổi ### thành heading thật');
+assert.match(serverSource, /<ul class="kimon-inline-list">/, 'Formatter phải đổi bullet thành list thật');
+assert.match(serverSource, /<p class="kimon-inline-paragraph">/, 'Formatter phải bọc paragraph thành block riêng');
 assert.match(serverSource, /else if \(ch === '\\\\''\) escaped \+= '&#39;';/, 'escapeHTML trong script browser phải escape dấu nháy đơn đúng cách');
 
 assert.match(serverSource, /<div class="kimon-message kimon-message-ai kimon-greeting">/, 'Greeting phải được render sẵn trong HTML');
@@ -179,7 +182,11 @@ assert.match(serverSource, /\.kymon-closing-quote \{/, 'Quote footer phải có 
 assert.match(serverSource, /\.kymon-closing-quote \{[\s\S]*color: rgba\(203, 213, 225, 0\.82\);/s, 'Quote footer phải chuyển sang light grey');
 assert.match(serverSource, /\.kymon-closing-quote \{[\s\S]*font-style: italic;/s, 'Quote footer nên có chất quote rõ hơn');
 assert.match(serverSource, /\.kymon-action-list \{/, 'Action list phải có style riêng');
-assert.match(serverSource, /\.kimon-section-title \{[\s\S]*font-weight: 700;[\s\S]*color: var\(--surface-highlight-text\);/s, 'Chỉ subtitle mới nên giữ nhấn mạnh rõ');
+assert.match(serverSource, /\.kimon-message-ai \{[\s\S]*padding: 0;[\s\S]*border-radius: 0;/s, 'Bubble AI phải bỏ padding và bo góc để nội dung chảy thẳng trên nền');
+assert.match(serverSource, /\.kymon-verdict-card \{[\s\S]*background: transparent;[\s\S]*border: none;/s, 'Verdict card phải bỏ khung nền và viền');
+assert.match(serverSource, /\.kimon-section-title \{[\s\S]*font-weight: 800;[\s\S]*color: #f8fbff;/s, 'Subtitle phải sáng và rõ hơn trên nền tối');
+assert.match(serverSource, /\.kimon-inline-heading \{[\s\S]*font-weight: 800;/s, 'Heading inline phải có style nổi bật');
+assert.match(serverSource, /\.kimon-inline-list \{/, 'List inline phải có style riêng');
 assert.match(serverSource, /\.print-mini-title\{/, 'PDF phải có subtitle mini title riêng');
 assert.match(serverSource, /\.kimon-download-btn \{/, 'Nút tải PDF phải có style riêng');
 assert.match(serverSource, /\.kimon-disclaimer \{/, 'Disclaimer phải có style riêng');
