@@ -4700,8 +4700,78 @@ function generateHTML(date, hour, minute = 0, options = {}) {
     }
 
     function normalizeKimonTextBlock(rawText) {
+      const technicalTokens = [
+        'Khai Môn',
+        'Hưu Môn',
+        'Sinh Môn',
+        'Thương Môn',
+        'Đỗ Môn',
+        'Cảnh Môn',
+        'Tử Môn',
+        'Kinh Môn',
+        'Thiên Bồng',
+        'Thiên Nhuế',
+        'Thiên Xung',
+        'Thiên Phụ',
+        'Thiên Cầm',
+        'Thiên Tâm',
+        'Thiên Trụ',
+        'Thiên Nhậm',
+        'Thiên Anh',
+        'Trực Phù',
+        'Trực Sử',
+        'Đằng Xà',
+        'Thái Âm',
+        'Lục Hợp',
+        'Chu Tước',
+        'Cửu Địa',
+        'Cửu Thiên',
+        'Câu Trận',
+        'Huyền Vũ',
+        'Bạch Hổ',
+      ];
+
+      const escapeRegExpForKimon = value => String(value || '')
+        .replace(/[.*+?^()|[\]\\]/g, '\\$&')
+        .replace(/\{/g, '\\{')
+        .replace(/\}/g, '\\}');
+      const technicalSubtitleRegex = new RegExp(technicalTokens.map(escapeRegExpForKimon).join('|'), 'gu');
+
+      const isKimonTechnicalSubtitle = label => {
+        const raw = String(label || '').trim();
+        if (!raw) return false;
+        const stripped = raw
+          .replace(technicalSubtitleRegex, '')
+          .replace(/[\\s+×x/&(),.-]+/gu, '')
+          .trim();
+        return stripped.length === 0;
+      };
+
+      const sanitizeKimonTechnicalSubtitleLine = line => {
+        const raw = String(line || '');
+        const trimmed = raw.trim();
+        if (!trimmed) return raw;
+
+        const headingMatch = trimmed.match(/^###\\s+(.+)$/u);
+        if (headingMatch && isKimonTechnicalSubtitle(headingMatch[1])) {
+          return '';
+        }
+
+        const leadLabelMatch = trimmed.match(/^(?:\\*|-|•)\\s+(?:\\*\\*)?([^:\\n]+?)(?:\\*\\*)?:\\s*(.*)$/u)
+          || trimmed.match(/^(?:\\*\\*)?([^:\\n]+?)(?:\\*\\*)?:\\s*(.*)$/u);
+
+        if (!leadLabelMatch) return raw;
+
+        const [, label, body] = leadLabelMatch;
+        if (!isKimonTechnicalSubtitle(label)) return raw;
+        return body ? body.trim() : '';
+      };
+
       return String(rawText || '')
         .replace(/\\r\\n/g, '\\n')
+        .split('\\n')
+        .map(sanitizeKimonTechnicalSubtitleLine)
+        .join('\\n')
         .replace(/\\n{3,}/g, '\\n\\n')
         .trim();
     }

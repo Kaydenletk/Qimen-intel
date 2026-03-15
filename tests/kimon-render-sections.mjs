@@ -105,6 +105,12 @@ assert.match(serverSource, /registerConversationEntry\(\{\s*role: 'ai'/s, 'Respo
 assert.match(serverSource, /registerConversationEntry\(\{\s*role: 'user'/s, 'User message phải được ghi vào transcript store');
 
 assert.match(serverSource, /function normalizeKimonTextBlock\(rawText\)/, 'Phải có helper normalize text block chung cho render');
+assert.match(serverSource, /const technicalTokens = \[/, 'Normalize text phải có danh sách thuật ngữ kỹ thuật để dọn subtitle');
+assert.match(serverSource, /const isKimonTechnicalSubtitle = label =>/, 'Phải có helper nhận diện subtitle kỹ thuật trần');
+assert.match(serverSource, /const sanitizeKimonTechnicalSubtitleLine = line =>/, 'Phải có helper dọn subtitle kỹ thuật khỏi text block');
+assert.match(serverSource, /headingMatch && isKimonTechnicalSubtitle\(headingMatch\[1\]\)/, 'Heading kỹ thuật trần phải bị loại bỏ');
+assert.match(serverSource, /if \(!isKimonTechnicalSubtitle\(label\)\) return raw;/, 'Chỉ subtitle kỹ thuật mới bị dọn');
+assert.match(serverSource, /return body \? body\.trim\(\) : '';/, 'Nếu subtitle kỹ thuật có thân bài cùng dòng thì phải giữ lại phần thân bài');
 assert.match(serverSource, /function splitKimonParagraphs\(rawText\)/, 'Phải có helper tách paragraph theo block');
 assert.match(serverSource, /function normalizeKimonDedupKey\(rawText\)/, 'Phải có helper normalize dedupe key');
 assert.match(serverSource, /function areKimonParagraphsNearDuplicate\(left, right\)/, 'Phải có helper fuzzy dedupe paragraph');

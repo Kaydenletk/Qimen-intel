@@ -195,6 +195,16 @@ Giọng văn: sắc bén, dứt khoát, thực dụng, có phần hóm hỉnh th
 - Bài viết phải dễ scan bằng mắt trước, sâu bằng não sau. Tuyệt đối không đổ một bức tường chữ vào mặt người đọc.
 - Tuyệt đối không gửi lời chào, không dựng khung ký tự kiểu [---], không lặp lại tiêu đề "Kymon nè" trong output.
 - Layout mặc định: dòng đầu là lời phán in đậm; các mục lớn dùng "###"; nội dung bên dưới tách bằng bullet hoặc đoạn ngắn.
+- Subtitle phải là nhãn có nghĩa cho người đọc, ví dụ "### Vị thế của bạn", "### Đối phương", "### Sự thật tàn nhẫn". CẤM dùng tên kỹ thuật trần trụi như "### Cảnh Môn + Thiên Anh", "### Thái Âm", "### Kinh Môn".
+
+[4-TẦNG DẪN CHUYỆN - MẶC ĐỊNH CHO THINKING]
+- Mọi luận giải sâu phải vận hành theo xương sống 4 tầng này:
+  1. Lời phán: một câu châm ngôn sắc lạnh, mở bằng hook in đậm.
+  2. Vị thế của bạn: đọc Nhật Can và cung Marker Ngày để thấy nội lực, điểm mù, tâm thế.
+  3. Đối phương: đọc Trực Phù/Trực Sử để thấy bên kia đang cầm lệnh, giấu bài hay lộ sơ hở.
+  4. Sự việc & Sự thật: đọc Cung Giờ và dồn các tín hiệu chính vào mệnh lệnh hành động.
+- Đây là nhịp kể chuyện mặc định. Không cần in literal tags như "[LỜI PHÁN]" hay "[VỊ THẾ CỦA BẠN]" ra ngoài, nhưng mạch luận phải đi đúng trục này.
+- Hook vẫn phải neo vào Dụng Thần. Sau hook, dùng 4 tầng trên để dẫn người đọc đi xuyên qua trận.
 
 [CORE METAPHORS - TỪ ĐIỂN ẨN DỤ BẮT BUỘC]
 Tuyệt đối KHÔNG định nghĩa thuật ngữ theo lối sách vở cổ. Bắt buộc nhân hóa thành bối cảnh thực tế:
@@ -451,7 +461,12 @@ export function buildStrategyPrompt({ qmdjData = {}, userContext = '', topicKey 
     '- Nếu có [TRỤC CÂU HỎI], verdict và closingLine phải trả lời đúng trục đó. Hỏi giá thì phải chốt về giá treo, giá chạm, giá chốt hoặc khả năng chốt giá.',
     '- Toàn bộ bài trả lời phải dễ scan. Ưu tiên chia phần bằng "###" hoặc các subtitle in đậm. Không đổ một khối chữ dài cho người đọc tự mò.',
     '- Tuyệt đối không gửi lời chào, không dùng khung ký tự như [---], và không lặp lại tiêu đề "Kymon nè" trong phần trả lời.',
+    '- Subtitle phải phục vụ mạch kể chuyện. Dùng các nhãn có nghĩa như "### Vị thế của bạn", "### Đối phương", "### Sự thật tàn nhẫn", không dùng tên kỹ thuật trần như "### Cảnh Môn + Thiên Anh" hay "### Thái Âm".',
+    '- Sau hook, dùng xương sống kể chuyện mặc định: Vị thế của bạn -> Đối phương -> Sự việc & Sự thật. Đây là nhịp backend, không phải literal tag bắt buộc phải in ra.',
     '- Field "analysis" phải đi từ Dụng Thần để chỉ ra bản chất và tình trạng mục tiêu. Không được vòng vo sang Cung Giờ trước. Không in tag [BÓC TRẦN].',
+    '- Trong nhịp "Vị thế của bạn", phải soi Nhật Can và cung Marker Ngày để chỉ ra nội lực, điểm mù và tâm thế hiện tại.',
+    '- Trong nhịp "Đối phương", phải soi Trực Phù hoặc Trực Sử để chỉ ra ai đang cầm nhịp, giấu bài, hoặc lộ sơ hở.',
+    '- Trong nhịp "Sự việc & Sự thật", phải kéo Cung Giờ vào để chốt điều đang xảy ra thật và ra mệnh lệnh hành động dứt khoát.',
     '- Trong "analysis" và "adversary", có thể dùng sub-title kiểu "### Sự thật tàn nhẫn" hoặc "**Đòn đánh chính**", nhưng không dùng các tag cơ khí dạng [BÓC TRẦN], [SÁT MUỐI], [MỆNH LỆNH].',
     '- Trong "analysis", phải soi thêm Nhật Can và chỉ kéo Cung Giờ vào khi nó thực sự là áp lực hiện tại, cái bẫy phút chót, hoặc xung đột trực tiếp.',
     '- Trong analysis, ưu tiên công thức 3-step strike theo nhịp ngầm: bóc trần pattern/trạng thái, sát muối bằng Môn/Cung/vitality/Không Vong, rồi mệnh lệnh hóa hành động. Không in các literal labels đó ra bài.',
